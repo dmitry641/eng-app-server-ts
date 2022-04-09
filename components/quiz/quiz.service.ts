@@ -80,7 +80,7 @@ export class QuestionService {
     return QuestionModel.create(obj);
   }
   static async findQuestions(
-    query: FilterQuery<IQuestion>
+    query: FilterQuery<IQuestion> = {}
   ): Promise<IQuestion[]> {
     return QuestionModel.find(query);
   }
@@ -95,7 +95,7 @@ export class QuestionService {
 }
 export class UserTopicService {
   static async findUserTopics(
-    query: FilterQuery<IUserTopic>
+    query: FilterQuery<IUserTopic> = {}
   ): Promise<IUserTopic[]> {
     return UserTopicModel.find(query);
   }
@@ -121,7 +121,7 @@ export class UserQuestionService {
     return UserQuestionModel.create(obj);
   }
   static async findUserQuestions(
-    query: FilterQuery<IUserQuestion>
+    query: FilterQuery<IUserQuestion> = {}
   ): Promise<IUserQuestion[]> {
     return UserQuestionModel.find(query);
   }
@@ -134,6 +134,7 @@ function getCurrentUserTopic(userTopics: IUserTopic[]): IUserTopic | undefined {
   );
   if (currentTopic) return currentTopic;
 
+  // FIX ME. отсортировать по updatedAt?
   const pausedTopic = userTopics.find(
     (topic) => topic.status == UserTopicStatusEnum.paused
   );
