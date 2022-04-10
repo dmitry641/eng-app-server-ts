@@ -1,15 +1,9 @@
-import fs from "fs";
 import path from "path";
-import csv from "csv-parser";
 import { QuestionService, TopicService } from "./quiz.service";
-
-const pathToData = path.resolve(__dirname, "quizdata");
-const dataFileNames = ["esldiscussions", "iteslj"];
-const csvHeaders = ["topicName", "question"] as const;
-
-type ParsedCSVData = {
-  [K in typeof csvHeaders[number]]: string;
-};
+import { AnyKeys } from "mongoose";
+import { ITopic } from "./models/topics.model";
+import { IQuestion } from "./models/questions.model";
+import { getBuffer, getCsvData } from "../../utils";
 
 export async function quizDBInitialize() {
   const topics = await TopicService.findTopics();
@@ -18,31 +12,52 @@ export async function quizDBInitialize() {
   if (topics.length) await TopicService.dropTopics();
   if (questions.length) await QuestionService.dropQuestions();
   console.log("Quiz: Topics and questions collections are creating...");
-  await createCollections();
+  await createCollections({
+    csvFileNames: ["esldiscussions", "iteslj"],
+    pathToDir: path.resolve(__dirname, "quizdata"),
+    csvHeaders: ["topicName", "question"],
+  });
   console.log("Quiz: Topics and questions collections created.");
 }
 
-async function createCollections() {
-  // esldissussion: line 5451, 5462, 8913 should be removed manually
-  let promises = dataFileNames.map(async (fileName) => {
-    let data = await getCsvData(fileName + ".csv");
-    return { source: fileName, data };
-  });
-  let csvData = await Promise.all(promises);
+type CreateCollType = {
+  csvFileNames: string[];
+  pathToDir: string;
+  csvHeaders: string[];
+};
+// esldissussion: line 5451, 5462, 8913 should be removed manually
+async function createCollections({
+  csvFileNames,
+  pathToDir,
+  csvHeaders,
+}: CreateCollType) {
+  type CsvKeys = { [K in typeof csvHeaders[number]]: string };
 
-  for (let elem of csvData) {
-    await createNewQuestion(elem);
+  let parsedData: {
+    source: string;
+    data: CsvKeys[];
+  }[] = [];
+
+  for (let fileName of csvFileNames) {
+    const pathToFile = path.resolve(pathToDir, fileName + ".csv");
+    const buffer = getBuffer(pathToFile);
+    const data = await getCsvData<CsvKeys>(buffer, csvHeaders, "|");
+    parsedData.push({ source: fileName, data });
+  }
+
+  for (let { source, data } of parsedData) {
+    await createNewQuestion<CsvKeys>(source, data);
   }
 }
 
-type CreateNewQuestionAttr = {
-  source: string;
-  data: ParsedCSVData[];
-};
-async function createNewQuestion({ source, data }: CreateNewQuestionAttr) {
-  let uniqueTopics = new Set(
-    data.map((qwe) => {
-      return qwe.topicName;
+// AnyKeys - костыль
+async function createNewQuestion<T extends AnyKeys<ITopic & IQuestion>>(
+  source: string,
+  data: T[]
+) {
+  let uniqueTopics = new Set<string>(
+    data.map((t) => {
+      return t.topicName;
     })
   );
 
@@ -57,19 +72,4 @@ async function createNewQuestion({ source, data }: CreateNewQuestionAttr) {
       });
     }
   }
-}
-
-async function getCsvData(filename: string): Promise<ParsedCSVData[]> {
-  return new Promise((resolve, reject) => {
-    const results: ParsedCSVData[] = [];
-    const pathToFile = path.resolve(pathToData, filename);
-    const isFileExists = fs.existsSync(pathToFile);
-    if (!isFileExists) reject(`${pathToFile} doesn't exists`);
-
-    fs.createReadStream(pathToFile)
-      .pipe(csv({ headers: csvHeaders, separator: "|" }))
-      .on("data", (data: ParsedCSVData) => results.push(data))
-      .on("end", () => resolve(results))
-      .on("error", (err) => reject(err));
-  });
 }
