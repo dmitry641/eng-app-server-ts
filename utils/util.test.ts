@@ -26,15 +26,67 @@ describe("Util: getCsvData function", () => {
       "\n"
     ).length;
     const buffer = getBuffer(tc.pathToFile);
-    const result = await getCsvData<{}>(buffer, tc.csvHeaders, "|");
+    type CsvKeys = { [K in typeof tc.csvHeaders[number]]: string }; // близко, но не совсем то что нужно
+    const result = await getCsvData<CsvKeys>(
+      buffer,
+      tc.csvHeaders,
+      tc.separator
+    );
     expect(result.length).toBe(lines);
     for (let obj of result) {
       expect(Object.keys(obj)).toEqual(tc.csvHeaders);
     }
   });
-  it.todo("mime type/csv check");
-  it.todo("broken csv files check");
-  it.todo("headers, separator, result");
-  it.todo("не соответствие количества хедеров и колонок из файла");
-  it.todo("не соответствие сепаратора");
+
+  it.todo("Text-based format");
+  // it("text-based format -> error?", () => {
+  //   const tc = quizTestCases.case4;
+  //   const buffer = getBuffer(tc.pathToFile);
+  //   expect(getCsvData(buffer, tc.csvHeaders)).rejects.toMatch("???");
+  // });
+  it.todo("Non text-based format");
+  // it("text-based format -> error?", () => {
+  //   const tc = quizTestCases.case5;
+  //   const buffer = getBuffer(tc.pathToFile);
+  //   expect(getCsvData(buffer, tc.csvHeaders)).rejects.toMatch("???");
+  // });
+
+  it("correct buffer; empty headers -> thrown error", () => {
+    const tc = quizTestCases.case2;
+    const buffer = getBuffer(tc.pathToFile);
+    expect(getCsvData(buffer, tc.csvHeaders)).rejects.toMatch(
+      "csvHeaders is empty"
+    );
+  });
+  it("correct buffer; excess headers -> []", async () => {
+    const tc = quizTestCases.case6;
+    const buffer = getBuffer(tc.pathToFile);
+    const result = await getCsvData(buffer, tc.csvHeaders, tc.separator);
+    expect(result).toEqual([]);
+  });
+  it("correct buffer; lack of headers -> []", async () => {
+    const tc = quizTestCases.case7;
+    const buffer = getBuffer(tc.pathToFile);
+    const result = await getCsvData(buffer, tc.csvHeaders, tc.separator);
+    expect(result).toEqual([]);
+  });
+  it("correct buffer, headers amount; wrong separator(not existing) -> []", async () => {
+    const tc = quizTestCases.case8;
+    const buffer = getBuffer(tc.pathToFile);
+    const result = await getCsvData(buffer, tc.csvHeaders, tc.separator);
+    expect(result).toEqual([]);
+  });
+  it("correct buffer, headers amount; wrong separator(existing) -> []", async () => {
+    const tc = quizTestCases.case9;
+    let lines = readFileSync(tc.pathToFile, { encoding: "utf-8" }).split(
+      "\n"
+    ).length;
+    lines--; // minus one broken line
+    const buffer = getBuffer(tc.pathToFile);
+    const result = await getCsvData<{}>(buffer, tc.csvHeaders, tc.separator);
+    expect(result.length).toBe(lines);
+    for (let obj of result) {
+      expect(Object.keys(obj)).toEqual(tc.csvHeaders);
+    }
+  });
 });

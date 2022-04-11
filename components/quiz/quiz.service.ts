@@ -21,6 +21,7 @@ interface QuizInitDto {
 }
 
 // FIX ME. try catch?
+// init переименовать?
 class QuizService {
   async init(userId: ObjId): Promise<QuizInitDto> {
     const userTopics: IUserTopic[] = await UserTopicService.findUserTopics({

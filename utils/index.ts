@@ -32,19 +32,30 @@ export type DocumentWithTimestamps = Document & {
 
 export type ObjId = ObjectId;
 
-// Был вариант передавать ReadStream
+// Был вариант передавать параметром ReadStream
 // Но я решил сделать через buffer
+// А еще с Т проблемка, не получилось сделать динамический тип
+// const headers = ["qwe", "asd"] as const;
+// type CsvKeys = { [K in typeof headers[number]]: string };
+// <T1 extends Array<string>, T2 extends {[K in typeof T1[number]]: string}>
 export async function getCsvData<T>(
   buffer: Buffer,
   csvHeaders: string[],
   separator: string = ","
 ): Promise<T[]> {
   return new Promise((resolve, reject) => {
+    if (!csvHeaders.length) return reject("csvHeaders is empty"); // возможно это лишнее
     const readStream = Readable.from(buffer.toString());
     const results: T[] = [];
+    const strHeaders = JSON.stringify(csvHeaders);
     readStream
       .pipe(csvParser({ headers: csvHeaders, separator }))
-      .on("data", (data: T) => results.push(data))
+      .on("data", (data: T) => {
+        // возможно это лишнее
+        if (JSON.stringify(Object.keys(data)) === strHeaders) {
+          results.push(data);
+        }
+      })
       .on("end", () => resolve(results))
       .on("error", (err) => reject(err));
   });

@@ -51,6 +51,8 @@ async function createCollections({
 }
 
 // AnyKeys - костыль
+// возможно стоит вернуться к варианту с "as const"
+// и тогда и этого костыля не будет и дургих момемнтов с CsvKeys
 async function createNewQuestion<T extends AnyKeys<ITopic & IQuestion>>(
   source: string,
   data: T[]
