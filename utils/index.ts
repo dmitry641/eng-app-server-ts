@@ -1,7 +1,6 @@
 import csvParser from "csv-parser";
-import { Document, ObjectId } from "mongoose";
-import { Readable } from "stream";
 import { existsSync, readFileSync } from "fs";
+import { Readable } from "stream";
 
 export function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -11,26 +10,20 @@ export function randomIntFromInterval(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1) + min);
 }
 
-export function shuffle<T>(array: Array<T>) {
-  let m: number = array.length;
+export function shuffle<T>(array: T[]): T[] {
+  const newArray = [...array];
+  let m: number = newArray.length;
   let i: number;
   let t;
   while (m) {
     i = Math.floor(Math.random() * m--);
-    t = array[m];
-    array[m] = array[i];
-    array[i] = t;
+    t = newArray[m];
+    newArray[m] = newArray[i];
+    newArray[i] = t;
   }
 
-  return array;
+  return newArray;
 }
-
-export type DocumentWithTimestamps = Document & {
-  updatedAt: Date;
-  createdAt: Date;
-};
-
-export type ObjId = ObjectId;
 
 // Был вариант передавать параметром ReadStream
 // Но я решил сделать через buffer

@@ -1,5 +1,5 @@
 import { readFileSync } from "fs";
-import { getBuffer, getCsvData } from ".";
+import { getBuffer, getCsvData, shuffle } from ".";
 import { quizTestCases } from "../test/testcases";
 
 describe("Util: getBuffer function", () => {
@@ -16,6 +16,31 @@ describe("Util: getBuffer function", () => {
   it("file exists; result is buffer", async () => {
     const result = getBuffer(correctPath);
     expect(Buffer.isBuffer(result)).toBe(true);
+  });
+});
+
+describe("Util: shuffle function", () => {
+  let numbersArray = [1, 2, 3, 4, 5];
+  let stringsArray = ["a", "bb", "ccc", "dddd"];
+  let mixedArray = ["a", 1, {}, true];
+
+  it("length", () => {
+    const shuffled = shuffle(numbersArray);
+    expect(shuffled.length).toBe(numbersArray.length);
+  });
+  it("sort", () => {
+    const shuffledNumbers = shuffle(numbersArray);
+    const shuffledStrings = shuffle(stringsArray);
+    const shuffledMixed = shuffle(mixedArray);
+    expect(shuffledNumbers.sort()).toEqual(numbersArray.sort());
+    expect(shuffledStrings.sort()).toEqual(stringsArray.sort());
+    expect(shuffledMixed.sort()).toEqual(mixedArray.sort());
+  });
+  it("immutability", () => {
+    const jsonBefore = JSON.stringify(numbersArray);
+    shuffle(numbersArray);
+    const jsonAfter = JSON.stringify(numbersArray);
+    expect(jsonBefore).toBe(jsonAfter);
   });
 });
 
@@ -45,7 +70,7 @@ describe("Util: getCsvData function", () => {
   //   expect(getCsvData(buffer, tc.csvHeaders)).rejects.toMatch("???");
   // });
   it.todo("Non text-based format");
-  // it("text-based format -> error?", () => {
+  // it("non text-based format -> error?", () => {
   //   const tc = quizTestCases.case5;
   //   const buffer = getBuffer(tc.pathToFile);
   //   expect(getCsvData(buffer, tc.csvHeaders)).rejects.toMatch("???");

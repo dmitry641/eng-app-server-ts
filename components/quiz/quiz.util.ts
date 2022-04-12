@@ -1,9 +1,9 @@
-import path from "path";
-import { QuestionService, TopicService } from "./quiz.service";
 import { AnyKeys } from "mongoose";
-import { ITopic } from "./models/topics.model";
-import { IQuestion } from "./models/questions.model";
+import path from "path";
 import { getBuffer, getCsvData } from "../../utils";
+import { IQuestion } from "./models/questions.model";
+import { ITopic } from "./models/topics.model";
+import { QuestionService, TopicService } from "./quiz.service";
 
 export async function quizDBInitialize() {
   const topics = await TopicService.findTopics();
@@ -49,6 +49,15 @@ async function createCollections({
     await createNewQuestion<CsvKeys>(source, data);
   }
 }
+
+// или так
+// const quizCsvHeaders = ["topicName", "question"] as const;
+// type QuizKeysType = { [K in typeof quizCsvHeaders[number]]: string };
+// или так
+// type QuizKeysType = {
+//   topicName: ITopic["topicName"];
+//   question: IQuestion["question"];
+// };
 
 // AnyKeys - костыль
 // возможно стоит вернуться к варианту с "as const"

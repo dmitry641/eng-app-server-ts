@@ -1,5 +1,5 @@
 import { model, Schema } from "mongoose";
-import { DocumentWithTimestamps } from "../../../utils";
+import { DocumentWithTimestamps } from "../../../utils/types";
 
 export enum UserTopicStatusEnum {
   notStarted = "not started",

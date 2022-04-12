@@ -1,4 +1,4 @@
-import { ObjId, randomIntFromInterval, shuffle } from "../../utils";
+import { randomIntFromInterval, shuffle } from "../../utils";
 import { FilterQuery, AnyKeys } from "mongoose";
 import { QuestionDto } from "./dto/question.dto";
 import { UserTopicDto } from "./dto/userTopic.dto";
@@ -10,6 +10,7 @@ import {
   UserTopicStatusEnum,
 } from "./models/userTopics.model";
 import { IUserQuestion, UserQuestionModel } from "./models/userQuestions.model";
+import { ObjId } from "../../utils/types";
 
 const questionsInRowLIMIT = 7;
 const sliceEnd = 7;

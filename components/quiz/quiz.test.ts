@@ -1,22 +1,23 @@
-import { connectToTestDB, disconnectFromDB } from "../../db";
-
-describe("Quiz util", () => {
-  const pathToFile = "1";
-  const csvHeaders = [];
-
-  // createCollections
-  it("createCollections", async () => {
+describe("Quiz util: createNewQuestion", () => {
+  //   beforeAll(async () => {
+  //     await connectToTestDB();
+  //   });
+  it("", async () => {
     expect(1).toBe(1);
-    // await expect(getCsvData("qwe", [])).rejects.toContain("doesn't exists");
+  });
+  //   afterAll(async () => {
+  //     await disconnectFromDB();
+  //   });
+});
+
+describe("Quiz util: createCollections", () => {
+  it("", async () => {
+    expect(1).toBe(1);
   });
 });
 
-// describe("Quiz util", () => {
-//   beforeAll(async () => {
-//     await connectToTestDB();
-//   });
-
-//   afterAll(async () => {
-//     await disconnectFromDB();
-//   });
-// });
+describe("Quiz util: quizDBInitialize", () => {
+  it("", async () => {
+    expect(1).toBe(1);
+  });
+});
