@@ -5,7 +5,10 @@ dotenv.config();
 
 async function start() {
   try {
+    console.log("Connecting to database...");
     await connectToDB();
+    console.log("Connected to database.");
+
     await quizDBInitialize();
   } catch (error) {
     console.log(error);

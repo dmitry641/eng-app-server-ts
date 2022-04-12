@@ -1,9 +1,14 @@
-import { AnyKeys } from "mongoose";
 import path from "path";
 import { getBuffer, getCsvData } from "../../utils";
-import { IQuestion } from "./models/questions.model";
-import { ITopic } from "./models/topics.model";
 import { QuestionService, TopicService } from "./quiz.service";
+
+export const quizCsvHeaders = ["topicName", "question"] as const;
+export type QuizKeysType = { [K in typeof quizCsvHeaders[number]]: string };
+// или так
+// type QuizKeysType = {
+//   topicName: ITopic["topicName"];
+//   question: IQuestion["question"];
+// };
 
 export async function quizDBInitialize() {
   const topics = await TopicService.findTopics();
@@ -15,7 +20,7 @@ export async function quizDBInitialize() {
   await createCollections({
     csvFileNames: ["esldiscussions", "iteslj"],
     pathToDir: path.resolve(__dirname, "quizdata"),
-    csvHeaders: ["topicName", "question"],
+    csvHeaders: quizCsvHeaders,
   });
   console.log("Quiz: Topics and questions collections created.");
 }
@@ -23,49 +28,32 @@ export async function quizDBInitialize() {
 type CreateCollType = {
   csvFileNames: string[];
   pathToDir: string;
-  csvHeaders: string[];
+  csvHeaders: (keyof QuizKeysType)[] | readonly (keyof QuizKeysType)[];
 };
 // esldissussion: line 5451, 5462, 8913 should be removed manually
-async function createCollections({
+export async function createCollections({
   csvFileNames,
   pathToDir,
   csvHeaders,
 }: CreateCollType) {
-  type CsvKeys = { [K in typeof csvHeaders[number]]: string };
-
   let parsedData: {
     source: string;
-    data: CsvKeys[];
+    data: QuizKeysType[];
   }[] = [];
 
   for (let fileName of csvFileNames) {
     const pathToFile = path.resolve(pathToDir, fileName + ".csv");
     const buffer = getBuffer(pathToFile);
-    const data = await getCsvData<CsvKeys>(buffer, csvHeaders, "|");
+    const data = await getCsvData<QuizKeysType>(buffer, csvHeaders, "|");
     parsedData.push({ source: fileName, data });
   }
 
   for (let { source, data } of parsedData) {
-    await createNewQuestion<CsvKeys>(source, data);
+    await createNewQuestion(source, data);
   }
 }
 
-// или так
-// const quizCsvHeaders = ["topicName", "question"] as const;
-// type QuizKeysType = { [K in typeof quizCsvHeaders[number]]: string };
-// или так
-// type QuizKeysType = {
-//   topicName: ITopic["topicName"];
-//   question: IQuestion["question"];
-// };
-
-// AnyKeys - костыль
-// возможно стоит вернуться к варианту с "as const"
-// и тогда и этого костыля не будет и дургих момемнтов с CsvKeys
-async function createNewQuestion<T extends AnyKeys<ITopic & IQuestion>>(
-  source: string,
-  data: T[]
-) {
+export async function createNewQuestion(source: string, data: QuizKeysType[]) {
   let uniqueTopics = new Set<string>(
     data.map((t) => {
       return t.topicName;
@@ -75,7 +63,6 @@ async function createNewQuestion<T extends AnyKeys<ITopic & IQuestion>>(
   for (let topicName of uniqueTopics) {
     const topic = await TopicService.createTopic({ topicName, source });
     let questions = data.filter((obj) => obj.topicName === topicName);
-    if (questions.length == 1) return;
     for (let el of questions) {
       await QuestionService.createQuestion({
         topic: topic._id,

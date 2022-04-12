@@ -108,7 +108,7 @@ describe("Util: getCsvData function", () => {
     ).length;
     lines--; // minus one broken line
     const buffer = getBuffer(tc.pathToFile);
-    const result = await getCsvData<{}>(buffer, tc.csvHeaders, tc.separator);
+    const result = await getCsvData(buffer, tc.csvHeaders, tc.separator);
     expect(result.length).toBe(lines);
     for (let obj of result) {
       expect(Object.keys(obj)).toEqual(tc.csvHeaders);

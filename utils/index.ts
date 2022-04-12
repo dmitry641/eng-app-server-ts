@@ -27,13 +27,9 @@ export function shuffle<T>(array: T[]): T[] {
 
 // Был вариант передавать параметром ReadStream
 // Но я решил сделать через buffer
-// А еще с Т проблемка, не получилось сделать динамический тип
-// const headers = ["qwe", "asd"] as const;
-// type CsvKeys = { [K in typeof headers[number]]: string };
-// <T1 extends Array<string>, T2 extends {[K in typeof T1[number]]: string}>
 export async function getCsvData<T>(
   buffer: Buffer,
-  csvHeaders: string[],
+  csvHeaders: (keyof T)[] | readonly (keyof T)[],
   separator: string = ","
 ): Promise<T[]> {
   return new Promise((resolve, reject) => {
@@ -42,7 +38,7 @@ export async function getCsvData<T>(
     const results: T[] = [];
     const strHeaders = JSON.stringify(csvHeaders);
     readStream
-      .pipe(csvParser({ headers: csvHeaders, separator }))
+      .pipe(csvParser({ headers: csvHeaders as string[], separator }))
       .on("data", (data: T) => {
         // возможно это лишнее
         if (JSON.stringify(Object.keys(data)) === strHeaders) {
