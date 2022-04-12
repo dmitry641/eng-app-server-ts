@@ -1,11 +1,7 @@
 import { connectToTestDB, disconnectFromDB } from "../../db";
 import { quizTestData1 } from "../../test/testcases";
 import { QuestionService, TopicService } from "./quiz.service";
-import {
-  createCollections,
-  createNewQuestion,
-  quizDBInitialize,
-} from "./quiz.util";
+import { QuizUtil } from "./quiz.util";
 
 async function dropTopicsAndQuestions() {
   const topics = await TopicService.findTopics();
@@ -27,7 +23,7 @@ describe("Quiz util", () => {
 
   describe("CreateNewQuestion function", () => {
     it("correct test case", async () => {
-      await createNewQuestion("qwerty", quizTestData1);
+      await QuizUtil.createNewQuestion("qwerty", quizTestData1);
       const topics = await TopicService.findTopics();
       const questions = await QuestionService.findQuestions();
       expect(topics.length).toBe(2);
@@ -36,7 +32,7 @@ describe("Quiz util", () => {
   });
 
   describe("CreateCollections function", () => {
-    it("", async () => {
+    it("...", () => {
       expect(1).toBe(1);
     });
   });
@@ -44,19 +40,19 @@ describe("Quiz util", () => {
   describe("QuizDBInitialize function", () => {
     // it("19k documents should be created", async () => {
     // jest.setTimeout(150000);
+    // const spyCreateCollections = jest.spyOn(QuizUtil, "createCollections");
     // await quizDBInitialize();
-    // // createCollections to be called one time
+    // expect(spyCreateCollections).toBeCalled();
     // const topics = await TopicService.findTopics();
     // const questions = await QuestionService.findQuestions();
     // expect(topics.length).toBe(791);
     // expect(questions.length).toBe(18929);
     // });
     it("19k documents should not be created", async () => {
-      await createNewQuestion("qwerty", quizTestData1);
-      await quizDBInitialize();
-      // createCollections should not be called
-      const mock = jest.fn(createCollections);
-      expect(mock).not.toBeCalled();
+      const spyCreateCollections = jest.spyOn(QuizUtil, "createCollections");
+      await QuizUtil.createNewQuestion("qwerty", quizTestData1);
+      await QuizUtil.quizDBInitialize();
+      expect(spyCreateCollections).not.toBeCalled();
       const topics = await TopicService.findTopics();
       const questions = await QuestionService.findQuestions();
       expect(topics.length).toBe(2);

@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { quizDBInitialize } from "./components/quiz/quiz.util";
+import { QuizUtil } from "./components/quiz/quiz.util";
 import { connectToDB } from "./db";
 dotenv.config();
 
@@ -9,7 +9,7 @@ async function start() {
     await connectToDB();
     console.log("Connected to database.");
 
-    await quizDBInitialize();
+    await QuizUtil.quizDBInitialize();
   } catch (error) {
     console.log(error);
     process.exit(1);
