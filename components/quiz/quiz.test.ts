@@ -10,7 +10,7 @@ async function dropTopicsAndQuestions() {
   if (questions.length) await QuestionService.dropQuestions();
 }
 
-describe("Quiz util", () => {
+describe("Quiz util:", () => {
   beforeAll(async () => {
     await connectToTestDB();
   });
@@ -62,5 +62,62 @@ describe("Quiz util", () => {
 
   afterAll(async () => {
     await disconnectFromDB();
+  });
+});
+
+describe("Quiz model service", () => {
+  beforeAll(async () => {
+    await connectToTestDB();
+  });
+  beforeEach(async () => {
+    await dropTopicsAndQuestions();
+  });
+  afterEach(async () => {
+    await dropTopicsAndQuestions();
+  });
+
+  describe("Topic service", () => {
+    it("...", () => {
+      expect(1).toBe(1);
+    });
+  });
+  describe("Question service", () => {
+    it("...", () => {
+      expect(1).toBe(1);
+    });
+  });
+  describe("User topic service", () => {
+    it("...", () => {
+      expect(1).toBe(1);
+    });
+  });
+  describe("User question service", () => {
+    it("...", () => {
+      expect(1).toBe(1);
+    });
+  });
+
+  describe("qwe", () => {
+    it("asd", async () => {
+      const spyCreateCollections = jest.spyOn(QuizUtil, "createCollections");
+      expect(spyCreateCollections).not.toBeCalled();
+    });
+  });
+
+  afterAll(async () => {
+    await disconnectFromDB();
+  });
+});
+
+describe("Quiz functions", () => {
+  describe("getCurrentUserTopic", () => {
+    it("...", () => {
+      expect(1).toBe(1);
+    });
+  });
+  describe("getProcessedQuestions", () => {
+    it("...", () => {
+      expect(1).toBe(1);
+    });
   });
 });

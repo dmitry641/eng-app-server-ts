@@ -1,4 +1,4 @@
-import { userStore } from "./UserStore";
+import { userStore } from "./user";
 
 describe("UserStore tests:", () => {
   beforeAll(async () => {
