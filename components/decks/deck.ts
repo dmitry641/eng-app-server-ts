@@ -1,6 +1,6 @@
 import { ObjId } from "../../utils/types";
 
-class GlobalDecksStore {}
+class DecksStore {}
 
 export type DeckId = ObjId;
 class Deck {

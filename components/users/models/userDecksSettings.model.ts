@@ -1,38 +1,41 @@
 import { Document, model, Schema } from "mongoose";
 
-// max order?
-export interface IUserDeckSettings extends Document {
+export interface UserDecksSettingsInput {
   user: Schema.Types.ObjectId;
-  shuffleDecks: boolean;
-  dynamicEmail: string;
-  dynamicPassword: string;
-  dynamicName: string;
-  dynamicHighPriority: boolean;
-  dynamicAccountName: string;
-  // dynamicSyncType: { type: String, enum: DYNAMIC_TYPES_ARRAY },
-  dynamicAutoSync: boolean;
-  dynamicSyncMessage: string;
-  dynamicSyncAttempts: number[];
 }
 
-const UserDeckSettingsSchema: Schema = new Schema(
+// max order?
+export interface IUserDecksSettings extends UserDecksSettingsInput, Document {
+  shuffleDecks: boolean;
+  dynamicHighPriority: boolean;
+  dynamicEmail?: string;
+  dynamicPassword?: string;
+  dynamicName?: string;
+  dynamicAccountName?: string;
+  dynamicAutoSync?: boolean;
+  // dynamicSyncType: { type: String, enum: DYNAMIC_TYPES_ARRAY },
+  dynamicSyncMessage?: string;
+  dynamicSyncAttempts?: number[];
+}
+
+const UserDecksSettingsSchema: Schema = new Schema(
   {
-    user: { type: Schema.Types.ObjectId, ref: "User" },
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     shuffleDecks: { type: Boolean, default: false },
+    dynamicHighPriority: { type: Boolean, default: true },
     dynamicEmail: { type: String },
     dynamicPassword: { type: String },
     dynamicName: { type: String },
-    dynamicHighPriority: { type: Boolean, default: true },
     dynamicAccountName: { type: String },
-    // dynamicSyncType: { type: String, enum: DYNAMIC_TYPES_ARRAY },
     dynamicAutoSync: { type: Boolean, default: false },
+    // dynamicSyncType: { type: String, enum: DYNAMIC_TYPES_ARRAY },
     dynamicSyncMessage: { type: String },
     dynamicSyncAttempts: [Number],
   },
   { timestamps: true }
 );
 
-export const UserDeckSettingsModel = model<IUserDeckSettings>(
-  "UserDeckSettings",
-  UserDeckSettingsSchema
+export const UserDecksSettingsModel = model<IUserDecksSettings>(
+  "UserDecksSettings",
+  UserDecksSettingsSchema
 );

@@ -1,16 +1,87 @@
+import bcrypt from "bcrypt";
+import { StripeUtil } from "../../utils/stripe.util";
 import { ObjId } from "../../utils/types";
-import { IUserDeckSettings } from "./models/userDecksSettings.model";
+import { IUserDecksSettings } from "./models/userDecksSettings.model";
 import { IUserFlashcardsSettings } from "./models/userFlashcardsSettings.model";
 import { IUserPhoneSettings } from "./models/userPhoneSettings.model";
 import { IUser } from "./models/users.model";
-import { IUserSettings } from "./models/userSettings.model";
+import { IUserSettings, UserSettingsInput } from "./models/userSettings.model";
+import { CreateUserDto } from "./users.dto";
+import {
+  UserDecksSettingsService,
+  UserFlashcardsSettingsService,
+  UserPhoneSettingsService,
+  UserService,
+  UserSettingsService,
+} from "./users.service";
 
 class UserStore {
   private users: User[] = [];
-  createUser(): number {
-    return 1;
+  getUser() {
+    // map find
+    // service find??? + init
+    // else throw new Error("User doesn't exist")
   }
-  // private async getUserDecksSettings(user: User): Promise<UserDecksSettings> {
+  async createUser({
+    email,
+    name,
+    password,
+    ...rest
+  }: CreateUserDto): Promise<User> {
+    const emailTaken = await this.isEmailTaken(email);
+    if (emailTaken) throw new Error("This email address is already in use");
+
+    const stripeUser = await StripeUtil.createUser({ email, name });
+    const hashedPassword = await bcrypt.hash(password, 5);
+    const dbUser: IUser = await UserService.createUser({
+      email,
+      name,
+      password: hashedPassword,
+      stripeCustomerId: stripeUser.id,
+    });
+    const userSettings: UserSettings = await this.createUserSettings(
+      dbUser._id
+    );
+    const newUser = new User(dbUser, userSettings);
+    return newUser;
+  }
+
+  private async isEmailTaken(email: string): Promise<boolean> {
+    const candidate = await UserService.findOneUser({ email });
+    if (candidate) return true;
+    return false;
+  }
+  private async createUserSettings({
+    user,
+  }: UserSettingsInput): Promise<UserSettings> {
+    const dbSettings: IUserSettings =
+      await UserSettingsService.createUserSettings({ user });
+    const dbPhoneSettings: IUserPhoneSettings =
+      await UserPhoneSettingsService.createUserPhoneSettings({ user });
+    const phoneSettings: UserPhoneSettings = new UserPhoneSettings(
+      dbPhoneSettings
+    );
+    const dbDecksSettings: IUserDecksSettings =
+      await UserDecksSettingsService.createUserDecksSettings({ user });
+    const decksSettings: UserDecksSettings = new UserDecksSettings(
+      dbDecksSettings
+    );
+    const dbFlashcardsSettings: IUserFlashcardsSettings =
+      await UserFlashcardsSettingsService.createUserFlashcardsSettings({
+        user,
+      });
+    const flashcardsSettings: UserFlashcardsSettings =
+      new UserFlashcardsSettings(dbFlashcardsSettings);
+
+    const settings = new UserSettings(
+      dbSettings,
+      phoneSettings,
+      decksSettings,
+      flashcardsSettings
+    );
+    return settings;
+  }
+  // private async getUserDecksSettings(user: IUser): Promise<UserDecksSettings> {
   //   // Снова нарушение принципов. Find и Create в одном месте.
   //   const model = await UserDecksSettingsService.findUserDecksSettings(user);
   //   if (!model) throw new Error(""); // create
@@ -35,9 +106,9 @@ export class User {
 class UserSettings {
   constructor(
     private _settings: IUserSettings,
+    public phoneSettings: UserPhoneSettings,
     public decksSettings: UserDecksSettings,
-    public flashcardsSettings: UserFlashcardsSettings,
-    public phoneSettings: UserPhoneSettings
+    public flashcardsSettings: UserFlashcardsSettings
   ) {}
 }
 
@@ -48,8 +119,8 @@ class UserPhoneSettings {
   }
 }
 export class UserDecksSettings {
-  private _settings: IUserDeckSettings;
-  constructor(settings: IUserDeckSettings) {
+  private _settings: IUserDecksSettings;
+  constructor(settings: IUserDecksSettings) {
     this._settings = settings;
   }
 }

@@ -3,7 +3,7 @@ import { User, UserDecksSettings, UserId } from "../users/user";
 import { UserDecksService } from "./decks.service";
 import { IUserDeck } from "./models/userDecks.model";
 
-class GlobalUserDecksStore {
+class UserDecksStore {
   private userDecksClients = new Map<UserId, UserDecksClient>();
   async getUserDecksClient(user: User): Promise<UserDecksClient> {
     // Нарушение принципов. Гет и сет в одном месте.
@@ -29,7 +29,7 @@ class GlobalUserDecksStore {
     return userDecks;
   }
 }
-export const globalUserDecksStore = new GlobalUserDecksStore();
+export const globalUserDecksStore = new UserDecksStore();
 
 class UserDecksClient {
   private settings: UserDecksSettings;

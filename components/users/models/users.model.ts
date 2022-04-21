@@ -1,10 +1,13 @@
 import { Document, model, Schema } from "mongoose";
 
-export interface IUser extends Document {
+export interface UserInput {
   name: string;
   email: string;
   password: string;
   stripeCustomerId: string;
+}
+
+export interface IUser extends UserInput, Document {
   active: boolean;
 }
 
