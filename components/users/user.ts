@@ -17,10 +17,13 @@ import {
 
 class UserStore {
   private users: User[] = [];
-  getUser() {
-    // map find
-    // service find??? + init
-    // else throw new Error("User doesn't exist")
+  async getUser(userId: UserId): Promise<User> {
+    let user;
+    user = this.getUserFromStore(userId);
+    if (user) return user;
+    user = await this.initUser(userId);
+    if (user) return user;
+    throw new Error("User doesn't exist");
   }
   async createUser({
     email,
@@ -43,9 +46,24 @@ class UserStore {
       dbUser._id
     );
     const newUser = new User(dbUser, userSettings);
+    this.addUserToStore(newUser);
     return newUser;
   }
-
+  private async initUser(userId: UserId): Promise<User | null> {
+    const dbUser = await UserService.findOneUser({ _id: userId });
+    if (!dbUser) return null; // throw new Error("User not found")
+    const settings = await this.findUserSettings(userId);
+    if (!settings) return null; // throw new Error("User not found")
+    const user = new User(dbUser, settings);
+    this.addUserToStore(user);
+    return user;
+  }
+  private addUserToStore(user: User) {
+    this.users.push(user);
+  }
+  private getUserFromStore(userId: UserId): User | undefined {
+    return this.users.find((u) => u.id === userId);
+  }
   private async isEmailTaken(email: string): Promise<boolean> {
     const candidate = await UserService.findOneUser({ email });
     if (candidate) return true;
@@ -81,13 +99,45 @@ class UserStore {
     );
     return settings;
   }
-  // private async getUserDecksSettings(user: IUser): Promise<UserDecksSettings> {
-  //   // Снова нарушение принципов. Find и Create в одном месте.
-  //   const model = await UserDecksSettingsService.findUserDecksSettings(user);
-  //   if (!model) throw new Error(""); // create
-  //   const uds = new UserDecksSettings(model);
-  //   return uds;
-  // }
+  private async findUserSettings(userId: UserId): Promise<UserSettings | null> {
+    // Была мысль о сознательном нарушение принципов.
+    // Find и Create сделать в одном месте.
+
+    const dbSettings = await UserSettingsService.findOneUserSettings({
+      user: userId,
+    });
+    if (!dbSettings) return null;
+
+    const dbPhoneSettings =
+      await UserPhoneSettingsService.findOneUserPhoneSettings({ user: userId });
+    if (!dbPhoneSettings) return null;
+    const phoneSettings: UserPhoneSettings = new UserPhoneSettings(
+      dbPhoneSettings
+    );
+
+    const dbDecksSettings =
+      await UserDecksSettingsService.findOneUserDecksSettings({ user: userId });
+    if (!dbDecksSettings) return null;
+    const decksSettings: UserDecksSettings = new UserDecksSettings(
+      dbDecksSettings
+    );
+
+    const dbFlashcardsSettings =
+      await UserFlashcardsSettingsService.findOneUserFlashcardsSettings({
+        user: userId,
+      });
+    if (!dbFlashcardsSettings) return null;
+    const flashcardsSettings: UserFlashcardsSettings =
+      new UserFlashcardsSettings(dbFlashcardsSettings);
+
+    const settings = new UserSettings(
+      dbSettings,
+      phoneSettings,
+      decksSettings,
+      flashcardsSettings
+    );
+    return settings;
+  }
 }
 
 export type UserId = ObjId;
