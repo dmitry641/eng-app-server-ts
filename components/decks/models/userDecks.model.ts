@@ -1,26 +1,29 @@
 import { Document, model, Schema } from "mongoose";
 
-export interface IUserDeck extends Document {
+export interface UserDeckInput {
   user: Schema.Types.ObjectId;
   deck: Schema.Types.ObjectId;
+  order: number;
+  cardsCount: number;
+}
+
+export interface IUserDeck extends UserDeckInput, Document {
   dynamic: boolean;
   enabled: boolean;
-  order: number;
   deleted: boolean;
-  wordsCount: number;
-  wordsLearned: number;
+  cardsLearned: number;
 }
 
 const UserDeckSchema: Schema = new Schema(
   {
-    user: { type: Schema.Types.ObjectId, ref: "User" },
-    deck: { type: Schema.Types.ObjectId, ref: "Deck" },
-    dynamic: { type: Boolean, default: false },
-    enabled: { type: Boolean, default: true },
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    deck: { type: Schema.Types.ObjectId, ref: "Deck", required: true },
     order: { type: Number, required: true },
-    deleted: { type: Boolean, default: false },
-    wordsCount: { type: Number, default: 0 },
-    wordsLearned: { type: Number, default: 0 },
+    cardsCount: { type: Number, required: true },
+    cardsLearned: { type: Number, default: 0, required: true },
+    dynamic: { type: Boolean, default: false, required: true },
+    enabled: { type: Boolean, default: true, required: true },
+    deleted: { type: Boolean, default: false, required: true },
   },
   { timestamps: true }
 );

@@ -1,8 +1,10 @@
-import { User } from "../users/user";
+import { FilterQuery } from "mongoose";
 import { IUserDeck, UserDeckModel } from "./models/userDecks.model";
 
 export class UserDecksService {
-  static async findUserDecks(user: User): Promise<IUserDeck[]> {
-    return UserDeckModel.find({ user: user.id });
+  static async findUserDecks(
+    query: FilterQuery<IUserDeck>
+  ): Promise<IUserDeck[]> {
+    return UserDeckModel.find(query);
   }
 }
