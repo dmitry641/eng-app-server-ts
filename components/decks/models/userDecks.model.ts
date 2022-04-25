@@ -1,8 +1,10 @@
 import { Document, model, Schema } from "mongoose";
+import { UserId } from "../../users/user";
+import { DeckId } from "../deck";
 
 export interface UserDeckInput {
-  user: Schema.Types.ObjectId;
-  deck: Schema.Types.ObjectId;
+  user: UserId;
+  deck: DeckId;
   order: number;
   cardsCount: number;
 }

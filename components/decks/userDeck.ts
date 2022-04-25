@@ -1,4 +1,4 @@
-import { ObjId } from "../../utils/types";
+import { ObjId, UploadedFile } from "../../utils/types";
 import { User, UserDecksSettings, UserId } from "../users/user";
 import { Deck, globalDecksStore } from "./deck";
 import { UserDecksService } from "./decks.service";
@@ -24,13 +24,18 @@ class UserDecksStore {
       user: user.id,
       deleted: false,
     });
-    // sorted by order
+    // FIX ME. Нужно проверить правильно ли отсортировалось
+    models.sort((a, b) => a.order - b.order);
 
+    let dynamicExist = false;
     for (let model of models) {
-      // FIX ME
-      // Factory
-      // + проверка на уже существующую динамическую колоду?
-      const userDeck = new UserDeck(model);
+      if (model.dynamic) {
+        // очень спорный момент
+        if (dynamicExist) throw new Error("Multiple dynamic decks");
+        dynamicExist = true;
+      }
+
+      const userDeck = UserDeckFactory.create(model);
       userDecks.push(userDeck);
     }
 
@@ -47,26 +52,84 @@ class UserDecksClient {
   getDecks(): UserDeck[] {
     return this.decks;
   }
-  makeDeckPublic() {
-    // if dynamic throw error
-  }
-  addPublicDeckToUserDecks(deck: Deck): UserDeck {
-    // push to decks
-  }
-  async createDeck(file: Buffer): UserDeck {
-    const deck: Deck = await globalDecksStore.createDeck(file, this.user);
-    // userDeck: UserDeck = helper.create(deck.id, user.id, order, cardsCount)
-    // const newUserDeck = await deckCreator.csvDeck(req.user, file:buffer);
-  } // global deck + user deck
-  private async createUserDeck(deck: Deck) {}
   enableDeck(): UserDeck {}
   deleteDeck(): UserDeck {
     // if dynamic this.deleteDynamicDeck()
   }
-  moveDeck(): UserDeck {} // moveUp/moveDown?
+  moveDeck(): UserDeck {
+    // moveUp/moveDown?
+    // +sort by order? (a, b) => a.order - b.order
+  }
+  makeUserDeckPublic(userDeckId: UserDeckId): Deck {
+    // if dynamic throw error
+  }
+  addPublicDeckToUserDecks(deckId: DeckId): UserDeck {
+    // push to decks
+  }
+
+  // не забыть сделать проверку файла. Либо тут либо в контроллере
+  async createDeck(file: UploadedFile): Promise<UserDeck> {
+    const deck: Deck = await globalDecksStore.createDeck(file, this.user);
+    const userDeck: UserDeck = await this.newUserDeck(deck);
+    return userDeck;
+  }
+  private async newUserDeck(deck: Deck): Promise<UserDeck> {
+    const order = this.settings.getMaxOrder() + 1;
+    await this.settings.setMaxOrder(order);
+    const dbUserDeck: IUserDeck = await UserDecksService.createUserDeck({
+      user: this.user.id,
+      cardsCount: deck.totalCardsCount,
+      deck: deck.id,
+      order,
+    });
+    const userDeck = UserDeckFactory.create(dbUserDeck);
+    this.decks.push(userDeck); // спорный момент
+    return userDeck;
+  }
   //
   // dynamic
   //
+  getDynamicDeck(): UserDynamicDeck | undefined {
+    const dynDeck = this.decks.find((d) => d instanceof UserDynamicDeck);
+    if (!dynDeck) return undefined;
+    return dynDeck as UserDynamicDeck; // костыль???
+  }
+  async createDynamicDeck(): Promise<UserDynamicDeck> {
+    const dynDeck = this.getDynamicDeck();
+    if (dynDeck) throw new Error("Dynamic deck already exists");
+    const deck: Deck = await globalDecksStore.createDynamicDeck(this.user);
+    const userDeck: UserDynamicDeck = await this.newUserDeck(deck);
+    return userDeck;
+    // тут вроде понятно. Мы просто возвращаем DynamicUserDeck
+    // сразу без задержек. НО ВСЁ ЖЕ. Как быть с настройками??
+    // убрать их отсюда???
+    // а как быть на фронте после нажатия СЕЙВ
+    /*
+    settingsUpdate.dynamicType = TYPE factory
+    settingsUpdate.dynamicAutoSync = true;
+    deck = await deckCreator.dynamicDeck(req.user);
+
+    // ОТ ЭТОГО ТОЖЕ МОЖНО ОТКАЗАТЬСЯ
+    // просто шлем в ответ НЬЮ ДЕК и всё 
+    ( НО КАК БЫТЬ С НАСТРОЙКАМИ, как обновить их на клиенте)
+    Если 200, то ... не это бред
+    Слать в ответ {deck, settings} ?
+    socketUtil.sendMsgToUser(
+      "new-deck",
+      req.user.id,
+      JSON.stringify(deck.toDTO())
+    );
+    switch (type) {
+      ....... factory
+      settingsUpdate.dynamicAccountName = data?.email || data;
+    } 
+    const updatedSettings = await req.user.updateSettings(settingsUpdate);
+    req.user.jobs.create(JOB_DYNAMIC, JOB_TYPES.deckSync, {
+      enable: updatedSettings.dynamicAutoSync,
+    });
+    res.json(updatedSettings);
+    */
+  }
   syncDynamicDeck() {
     /*
     // учитывать СкедулДжобс
@@ -140,37 +203,6 @@ class UserDecksClient {
     
     */
   }
-  createDynamicDeck(): UserDynamicDeck {
-    // тут вроде понятно. Мы просто возвращаем DynamicUserDeck
-    // сразу без задержек. НО ВСЁ ЖЕ. Как быть с настройками??
-    // убрать их отсюда???
-    // а как быть на фронте после нажатия СЕЙВ
-    /*
-    settingsUpdate.dynamicType = TYPE factory
-    settingsUpdate.dynamicAutoSync = true;
-    deck = await deckCreator.dynamicDeck(req.user);
-
-    // ОТ ЭТОГО ТОЖЕ МОЖНО ОТКАЗАТЬСЯ
-    // просто шлем в ответ НЬЮ ДЕК и всё 
-    ( НО КАК БЫТЬ С НАСТРОЙКАМИ, как обновить их на клиенте)
-    Если 200, то ... не это бред
-    Слать в ответ {deck, settings} ?
-    socketUtil.sendMsgToUser(
-      "new-deck",
-      req.user.id,
-      JSON.stringify(deck.toDTO())
-    );
-    switch (type) {
-      ....... factory
-      settingsUpdate.dynamicAccountName = data?.email || data;
-    } 
-    const updatedSettings = await req.user.updateSettings(settingsUpdate);
-    req.user.jobs.create(JOB_DYNAMIC, JOB_TYPES.deckSync, {
-      enable: updatedSettings.dynamicAutoSync,
-    });
-    res.json(updatedSettings);
-    */
-  }
   updateDynamicDeck(type, data) {
     // подругому. Отдельные методы? у дексСеттингс?
     /*
@@ -188,6 +220,15 @@ class UserDecksClient {
   }
 }
 
+class UserDeckFactory {
+  static create(dbDeck: IUserDeck): UserDynamicDeck {
+    if (dbDeck.dynamic) {
+      return new UserDynamicDeck(dbDeck);
+    }
+    return new UserDeck(dbDeck);
+  }
+}
+
 export type UserDeckId = ObjId;
 class UserDeck {
   id: UserDeckId;
@@ -196,6 +237,11 @@ class UserDeck {
     this.id = userdeck._id;
     this._userdeck = userdeck;
   }
+  delete() {}
+  enable() {}
+  changeOrder() {}
 }
 
-class UserDynamicDeck extends UserDeck {}
+class UserDynamicDeck extends UserDeck {
+  sync() {}
+}

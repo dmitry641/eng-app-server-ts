@@ -169,9 +169,20 @@ class UserPhoneSettings {
   }
 }
 export class UserDecksSettings {
+  private maxOrder: number;
   private _settings: IUserDecksSettings;
   constructor(settings: IUserDecksSettings) {
     this._settings = settings;
+    this.maxOrder = settings.maxOrder;
+  }
+  getMaxOrder() {
+    return this.maxOrder;
+  }
+  async setMaxOrder(num: number): Promise<UserDecksSettings> {
+    this.maxOrder = num;
+    this._settings.maxOrder = num;
+    this._settings.save(); // спорный момент
+    return this;
   }
 }
 export class UserFlashcardsSettings {

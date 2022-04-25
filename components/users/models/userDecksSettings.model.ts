@@ -1,12 +1,13 @@
 import { Document, model, Schema } from "mongoose";
+import { UserId } from "../user";
 
 export interface UserDecksSettingsInput {
-  user: Schema.Types.ObjectId;
+  user: UserId;
 }
 
-// max order?
 export interface IUserDecksSettings extends UserDecksSettingsInput, Document {
   shuffleDecks: boolean;
+  maxOrder: number;
   dynamicHighPriority: boolean;
   dynamicEmail?: string;
   dynamicPassword?: string;
@@ -22,6 +23,7 @@ const UserDecksSettingsSchema: Schema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     shuffleDecks: { type: Boolean, default: false },
+    maxOrder: { type: Number, default: 0, required: true },
     dynamicHighPriority: { type: Boolean, default: true },
     dynamicEmail: { type: String },
     dynamicPassword: { type: String },

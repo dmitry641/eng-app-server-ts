@@ -1,7 +1,8 @@
 import { Document, model, Schema } from "mongoose";
+import { UserId } from "../user";
 
 export interface UserPhoneSettingsInput {
-  user: Schema.Types.ObjectId;
+  user: UserId;
 }
 
 export interface IUserPhoneSettings extends UserPhoneSettingsInput, Document {

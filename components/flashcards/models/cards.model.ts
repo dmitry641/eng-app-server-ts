@@ -1,4 +1,5 @@
 import { Document, model, Schema } from "mongoose";
+import { DeckId } from "../../decks/deck";
 
 export const cardsCsvHeaders = [
   "srcLang",
@@ -9,7 +10,7 @@ export const cardsCsvHeaders = [
 export type CardsKeysType = { [K in typeof cardsCsvHeaders[number]]: string };
 
 export interface CardInput extends CardsKeysType {
-  deck: Schema.Types.ObjectId;
+  deck: DeckId;
   customId?: string;
 }
 

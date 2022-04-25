@@ -1,8 +1,10 @@
 import { Document, model, Schema } from "mongoose";
+import { UserId } from "../../users/user";
+import { CardId } from "../cards";
 
 export interface UserCardInput {
-  user: Schema.Types.ObjectId;
-  card: Schema.Types.ObjectId;
+  user: UserId;
+  card: CardId;
 }
 
 export interface IUserCard extends UserCardInput, Document {

@@ -1,7 +1,8 @@
 import { Document, model, Schema } from "mongoose";
+import { UserId } from "../user";
 
 export interface UserSettingsInput {
-  user: Schema.Types.ObjectId;
+  user: UserId;
   darkTheme?: boolean;
 }
 
