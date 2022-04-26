@@ -6,6 +6,7 @@ import { IUserFlashcardsSettings } from "./models/userFlashcardsSettings.model";
 import { IUserPhoneSettings } from "./models/userPhoneSettings.model";
 import { IUser } from "./models/users.model";
 import { IUserSettings, UserSettingsInput } from "./models/userSettings.model";
+import { DynamicSyncDataType, DynamicSyncTypeEnum } from "./user.util";
 import { CreateUserDto } from "./users.dto";
 import {
   UserDecksSettingsService,
@@ -169,11 +170,18 @@ class UserPhoneSettings {
   }
 }
 export class UserDecksSettings {
-  private maxOrder: number;
   private _settings: IUserDecksSettings;
+  private maxOrder: number;
+  private dynamicSyncType?: DynamicSyncTypeEnum;
+  private dynamicSyncData?: DynamicSyncDataType;
+  private dynamicAutoSync?: boolean;
+  private dynamicSyncAttempts: number[] = [];
   constructor(settings: IUserDecksSettings) {
     this._settings = settings;
     this.maxOrder = settings.maxOrder;
+    this.dynamicSyncType = settings.dynamicSyncType;
+    this.dynamicSyncData = settings.dynamicSyncData;
+    this.dynamicAutoSync = settings.dynamicAutoSync;
   }
   getMaxOrder() {
     return this.maxOrder;
@@ -182,6 +190,38 @@ export class UserDecksSettings {
     this.maxOrder = num;
     this._settings.maxOrder = num;
     this._settings.save(); // спорный момент
+    return this;
+  }
+  getDynamicSyncType() {
+    return this.dynamicSyncType;
+  }
+  async setDynamicSyncType(
+    type: DynamicSyncTypeEnum
+  ): Promise<UserDecksSettings> {
+    this.dynamicSyncType = type;
+    this._settings.dynamicSyncType = type;
+    this._settings.save();
+    return this;
+  }
+  getDynamicSyncData() {
+    return this.dynamicSyncData;
+  }
+  async setDynamicSyncData(
+    data: DynamicSyncDataType
+  ): Promise<UserDecksSettings> {
+    this.dynamicSyncData = data;
+    this._settings.dynamicSyncData = data;
+    this._settings.save();
+    return this;
+  }
+  // ---
+  getDynamicAutoSync() {
+    return this.dynamicAutoSync;
+  }
+  async setDynamicAutoSync(value: boolean): Promise<UserDecksSettings> {
+    this.dynamicAutoSync = value;
+    this._settings.dynamicAutoSync = value;
+    this._settings.save();
     return this;
   }
 }

@@ -1,5 +1,6 @@
 import { ObjId, UploadedFile } from "../../utils/types";
 import { User, UserDecksSettings, UserId } from "../users/user";
+import { DynamicSyncDataType, DynamicSyncTypeEnum } from "../users/user.util";
 import { Deck, globalDecksStore } from "./deck";
 import { UserDecksService } from "./decks.service";
 import { IUserDeck } from "./models/userDecks.model";
@@ -35,7 +36,7 @@ class UserDecksStore {
         dynamicExist = true;
       }
 
-      const userDeck = UserDeckFactory.create(model);
+      const userDeck = new UserDeck(model);
       userDecks.push(userDeck);
     }
 
@@ -82,53 +83,23 @@ class UserDecksClient {
       deck: deck.id,
       order,
     });
-    const userDeck = UserDeckFactory.create(dbUserDeck);
+    const userDeck = new UserDeck(dbUserDeck);
     this.decks.push(userDeck); // спорный момент
     return userDeck;
   }
   //
   // dynamic
   //
-  getDynamicDeck(): UserDynamicDeck | undefined {
-    const dynDeck = this.decks.find((d) => d instanceof UserDynamicDeck);
-    if (!dynDeck) return undefined;
-    return dynDeck as UserDynamicDeck; // костыль???
+  getDynamicDeck(): UserDeck | undefined {
+    return this.decks.find((d) => d.dynamic);
   }
-  async createDynamicDeck(): Promise<UserDynamicDeck> {
+  async createDynamicDeck(): Promise<UserDeck> {
     const dynDeck = this.getDynamicDeck();
     if (dynDeck) throw new Error("Dynamic deck already exists");
     const deck: Deck = await globalDecksStore.createDynamicDeck(this.user);
-    const userDeck: UserDynamicDeck = await this.newUserDeck(deck);
+    const userDeck = await this.newUserDeck(deck);
+    await this.settings.setDynamicAutoSync(true); // спорный момент, нарушение принципов
     return userDeck;
-    // тут вроде понятно. Мы просто возвращаем DynamicUserDeck
-    // сразу без задержек. НО ВСЁ ЖЕ. Как быть с настройками??
-    // убрать их отсюда???
-    // а как быть на фронте после нажатия СЕЙВ
-    /*
-    settingsUpdate.dynamicType = TYPE factory
-    settingsUpdate.dynamicAutoSync = true;
-    deck = await deckCreator.dynamicDeck(req.user);
-
-    // ОТ ЭТОГО ТОЖЕ МОЖНО ОТКАЗАТЬСЯ
-    // просто шлем в ответ НЬЮ ДЕК и всё 
-    ( НО КАК БЫТЬ С НАСТРОЙКАМИ, как обновить их на клиенте)
-    Если 200, то ... не это бред
-    Слать в ответ {deck, settings} ?
-    socketUtil.sendMsgToUser(
-      "new-deck",
-      req.user.id,
-      JSON.stringify(deck.toDTO())
-    );
-    switch (type) {
-      ....... factory
-      settingsUpdate.dynamicAccountName = data?.email || data;
-    } 
-    const updatedSettings = await req.user.updateSettings(settingsUpdate);
-    req.user.jobs.create(JOB_DYNAMIC, JOB_TYPES.deckSync, {
-      enable: updatedSettings.dynamicAutoSync,
-    });
-    res.json(updatedSettings);
-    */
   }
   syncDynamicDeck() {
     /*
@@ -182,7 +153,7 @@ class UserDecksClient {
     userSettings.dynamicSyncining = false; // temp value
     */
   }
-  private deleteDynamicDeck(): UserDynamicDeck {
+  private deleteDynamicDeck(): UserDeck {
     // + filter decks
     /*
         let settings = await req.user.updateSettings({
@@ -203,45 +174,32 @@ class UserDecksClient {
     
     */
   }
-  updateDynamicDeck(type, data) {
-    // подругому. Отдельные методы? у дексСеттингс?
-    /*
-    settingsUpdate.dynamicType = TYPE factory
-    switch (type) {
-      ....... factory
-      settingsUpdate.dynamicAccountName = data?.email || data;
-    } 
-    const updatedSettings = await req.user.updateSettings(settingsUpdate);
-    req.user.jobs.update(JOB_DYNAMIC, JOB_TYPES.deckSync, {
-      enable: updatedSettings.dynamicAutoSync,
-    });
-    res.json(updatedSettings);
-    */
-  }
-}
+  async updateSyncDataType(
+    type: DynamicSyncTypeEnum,
+    data: DynamicSyncDataType
+  ): Promise<UserDecksSettings> {
+    await this.settings.setDynamicSyncType(type);
+    await this.settings.setDynamicSyncData(data);
 
-class UserDeckFactory {
-  static create(dbDeck: IUserDeck): UserDynamicDeck {
-    if (dbDeck.dynamic) {
-      return new UserDynamicDeck(dbDeck);
-    }
-    return new UserDeck(dbDeck);
+    // FIX ME
+    //// Schedule????? update(cancel + create)
+
+    return this.settings;
   }
 }
 
 export type UserDeckId = ObjId;
 class UserDeck {
   id: UserDeckId;
+  dynamic: boolean;
   private _userdeck: IUserDeck;
   constructor(userdeck: IUserDeck) {
     this.id = userdeck._id;
     this._userdeck = userdeck;
+    this.dynamic = userdeck.dynamic;
   }
   delete() {}
   enable() {}
-  changeOrder() {}
-}
-
-class UserDynamicDeck extends UserDeck {
-  sync() {}
+  async setOrder() {}
+  getOrder() {}
 }
