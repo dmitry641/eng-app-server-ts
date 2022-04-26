@@ -1,6 +1,10 @@
 import { ObjId, UploadedFile } from "../../utils/types";
 import { User, UserDecksSettings, UserId } from "../users/user";
-import { DynamicSyncDataType, DynamicSyncTypeEnum } from "../users/user.util";
+import {
+  DeckPositionEnum,
+  DynamicSyncDataType,
+  DynamicSyncTypeEnum,
+} from "../users/user.util";
 import { Deck, globalDecksStore } from "./deck";
 import { UserDecksService } from "./decks.service";
 import { IUserDeck } from "./models/userDecks.model";
@@ -53,13 +57,53 @@ class UserDecksClient {
   getDecks(): UserDeck[] {
     return this.decks;
   }
-  enableDeck(): UserDeck {}
-  deleteDeck(): UserDeck {
-    // if dynamic this.deleteDynamicDeck()
+  private getDeckById(id: UserDeckId): UserDeck | undefined {
+    return this.decks.find((d) => d.id === id);
   }
-  moveDeck(): UserDeck {
-    // moveUp/moveDown?
-    // +sort by order? (a, b) => a.order - b.order
+  async enableDeck(id: UserDeckId): Promise<UserDeck> {
+    const deck = this.getDeckById(id);
+    if (!deck) throw new Error("Deck doesn't exist");
+    return deck.enable();
+  }
+  async deleteDeck(id: UserDeckId) {
+    const deck = this.getDeckById(id);
+    if (!deck) throw new Error("Deck doesn't exist");
+    if (deck.dynamic) throw new Error("Dynamic deck is not allowed");
+    await deck.delete();
+    this.decks = this.decks.filter((d) => d.id != deck.id);
+  }
+  async moveDeck(
+    id: UserDeckId,
+    position: DeckPositionEnum
+  ): Promise<UserDeck> {
+    const deckOne = this.getDeckById(id);
+    if (!deckOne) throw new Error("Deck doesn't exist");
+
+    // FIX ME. Нужно проверить правильно ли отсортировалось
+    this.decks.sort((a, b) => a.order - b.order); // спорный момент. Тут оно не нужно, так как они уже должны быть отсортированны
+    const currIndex = this.decks.findIndex((d) => d.id == deckOne.id);
+
+    let deckTwo;
+    switch (position) {
+      case DeckPositionEnum.up:
+        deckTwo = this.decks?.[currIndex - 1];
+        break;
+      case DeckPositionEnum.down:
+        deckTwo = this.decks?.[currIndex + 1];
+        break;
+      default:
+        throw new Error("not implemented");
+    }
+    if (!deckTwo) throw new Error("out of bounds");
+
+    let orderOne = Number(deckOne.order);
+    let orderTwo = Number(deckTwo.order);
+    await deckTwo.setOrder(orderOne);
+    const updated = await deckOne.setOrder(orderTwo);
+
+    // FIX ME. Нужно проверить правильно ли отсортировалось
+    this.decks.sort((a, b) => a.order - b.order); // спорный момент
+    return updated;
   }
   makeUserDeckPublic(userDeckId: UserDeckId): Deck {
     // if dynamic throw error
@@ -98,7 +142,7 @@ class UserDecksClient {
     if (dynDeck) throw new Error("Dynamic deck already exists");
     const deck: Deck = await globalDecksStore.createDynamicDeck(this.user);
     const userDeck = await this.newUserDeck(deck);
-    await this.settings.setDynamicAutoSync(true); // спорный момент, нарушение принципов
+    await this.updateAutoSync(true); // спорный момент, нарушение принципов
     return userDeck;
   }
   syncDynamicDeck() {
@@ -153,26 +197,23 @@ class UserDecksClient {
     userSettings.dynamicSyncining = false; // temp value
     */
   }
-  private deleteDynamicDeck(): UserDeck {
-    // + filter decks
-    /*
-        let settings = await req.user.updateSettings({
-          dynamicAutoSync: false,
-          dynamicType: "",
-          dynamicAccountName: "",
-          dynamicSyncMessage: "",
-          dynamicSyncAttempts: [],
-        });
+  async deleteDynamicDeck() {
+    const deck = this.getDynamicDeck();
+    if (!deck) throw new Error("Dynamic deck doesn't exist");
 
-        socketUtil.sendMsgToUser(
-          "settings-update",
-          req.user.id,
-          JSON.stringify(settings)
-        );
+    await deck.delete();
+    this.decks = this.decks.filter((d) => d.id != deck.id);
 
-        req.user.jobs.cancelJob(JOB_DYNAMIC);
-    
-    */
+    await this.settings.setDynamicAutoSync(false);
+    await this.settings.setDynamicSyncType(undefined);
+    await this.settings.setDynamicSyncData({});
+    await this.settings.setDynamicSyncMessage("");
+    this.settings.setDynamicSyncAttempts([]);
+
+    // FIX ME
+    // Schedule cancel
+
+    return this.settings;
   }
   async updateSyncDataType(
     type: DynamicSyncTypeEnum,
@@ -186,20 +227,40 @@ class UserDecksClient {
 
     return this.settings;
   }
+  async updateAutoSync(value: boolean): Promise<UserDecksSettings> {
+    return this.settings.setDynamicAutoSync(value);
+  }
 }
 
 export type UserDeckId = ObjId;
 class UserDeck {
   id: UserDeckId;
   dynamic: boolean;
+  enabled: boolean;
+  order: number;
   private _userdeck: IUserDeck;
   constructor(userdeck: IUserDeck) {
     this.id = userdeck._id;
     this._userdeck = userdeck;
     this.dynamic = userdeck.dynamic;
+    this.enabled = userdeck.enabled;
+    this.order = userdeck.order;
   }
-  delete() {}
-  enable() {}
-  async setOrder() {}
-  getOrder() {}
+  async delete() {
+    this._userdeck.deleted = true;
+    await this._userdeck.save();
+    return true;
+  }
+  async enable(): Promise<UserDeck> {
+    this.enabled = !this.enabled;
+    this._userdeck.enabled = this.enabled;
+    await this._userdeck.save();
+    return this;
+  }
+  async setOrder(value: number) {
+    this.order = value;
+    this._userdeck.order = value;
+    await this._userdeck.save();
+    return this;
+  }
 }

@@ -8,3 +8,8 @@ export type DynamicSyncDataType = {
   password?: string;
   accountName?: string;
 };
+
+export enum DeckPositionEnum {
+  up = "up",
+  down = "down",
+}

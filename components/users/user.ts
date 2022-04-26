@@ -13,7 +13,7 @@ import {
   UserFlashcardsSettingsService,
   UserPhoneSettingsService,
   UserService,
-  UserSettingsService,
+  UserSettingsService
 } from "./users.service";
 
 class UserStore {
@@ -175,6 +175,7 @@ export class UserDecksSettings {
   private dynamicSyncType?: DynamicSyncTypeEnum;
   private dynamicSyncData?: DynamicSyncDataType;
   private dynamicAutoSync?: boolean;
+  private dynamicSyncMessage?: string;
   private dynamicSyncAttempts: number[] = [];
   constructor(settings: IUserDecksSettings) {
     this._settings = settings;
@@ -182,6 +183,7 @@ export class UserDecksSettings {
     this.dynamicSyncType = settings.dynamicSyncType;
     this.dynamicSyncData = settings.dynamicSyncData;
     this.dynamicAutoSync = settings.dynamicAutoSync;
+    this.dynamicSyncMessage = settings.dynamicSyncMessage;
   }
   getMaxOrder() {
     return this.maxOrder;
@@ -196,7 +198,7 @@ export class UserDecksSettings {
     return this.dynamicSyncType;
   }
   async setDynamicSyncType(
-    type: DynamicSyncTypeEnum
+    type: DynamicSyncTypeEnum | undefined
   ): Promise<UserDecksSettings> {
     this.dynamicSyncType = type;
     this._settings.dynamicSyncType = type;
@@ -207,14 +209,13 @@ export class UserDecksSettings {
     return this.dynamicSyncData;
   }
   async setDynamicSyncData(
-    data: DynamicSyncDataType
+    data: DynamicSyncDataType 
   ): Promise<UserDecksSettings> {
     this.dynamicSyncData = data;
     this._settings.dynamicSyncData = data;
     this._settings.save();
     return this;
   }
-  // ---
   getDynamicAutoSync() {
     return this.dynamicAutoSync;
   }
@@ -222,6 +223,26 @@ export class UserDecksSettings {
     this.dynamicAutoSync = value;
     this._settings.dynamicAutoSync = value;
     this._settings.save();
+    return this;
+  }
+  getDynamicSyncMessage() {
+    return this.dynamicSyncMessage;
+  }
+  async setDynamicSyncMessage(msg: string): Promise<UserDecksSettings> {
+    this.dynamicSyncMessage = msg;
+    this._settings.dynamicSyncMessage = msg;
+    this._settings.save();
+    return this;
+  }
+  getDynamicSyncAttempts() {
+    return this.dynamicSyncAttempts;
+  }
+  setDynamicSyncAttempts(arr: number[]): UserDecksSettings {
+    this.dynamicSyncAttempts = arr;
+    return this;
+  }
+  appendDynamicSyncAttempt(value: number): UserDecksSettings {
+    this.dynamicSyncAttempts.push(value);
     return this;
   }
 }
