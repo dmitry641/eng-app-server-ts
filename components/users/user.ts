@@ -13,7 +13,7 @@ import {
   UserFlashcardsSettingsService,
   UserPhoneSettingsService,
   UserService,
-  UserSettingsService
+  UserSettingsService,
 } from "./users.service";
 
 class UserStore {
@@ -177,6 +177,7 @@ export class UserDecksSettings {
   private dynamicAutoSync?: boolean;
   private dynamicSyncMessage?: string;
   private dynamicSyncAttempts: number[] = [];
+  private dynamicSyncError: boolean = false;
   constructor(settings: IUserDecksSettings) {
     this._settings = settings;
     this.maxOrder = settings.maxOrder;
@@ -209,7 +210,7 @@ export class UserDecksSettings {
     return this.dynamicSyncData;
   }
   async setDynamicSyncData(
-    data: DynamicSyncDataType 
+    data: DynamicSyncDataType | undefined
   ): Promise<UserDecksSettings> {
     this.dynamicSyncData = data;
     this._settings.dynamicSyncData = data;
@@ -228,7 +229,9 @@ export class UserDecksSettings {
   getDynamicSyncMessage() {
     return this.dynamicSyncMessage;
   }
-  async setDynamicSyncMessage(msg: string): Promise<UserDecksSettings> {
+  async setDynamicSyncMessage(
+    msg: string | undefined
+  ): Promise<UserDecksSettings> {
     this.dynamicSyncMessage = msg;
     this._settings.dynamicSyncMessage = msg;
     this._settings.save();
@@ -237,12 +240,19 @@ export class UserDecksSettings {
   getDynamicSyncAttempts() {
     return this.dynamicSyncAttempts;
   }
+  getLastDynamicSyncAttempt() {
+    return this.dynamicSyncAttempts.at(-1);
+  }
   setDynamicSyncAttempts(arr: number[]): UserDecksSettings {
     this.dynamicSyncAttempts = arr;
     return this;
   }
   appendDynamicSyncAttempt(value: number): UserDecksSettings {
     this.dynamicSyncAttempts.push(value);
+    return this;
+  }
+  setDynamicSyncError(value: boolean): UserDecksSettings {
+    this.dynamicSyncError = value;
     return this;
   }
 }

@@ -1,0 +1,2 @@
+export const SYNC_TIMEOUT_LIMIT = 120000;
+export const SYNC_ATTEMPTS_COUNT_LIMIT = 3;

@@ -8,6 +8,7 @@ import {
 import { Deck, globalDecksStore } from "./deck";
 import { UserDecksService } from "./decks.service";
 import { IUserDeck } from "./models/userDecks.model";
+import { SYNC_ATTEMPTS_COUNT_LIMIT, SYNC_TIMEOUT_LIMIT } from "./sync";
 
 class UserDecksStore {
   private userDecksClients = new Map<UserId, UserDecksClient>();
@@ -145,39 +146,38 @@ class UserDecksClient {
     await this.updateAutoSync(true); // спорный момент, нарушение принципов
     return userDeck;
   }
-  syncDynamicDeck() {
+  async syncDynamicDeck(): Promise<UserDecksSettings> {
+    const deck = this.getDynamicDeck();
+    if (!deck) throw new Error("Dynamic deck doesn't exist");
+
+    await this.tryToResetAttempts();
+
+    const attemptsCount = this.settings.getDynamicSyncAttempts().length;
+    if (attemptsCount >= SYNC_ATTEMPTS_COUNT_LIMIT) {
+      await this.settings.setDynamicSyncMessage(
+        "Too many attempts. Try again later..."
+      );
+      this.settings.setDynamicSyncError(true);
+      setTimeout(async () => {
+        await this.settings.setDynamicSyncMessage(undefined);
+        this.settings.setDynamicSyncError(false);
+      }, 3000);
+    } else {
+      this.settings.appendDynamicSyncAttempt(Date.now());
+      // dynamicSyncining = true;
+      // dynamicSyncMessage: "Processing...",
+      // DeckSyncer.sync(user); // без await
+      // Внутри будет два варианта развития события по сокету:
+      // фейл и тогда Упдейт настроек либо успех и тогда Упдейт деки
+      // + в конце userSettings.dynamicSyncining = false;
+      // либо два сокета шлётся при успехе(дека, настройки, и возможно кардс инит)
+      // либо один (настройки)
+      // + при фейле Скедул канцел
+    }
+
+    return this.settings;
+
     /*
-    // учитывать СкедулДжобс
-    продумать ответ сервера с учетом того что синхронизация минуту идёт
-    чтобы не ждать, но при этом Кнопка заблокированна
-    походу полностью от сокета отказаться не получится
-    так как, нет способа сначала ответить 200, когда синхронизация была начата
-    А потом через время, прислать что-то на клиент
-    (+ сами новые карточки тоже нужно будет досылать)
-    (хотя это касается вообще другого модуля, Карточек)
-    (так как при добавлении ЦСВ колоды, карточки тоже не досылаются) ПРОИСХОДИТ КАРДС ИНИТ
-    (сделать получение карточек при каждом заходе в Флешкардс, без редакса?)
-    Не, без редакска не вариант, тогда при каждом переходе будте лоадер.
-
-    Всё вроде ок.
-    У нас на фронте dispatch(decksNewDeck) происходит в двух вариантах
-    После добавления ЦСВ деки(там без сокета, просто долгая загрузка)
-    После создания дин деки. (но при создании у нас не происходит синхронизация)
-
-    БАГ НА ФРОНТЕ. dispatch(decksNewDeck) вызывает Кардс.инит()
-    Но только в случае с ДинДек там еще нечего инициализировать
-    А в случае с цсв дек, всё ок.
-
-
-
-
-    // сначала проверка на то, что вообще динамическая колода есть
-    // обновление ТЕМП ВАЛУЕ/либо настроек
-    dynamicSyncMessage: "Processing...",
-    dynamicSyncining = true;
-    // потом проверка на ЛАСТ АТТЕМПТ + push нововго
-    // если ок, то
-    ----
     await DeckSyncer.sync(user); [ УПД: ОТМЕНА]
     Этот же класс/метод будет использоваться в Джобс скедуле
     Так как там не важно были ли попытыки синхронизации
@@ -197,7 +197,9 @@ class UserDecksClient {
     userSettings.dynamicSyncining = false; // temp value
     */
   }
-  async deleteDynamicDeck() {
+  async deleteDynamicDeck(): Promise<UserDecksSettings> {
+    // спорный момент
+    // в методе "удалить" мы не только удаляем, но еще и настройки изменяем...
     const deck = this.getDynamicDeck();
     if (!deck) throw new Error("Dynamic deck doesn't exist");
 
@@ -206,8 +208,8 @@ class UserDecksClient {
 
     await this.settings.setDynamicAutoSync(false);
     await this.settings.setDynamicSyncType(undefined);
-    await this.settings.setDynamicSyncData({});
-    await this.settings.setDynamicSyncMessage("");
+    await this.settings.setDynamicSyncData(undefined);
+    await this.settings.setDynamicSyncMessage(undefined);
     this.settings.setDynamicSyncAttempts([]);
 
     // FIX ME
@@ -229,6 +231,15 @@ class UserDecksClient {
   }
   async updateAutoSync(value: boolean): Promise<UserDecksSettings> {
     return this.settings.setDynamicAutoSync(value);
+  }
+
+  private async tryToResetAttempts() {
+    const lastAttempt = this.settings.getLastDynamicSyncAttempt();
+    if (lastAttempt && Date.now() > lastAttempt + SYNC_TIMEOUT_LIMIT) {
+      await this.settings.setDynamicSyncMessage(undefined);
+      this.settings.setDynamicSyncAttempts([]);
+      this.settings.setDynamicSyncError(false);
+    }
   }
 }
 
