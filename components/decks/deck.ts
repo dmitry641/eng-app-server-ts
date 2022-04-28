@@ -4,9 +4,10 @@ import {
   cardsCsvHeaders,
   CardsKeysType,
 } from "../flashcards/models/cards.model";
-import { User } from "../users/user";
+import { User, UserId } from "../users/user";
 import { DecksService } from "./decks.service";
 import { DeckInput, IDeck } from "./models/decks.model";
+import { UserDeck } from "./userDeck";
 
 class DecksStore {
   private initialized: boolean = false;
@@ -49,6 +50,20 @@ class DecksStore {
     });
     return deck;
   }
+  getDeckById(deckId: DeckId): Deck | undefined {
+    return this.decks.find((d) => d.id === deckId);
+  }
+
+  async toggleDeckPublic(userDeck: UserDeck): Promise<Deck> {
+    const deck = this.getDeckById(userDeck.deckId);
+    if (!deck) throw new Error("Deck not found");
+    if (!deck.canBePublic) throw new Error("Deck cannot be public");
+
+    if (deck.public) await deck.setPublic(false);
+    else await deck.setPublic(true);
+
+    return deck;
+  }
 
   private async newDeck(obj: DeckInput): Promise<Deck> {
     const dbDeck: IDeck = await DecksService.createDeck(obj);
@@ -61,12 +76,43 @@ export const globalDecksStore = new DecksStore();
 
 export type DeckId = ObjId;
 export class Deck {
-  id: DeckId;
-  totalCardsCount: number;
+  readonly id: DeckId;
+  private _name: string;
+  private _canBePublic: boolean;
+  private _createdBy: UserId;
+  private _public: boolean;
+  private _totalCardsCount: number;
   private _deck: IDeck;
   constructor(deck: IDeck) {
     this.id = deck._id;
     this._deck = deck;
-    this.totalCardsCount = deck.totalCardsCount;
+    this._name = deck.name;
+    this._canBePublic = deck.canBePublic;
+    this._createdBy = deck.createdBy;
+    this._public = deck.public;
+    this._totalCardsCount = deck.totalCardsCount;
+  }
+  get name() {
+    return this._name;
+  }
+  get canBePublic() {
+    return this._canBePublic;
+  }
+  get createdBy() {
+    return this._createdBy;
+  }
+  get public() {
+    return this._public;
+  }
+  get totalCardsCount() {
+    return this._totalCardsCount;
+  }
+  async setPublic(value: boolean): Promise<Deck> {
+    if (value && !this.canBePublic)
+      throw new Error("This deck cannot be public");
+    this._public = value;
+    this._deck.public = value;
+    await this._deck.save();
+    return this;
   }
 }
