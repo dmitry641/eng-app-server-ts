@@ -1,15 +1,15 @@
-export enum DynamicSyncTypeEnum {
+export enum DynamicSyncType {
   reverso = "reverso",
   google = "google",
 }
 
-export type DynamicSyncDataType = {
+export type DynamicSyncData = {
   email?: string;
   password?: string;
   accountName?: string;
 };
 
-export enum DeckPositionEnum {
+export enum UserDeckPositionEnum {
   up = "up",
   down = "down",
 }

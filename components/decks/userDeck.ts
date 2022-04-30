@@ -1,9 +1,9 @@
 import { ObjId, UploadedFile } from "../../utils/types";
 import { User, UserDecksSettings, UserId } from "../users/user";
 import {
-  DeckPositionEnum,
-  DynamicSyncDataType,
-  DynamicSyncTypeEnum,
+  DynamicSyncData,
+  DynamicSyncType,
+  UserDeckPositionEnum,
 } from "../users/user.util";
 import { Deck, DeckId, globalDecksStore } from "./deck";
 import { UserDecksService } from "./decks.service";
@@ -54,73 +54,73 @@ class UserDecksStore {
 }
 export const globalUserDecksStore = new UserDecksStore();
 
-class UserDecksClient {
-  private settings: UserDecksSettings;
-  constructor(private decks: UserDeck[], private user: User) {
-    this.settings = user.settings.decksSettings;
+export class UserDecksClient {
+  readonly settings: UserDecksSettings;
+  constructor(private userDecks: UserDeck[], private user: User) {
+    this.settings = user.settings.userDecksSettings;
   }
-  getDecks(): UserDeck[] {
-    return this.decks;
+  getUserDecks(): UserDeck[] {
+    return this.userDecks;
   }
-  private getDeckById(id: UserDeckId): UserDeck | undefined {
-    return this.decks.find((d) => d.id === id);
+  private getUserDeckById(id: UserDeckId): UserDeck | undefined {
+    return this.userDecks.find((d) => d.id === id);
   }
-  async enableDeck(id: UserDeckId): Promise<UserDeck> {
-    const deck = this.getDeckById(id);
-    if (!deck) throw new Error("Deck doesn't exist");
-    return deck.enable();
+  async enableUserDeck(id: UserDeckId): Promise<UserDeck> {
+    const userDeck = this.getUserDeckById(id);
+    if (!userDeck) throw new Error("UserDeck doesn't exist");
+    return userDeck.enable();
   }
-  async deleteDeck(id: UserDeckId) {
-    const deck = this.getDeckById(id);
-    if (!deck) throw new Error("Deck doesn't exist");
-    if (deck.dynamic) throw new Error("Dynamic deck is not allowed");
-    await deck.delete();
-    this.decks = this.decks.filter((d) => d.id != deck.id);
+  async deleteUserDeck(id: UserDeckId) {
+    const userDeck = this.getUserDeckById(id);
+    if (!userDeck) throw new Error("UserDeck doesn't exist");
+    if (userDeck.dynamic) throw new Error("Dynamic deck is not allowed");
+    await userDeck.delete();
+    this.userDecks = this.userDecks.filter((d) => d.id != userDeck.id);
   }
-  async moveDeck(
+  async moveUserDeck(
     id: UserDeckId,
-    position: DeckPositionEnum
+    position: UserDeckPositionEnum
   ): Promise<UserDeck> {
-    const deckOne = this.getDeckById(id);
-    if (!deckOne) throw new Error("Deck doesn't exist");
+    const userDeckOne = this.getUserDeckById(id);
+    if (!userDeckOne) throw new Error("UserDeck doesn't exist");
 
     // FIX ME. Нужно проверить правильно ли отсортировалось
-    this.decks.sort((a, b) => a.order - b.order); // спорный момент. Тут оно не нужно, так как они уже должны быть отсортированны
-    const currIndex = this.decks.findIndex((d) => d.id == deckOne.id);
+    this.userDecks.sort((a, b) => a.order - b.order); // спорный момент. Тут оно не нужно, так как они уже должны быть отсортированны
+    const currIndex = this.userDecks.findIndex((d) => d.id == userDeckOne.id);
 
-    let deckTwo;
+    let userDeckTwo;
     switch (position) {
-      case DeckPositionEnum.up:
-        deckTwo = this.decks?.[currIndex - 1];
+      case UserDeckPositionEnum.up:
+        userDeckTwo = this.userDecks?.[currIndex - 1];
         break;
-      case DeckPositionEnum.down:
-        deckTwo = this.decks?.[currIndex + 1];
+      case UserDeckPositionEnum.down:
+        userDeckTwo = this.userDecks?.[currIndex + 1];
         break;
       default:
         throw new Error("not implemented");
     }
-    if (!deckTwo) throw new Error("out of bounds");
+    if (!userDeckTwo) throw new Error("out of bounds");
 
-    let orderOne = Number(deckOne.order);
-    let orderTwo = Number(deckTwo.order);
-    await deckTwo.setOrder(orderOne);
-    const updated = await deckOne.setOrder(orderTwo);
+    let orderOne = Number(userDeckOne.order);
+    let orderTwo = Number(userDeckTwo.order);
+    await userDeckTwo.setOrder(orderOne);
+    const updated = await userDeckOne.setOrder(orderTwo);
 
     // FIX ME. Нужно проверить правильно ли отсортировалось
-    this.decks.sort((a, b) => a.order - b.order); // спорный момент
+    this.userDecks.sort((a, b) => a.order - b.order); // спорный момент
     return updated;
   }
   async toggleUserDeckPublic(userDeckId: UserDeckId): Promise<Deck> {
-    const deck = this.getDeckById(userDeckId);
-    if (!deck) throw new Error("Deck doesn't exist");
-    if (deck.dynamic) throw new Error("Dynamic deck cannot be public");
-    return globalDecksStore.toggleDeckPublic(deck);
+    const userDeck = this.getUserDeckById(userDeckId);
+    if (!userDeck) throw new Error("UserDeck doesn't exist");
+    if (userDeck.dynamic) throw new Error("Dynamic deck cannot be public");
+    return globalDecksStore.toggleDeckPublic(userDeck);
   }
   async addPublicDeckToUserDecks(deckId: DeckId): Promise<UserDeck> {
     const deck = globalDecksStore.getDeckById(deckId);
     if (!deck) throw new Error("Deck doesn't exist");
-    const existed = this.decks.find((d) => d.deckId === deck.id);
-    if (existed) throw new Error("Deck already exists");
+    const existed = this.userDecks.find((d) => d.deckId === deck.id);
+    if (existed) throw new Error("Deck already exists in userDecks");
     // Немного не правильная архитектура. Проблемы с инкапсуляцией.
     // Я могу сделать deck.setPublic(true), хотя не должен мочь, ведь не я владелец этой колоды.
     // Если передовать как ДТО, то можно этого избежать.
@@ -130,7 +130,7 @@ class UserDecksClient {
   }
 
   // не забыть сделать проверку файла. Либо тут либо в контроллере
-  async createDeck(file: UploadedFile): Promise<UserDeck> {
+  async createUserDeck(file: UploadedFile): Promise<UserDeck> {
     const deck: Deck = await globalDecksStore.createDeck(file, this.user);
     const userDeck: UserDeck = await this.newUserDeck(deck);
     return userDeck;
@@ -145,14 +145,14 @@ class UserDecksClient {
       order,
     });
     const userDeck = new UserDeck(dbUserDeck);
-    this.decks.push(userDeck); // спорный момент
+    this.userDecks.push(userDeck); // спорный момент
     return userDeck;
   }
   //
   // dynamic
   //
-  private getDynamicDeck(): UserDeck | undefined {
-    return this.decks.find((d) => d.dynamic);
+  getDynamicDeck(): UserDeck | undefined {
+    return this.userDecks.find((d) => d.dynamic);
   }
   async createDynamicDeck(): Promise<UserDeck> {
     const dynDeck = this.getDynamicDeck();
@@ -166,8 +166,8 @@ class UserDecksClient {
     settings: UserDecksSettings;
     deck: UserDeck;
   }> {
-    const deck = this.getDynamicDeck();
-    if (!deck) throw new Error("Dynamic deck doesn't exist");
+    const dynDeck = this.getDynamicDeck();
+    if (!dynDeck) throw new Error("Dynamic deck doesn't exist");
 
     await this.tryToResetAttempts();
 
@@ -177,7 +177,7 @@ class UserDecksClient {
     }
 
     this.settings.appendDynamicSyncAttempt(Date.now());
-    const syncClient = new SyncClient();
+    const syncClient = new SyncClient(this);
     const synced = await syncClient.syncHandler();
     if (synced) {
       await this.settings.setDynamicSyncMessage(
@@ -190,16 +190,16 @@ class UserDecksClient {
       // Schedule cancel
     }
 
-    return { settings: this.settings, deck };
+    return { settings: this.settings, deck: dynDeck };
   }
   async deleteDynamicDeck(): Promise<UserDecksSettings> {
     // спорный момент
     // в методе "удалить" мы не только удаляем, но еще и настройки изменяем...
-    const deck = this.getDynamicDeck();
-    if (!deck) throw new Error("Dynamic deck doesn't exist");
+    const dynDeck = this.getDynamicDeck();
+    if (!dynDeck) throw new Error("Dynamic deck doesn't exist");
 
-    await deck.delete();
-    this.decks = this.decks.filter((d) => d.id != deck.id);
+    await dynDeck.delete();
+    this.userDecks = this.userDecks.filter((d) => d.id != dynDeck.id);
 
     await this.settings.setDynamicAutoSync(false);
     await this.settings.setDynamicSyncType(undefined);
@@ -213,8 +213,8 @@ class UserDecksClient {
     return this.settings;
   }
   async updateSyncDataType(
-    type: DynamicSyncTypeEnum,
-    data: DynamicSyncDataType
+    type: DynamicSyncType,
+    data: DynamicSyncData
   ): Promise<UserDecksSettings> {
     await this.settings.setDynamicSyncType(type);
     await this.settings.setDynamicSyncData(data);

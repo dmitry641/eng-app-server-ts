@@ -1,19 +1,17 @@
 import { Document, model, Schema } from "mongoose";
 import { UserId } from "../user";
 
-export interface UserFlashcardsSettingsInput {
+export interface UserCardsSettingsInput {
   user: UserId;
 }
 
-export interface IUserFlashcardsSettings
-  extends UserFlashcardsSettingsInput,
-    Document {
+export interface IUserCardsSettings extends UserCardsSettingsInput, Document {
   frontSideFirst: boolean;
   randomSideFirst: boolean;
   showPictures: boolean;
 }
 
-const UserFlashcardsSettingsSchema: Schema = new Schema(
+const UserCardsSettingsSchema: Schema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     frontSideFirst: { type: Boolean, default: true },
@@ -23,7 +21,7 @@ const UserFlashcardsSettingsSchema: Schema = new Schema(
   { timestamps: true }
 );
 
-export const UserFlashcardsSettingsModel = model<IUserFlashcardsSettings>(
-  "UserFlashcardsSettings",
-  UserFlashcardsSettingsSchema
+export const UserCardsSettingsModel = model<IUserCardsSettings>(
+  "UserCardsSettings",
+  UserCardsSettingsSchema
 );

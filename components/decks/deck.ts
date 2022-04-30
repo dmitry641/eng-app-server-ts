@@ -21,7 +21,7 @@ class DecksStore {
   }
   async createDeck(file: UploadedFile, user: User): Promise<Deck> {
     const filename = file.originalname.replace(".csv", "");
-    const rawCardsData: CardsKeysType[] = await getCsvData<CardsKeysType>(
+    const rawCards: CardsKeysType[] = await getCsvData<CardsKeysType>(
       file.buffer,
       cardsCsvHeaders,
       ","
@@ -30,7 +30,7 @@ class DecksStore {
     const deck: Deck = await this.newDeck({
       createdBy: user.id,
       name: filename,
-      totalCardsCount: rawCardsData.length,
+      totalCardsCount: rawCards.length,
       canBePublic: true,
     });
     // FIX ME

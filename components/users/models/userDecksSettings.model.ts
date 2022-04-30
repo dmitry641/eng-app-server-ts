@@ -1,6 +1,6 @@
 import { Document, model, Schema } from "mongoose";
 import { UserId } from "../user";
-import { DynamicSyncDataType, DynamicSyncTypeEnum } from "../user.util";
+import { DynamicSyncData, DynamicSyncType } from "../user.util";
 
 export interface UserDecksSettingsInput {
   user: UserId;
@@ -11,8 +11,8 @@ export interface IUserDecksSettings extends UserDecksSettingsInput, Document {
   maxOrder: number;
   dynamicHighPriority: boolean;
   dynamicAutoSync: boolean;
-  dynamicSyncType?: DynamicSyncTypeEnum;
-  dynamicSyncData?: DynamicSyncDataType;
+  dynamicSyncType?: DynamicSyncType;
+  dynamicSyncData?: DynamicSyncData;
   dynamicSyncMessage?: string;
 }
 
@@ -23,7 +23,7 @@ const UserDecksSettingsSchema: Schema = new Schema(
     maxOrder: { type: Number, default: 0, required: true },
     dynamicHighPriority: { type: Boolean, default: true, required: true },
     dynamicAutoSync: { type: Boolean, default: false, required: true },
-    dynamicSyncType: { type: String, enum: DynamicSyncTypeEnum },
+    dynamicSyncType: { type: String, enum: DynamicSyncType },
     dynamicSyncData: {
       email: { type: String },
       password: { type: String },

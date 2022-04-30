@@ -1,16 +1,16 @@
 import bcrypt from "bcrypt";
 import { StripeUtil } from "../../utils/stripe.util";
 import { ObjId } from "../../utils/types";
+import { IUserCardsSettings } from "./models/userCardsSettings.model";
 import { IUserDecksSettings } from "./models/userDecksSettings.model";
-import { IUserFlashcardsSettings } from "./models/userFlashcardsSettings.model";
 import { IUserPhoneSettings } from "./models/userPhoneSettings.model";
 import { IUser } from "./models/users.model";
 import { IUserSettings, UserSettingsInput } from "./models/userSettings.model";
-import { DynamicSyncDataType, DynamicSyncTypeEnum } from "./user.util";
+import { DynamicSyncData, DynamicSyncType } from "./user.util";
 import { CreateUserDto } from "./users.dto";
 import {
+  UserCardsSettingsService,
   UserDecksSettingsService,
-  UserFlashcardsSettingsService,
   UserPhoneSettingsService,
   UserService,
   UserSettingsService,
@@ -85,12 +85,13 @@ class UserStore {
     const decksSettings: UserDecksSettings = new UserDecksSettings(
       dbDecksSettings
     );
-    const dbFlashcardsSettings: IUserFlashcardsSettings =
-      await UserFlashcardsSettingsService.createUserFlashcardsSettings({
+    const dbCardsSettings: IUserCardsSettings =
+      await UserCardsSettingsService.createUserCardsSettings({
         user,
       });
-    const flashcardsSettings: UserFlashcardsSettings =
-      new UserFlashcardsSettings(dbFlashcardsSettings);
+    const flashcardsSettings: UserCardsSettings = new UserCardsSettings(
+      dbCardsSettings
+    );
 
     const settings = new UserSettings(
       dbSettings,
@@ -123,19 +124,20 @@ class UserStore {
       dbDecksSettings
     );
 
-    const dbFlashcardsSettings =
-      await UserFlashcardsSettingsService.findOneUserFlashcardsSettings({
+    const dbCardsSettings =
+      await UserCardsSettingsService.findOneUserCardsSettings({
         user: userId,
       });
-    if (!dbFlashcardsSettings) return null;
-    const flashcardsSettings: UserFlashcardsSettings =
-      new UserFlashcardsSettings(dbFlashcardsSettings);
+    if (!dbCardsSettings) return null;
+    const cardsSettings: UserCardsSettings = new UserCardsSettings(
+      dbCardsSettings
+    );
 
     const settings = new UserSettings(
       dbSettings,
       phoneSettings,
       decksSettings,
-      flashcardsSettings
+      cardsSettings
     );
     return settings;
   }
@@ -143,9 +145,9 @@ class UserStore {
 
 export type UserId = ObjId;
 export class User {
-  id: UserId;
+  readonly id: UserId;
   private _user: IUser;
-  settings: UserSettings;
+  readonly settings: UserSettings;
   // subscriprion
   constructor(user: IUser, settings: UserSettings) {
     this.id = user._id;
@@ -157,9 +159,9 @@ export class User {
 class UserSettings {
   constructor(
     private _settings: IUserSettings,
-    public phoneSettings: UserPhoneSettings,
-    public decksSettings: UserDecksSettings,
-    public flashcardsSettings: UserFlashcardsSettings
+    public readonly phoneSettings: UserPhoneSettings,
+    public readonly userDecksSettings: UserDecksSettings,
+    public readonly userCardsSettings: UserCardsSettings
   ) {}
 }
 
@@ -172,10 +174,10 @@ class UserPhoneSettings {
 export class UserDecksSettings {
   private _settings: IUserDecksSettings;
   private maxOrder: number;
-  private dynamicSyncType?: DynamicSyncTypeEnum;
-  private dynamicSyncData?: DynamicSyncDataType;
+  private dynamicSyncType?: IUserDecksSettings["dynamicSyncType"];
+  private dynamicSyncData?: IUserDecksSettings["dynamicSyncData"];
   private dynamicAutoSync?: boolean;
-  private dynamicSyncMessage?: string;
+  private dynamicSyncMessage?: IUserDecksSettings["dynamicSyncMessage"];
   private dynamicSyncAttempts: number[] = [];
   constructor(settings: IUserDecksSettings) {
     this._settings = settings;
@@ -198,7 +200,7 @@ export class UserDecksSettings {
     return this.dynamicSyncType;
   }
   async setDynamicSyncType(
-    type: DynamicSyncTypeEnum | undefined
+    type: DynamicSyncType | undefined
   ): Promise<UserDecksSettings> {
     this.dynamicSyncType = type;
     this._settings.dynamicSyncType = type;
@@ -209,7 +211,7 @@ export class UserDecksSettings {
     return this.dynamicSyncData;
   }
   async setDynamicSyncData(
-    data: DynamicSyncDataType | undefined
+    data: DynamicSyncData | undefined
   ): Promise<UserDecksSettings> {
     this.dynamicSyncData = data;
     this._settings.dynamicSyncData = data;
@@ -251,9 +253,9 @@ export class UserDecksSettings {
     return this;
   }
 }
-export class UserFlashcardsSettings {
-  private _settings: IUserFlashcardsSettings;
-  constructor(settings: IUserFlashcardsSettings) {
+export class UserCardsSettings {
+  private _settings: IUserCardsSettings;
+  constructor(settings: IUserCardsSettings) {
     this._settings = settings;
   }
 }

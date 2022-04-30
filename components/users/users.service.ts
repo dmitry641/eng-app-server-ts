@@ -1,14 +1,14 @@
 import { FilterQuery } from "mongoose";
 import {
+  IUserCardsSettings,
+  UserCardsSettingsInput,
+  UserCardsSettingsModel,
+} from "./models/userCardsSettings.model";
+import {
   IUserDecksSettings,
   UserDecksSettingsInput,
   UserDecksSettingsModel,
 } from "./models/userDecksSettings.model";
-import {
-  IUserFlashcardsSettings,
-  UserFlashcardsSettingsInput,
-  UserFlashcardsSettingsModel,
-} from "./models/userFlashcardsSettings.model";
 import {
   IUserPhoneSettings,
   UserPhoneSettingsInput,
@@ -69,15 +69,15 @@ export class UserDecksSettingsService {
   }
 }
 
-export class UserFlashcardsSettingsService {
-  static async createUserFlashcardsSettings(
-    obj: UserFlashcardsSettingsInput
-  ): Promise<IUserFlashcardsSettings> {
-    return UserFlashcardsSettingsModel.create(obj);
+export class UserCardsSettingsService {
+  static async createUserCardsSettings(
+    obj: UserCardsSettingsInput
+  ): Promise<IUserCardsSettings> {
+    return UserCardsSettingsModel.create(obj);
   }
-  static async findOneUserFlashcardsSettings(
-    query: FilterQuery<IUserFlashcardsSettings>
-  ): Promise<IUserFlashcardsSettings | null> {
-    return UserFlashcardsSettingsModel.findOne(query);
+  static async findOneUserCardsSettings(
+    query: FilterQuery<IUserCardsSettings>
+  ): Promise<IUserCardsSettings | null> {
+    return UserCardsSettingsModel.findOne(query);
   }
 }

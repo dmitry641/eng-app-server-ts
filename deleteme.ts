@@ -11,6 +11,28 @@ class Test {
 
 export async function deleteMe() {
   console.log("delete me");
+
+  const cat = new Cat();
+  cat.walk();
+
+  try {
+    const test = new ClassA();
+  } catch (error) {
+    // console.log(error);
+  }
+
+  const dog = new Dog();
+  dog.walk();
+}
+
+class ClassA {
+  constructor() {
+    throw new Error("test");
+  }
+}
+
+/*
+
   const walkingAnimals: IWalk[] = [new Cat(), new Dog()];
 
   const dog = walkingAnimals.find((a) => a instanceof Dog);
@@ -19,7 +41,8 @@ export async function deleteMe() {
   const persons: Person[] = [new Employee(), new Customer()];
   const employee = persons.find((p) => p instanceof Employee);
   // employee.
-}
+
+*/
 
 class Person {
   method() {}

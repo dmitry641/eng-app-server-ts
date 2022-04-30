@@ -13,6 +13,7 @@ export interface CardInput extends CardsKeysType {
   deck: DeckId;
   customId?: string;
 }
+export type CardInputOmit = Omit<CardInput, "deck">;
 
 export interface ICard extends CardInput, Document {}
 
