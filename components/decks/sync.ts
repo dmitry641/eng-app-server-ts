@@ -2,6 +2,7 @@ import axios, { AxiosRequestConfig } from "axios";
 import { CardInputOmit } from "../flashcards/models/cards.model";
 import { UserDecksSettings } from "../users/user";
 import { DynamicSyncData, DynamicSyncType } from "../users/user.util";
+import { globalDecksStore } from "./deck";
 import { UserDecksClient } from "./userDeck";
 
 export const SYNC_TIMEOUT_LIMIT = 120000;
@@ -22,12 +23,17 @@ export class SyncClient {
     // ГлобалКардс.что-то(rawCards, deck.id)
     // dynamicDeck.setCardsCount(...)
 
-    const dynDeck = this.userDecksClient.getDynamicDeck();
-    if (!dynDeck) throw new Error("Dynamic deck doesn't exist");
+    // спорный момент, нарушение DRY
+    const dynUserDeck = this.userDecksClient.getDynamicUserDeck();
+    if (!dynUserDeck) throw new Error("Dynamic userDeck doesn't exist");
 
     const rawCards = this.fetcher.getRawCards();
-    // получаем уже существующие карточки
-    // compareArraysById() - удаляем из rawCards те карточки, которые уже существуют
+
+    const deck = globalDecksStore.getDeckById(dynUserDeck.deckId);
+    if (!deck) throw new Error("Deck doesn't exist");
+
+    // existedCards = получаем уже существующие карточки
+    // filteredRawCards = filterByCustomId() - удаляем из rawCards те карточки, которые уже существуют
 
     return true;
   }

@@ -30,22 +30,22 @@ class UserDecksStore {
   }
   private async getUserDecks(user: User): Promise<UserDeck[]> {
     let userDecks: UserDeck[] = [];
-    const models = await UserDecksService.findUserDecks({
+    const dbUserDecks = await UserDecksService.findUserDecks({
       user: user.id,
       deleted: false,
     });
     // FIX ME. Нужно проверить правильно ли отсортировалось
-    models.sort((a, b) => a.order - b.order);
+    dbUserDecks.sort((a, b) => a.order - b.order);
 
     let dynamicExist = false;
-    for (let model of models) {
-      if (model.dynamic) {
+    for (let dbUserDeck of dbUserDecks) {
+      if (dbUserDeck.dynamic) {
         // очень спорный момент
         if (dynamicExist) throw new Error("Multiple dynamic decks");
         dynamicExist = true;
       }
 
-      const userDeck = new UserDeck(model);
+      const userDeck = new UserDeck(dbUserDeck);
       userDecks.push(userDeck);
     }
 
@@ -104,11 +104,11 @@ export class UserDecksClient {
     let orderOne = Number(userDeckOne.order);
     let orderTwo = Number(userDeckTwo.order);
     await userDeckTwo.setOrder(orderOne);
-    const updated = await userDeckOne.setOrder(orderTwo);
+    const updatedUserDeck = await userDeckOne.setOrder(orderTwo);
 
     // FIX ME. Нужно проверить правильно ли отсортировалось
     this.userDecks.sort((a, b) => a.order - b.order); // спорный момент
-    return updated;
+    return updatedUserDeck;
   }
   async toggleUserDeckPublic(userDeckId: UserDeckId): Promise<Deck> {
     const userDeck = this.getUserDeckById(userDeckId);
@@ -151,23 +151,23 @@ export class UserDecksClient {
   //
   // dynamic
   //
-  getDynamicDeck(): UserDeck | undefined {
+  getDynamicUserDeck(): UserDeck | undefined {
     return this.userDecks.find((d) => d.dynamic);
   }
-  async createDynamicDeck(): Promise<UserDeck> {
-    const dynDeck = this.getDynamicDeck();
-    if (dynDeck) throw new Error("Dynamic deck already exists");
+  async createDynamicUserDeck(): Promise<UserDeck> {
+    const dynUserDeck = this.getDynamicUserDeck();
+    if (dynUserDeck) throw new Error("Dynamic userDeck already exists");
     const deck: Deck = await globalDecksStore.createDynamicDeck(this.user);
     const userDeck = await this.newUserDeck(deck);
     await this.updateAutoSync(true); // спорный момент, нарушение принципов
     return userDeck;
   }
-  async syncDynamicDeck(): Promise<{
+  async syncDynamicUserDeck(): Promise<{
     settings: UserDecksSettings;
     deck: UserDeck;
   }> {
-    const dynDeck = this.getDynamicDeck();
-    if (!dynDeck) throw new Error("Dynamic deck doesn't exist");
+    const dynUserDeck = this.getDynamicUserDeck();
+    if (!dynUserDeck) throw new Error("Dynamic userDeck doesn't exist");
 
     await this.tryToResetAttempts();
 
@@ -190,16 +190,16 @@ export class UserDecksClient {
       // Schedule cancel
     }
 
-    return { settings: this.settings, deck: dynDeck };
+    return { settings: this.settings, deck: dynUserDeck };
   }
-  async deleteDynamicDeck(): Promise<UserDecksSettings> {
+  async deleteDynamicUserDeck(): Promise<UserDecksSettings> {
     // спорный момент
     // в методе "удалить" мы не только удаляем, но еще и настройки изменяем...
-    const dynDeck = this.getDynamicDeck();
-    if (!dynDeck) throw new Error("Dynamic deck doesn't exist");
+    const dynUserDeck = this.getDynamicUserDeck();
+    if (!dynUserDeck) throw new Error("Dynamic userDeck doesn't exist");
 
-    await dynDeck.delete();
-    this.userDecks = this.userDecks.filter((d) => d.id != dynDeck.id);
+    await dynUserDeck.delete();
+    this.userDecks = this.userDecks.filter((d) => d.id != dynUserDeck.id);
 
     await this.settings.setDynamicAutoSync(false);
     await this.settings.setDynamicSyncType(undefined);
