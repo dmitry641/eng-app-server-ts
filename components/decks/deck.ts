@@ -1,5 +1,6 @@
 import { getCsvData } from "../../utils";
 import { ObjId, UploadedFile } from "../../utils/types";
+import { globalCardsStore } from "../flashcards/cards";
 import {
   cardsCsvHeaders,
   CardsKeysType,
@@ -33,11 +34,8 @@ class DecksStore {
       totalCardsCount: rawCards.length,
       canBePublic: true,
     });
-    // FIX ME
-    // ГлобалКардс.что-то(rawCards, deck.id)
-    // или deck.createCards(rawCards)
-    // или вообще не тут это делать, а в отдельном классе + не делать разделение на createDeck и createDynamicDeck
-    // спорный момент
+
+    await globalCardsStore.createCards(rawCards, deck);
 
     return deck;
   }
@@ -83,6 +81,9 @@ export class Deck {
   private _public: boolean;
   private _totalCardsCount: number;
   private _deck: IDeck;
+  // private cardsStore:cardsStore;
+  // Тогда бы можно было бы обойтись без globalCardsStore
+  // Но при этом Deck стал слишком большим + нарушение Low Coupling/High Cohesion
   constructor(deck: IDeck) {
     this.id = deck._id;
     this._deck = deck;

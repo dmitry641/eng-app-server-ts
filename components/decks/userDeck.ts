@@ -240,18 +240,23 @@ export class UserDecksClient {
 export type UserDeckId = ObjId;
 export class UserDeck {
   readonly id: UserDeckId;
+  private _userdeck: IUserDeck;
+  private _deckId: DeckId;
   private _dynamic: boolean;
   private _enabled: boolean;
   private _order: number;
-  private _deckId: DeckId;
-  private _userdeck: IUserDeck;
+  private _cardsCount: number;
   constructor(userdeck: IUserDeck) {
     this.id = userdeck._id;
     this._userdeck = userdeck;
+    this._deckId = userdeck.deck;
     this._dynamic = userdeck.dynamic;
     this._enabled = userdeck.enabled;
     this._order = userdeck.order;
-    this._deckId = userdeck.deck;
+    this._cardsCount = userdeck.cardsCount;
+  }
+  get deckId() {
+    return this._deckId;
   }
   get dynamic() {
     return this._dynamic;
@@ -262,9 +267,10 @@ export class UserDeck {
   get order() {
     return this._order;
   }
-  get deckId() {
-    return this._deckId;
+  get cardsCount() {
+    return this._cardsCount;
   }
+
   async delete() {
     this._userdeck.deleted = true;
     await this._userdeck.save();
@@ -276,9 +282,15 @@ export class UserDeck {
     await this._userdeck.save();
     return this;
   }
-  async setOrder(value: number) {
+  async setOrder(value: number): Promise<UserDeck> {
     this._order = value;
     this._userdeck.order = value;
+    await this._userdeck.save();
+    return this;
+  }
+  async setCardsCount(value: number): Promise<UserDeck> {
+    this._cardsCount = value;
+    this._userdeck.cardsCount = value;
     await this._userdeck.save();
     return this;
   }

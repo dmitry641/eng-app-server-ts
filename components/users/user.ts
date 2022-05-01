@@ -19,7 +19,7 @@ import {
 class UserStore {
   private users: User[] = [];
   async getUser(userId: UserId): Promise<User> {
-    let user;
+    let user: User | undefined;
     user = this.getUserFromStore(userId);
     if (user) return user;
     user = await this.initUser(userId);
@@ -50,11 +50,11 @@ class UserStore {
     this.addUserToStore(newUser);
     return newUser;
   }
-  private async initUser(userId: UserId): Promise<User | null> {
+  private async initUser(userId: UserId): Promise<User | undefined> {
     const dbUser = await UserService.findOneUser({ _id: userId });
-    if (!dbUser) return null; // throw new Error("User not found")
+    if (!dbUser) return undefined; // throw new Error("User not found")
     const settings = await this.findUserSettings(userId);
-    if (!settings) return null; // throw new Error("User not found")
+    if (!settings) return undefined; // throw new Error("User not found")
     const user = new User(dbUser, settings);
     this.addUserToStore(user);
     return user;

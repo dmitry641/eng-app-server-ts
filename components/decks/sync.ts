@@ -1,4 +1,5 @@
 import axios, { AxiosRequestConfig } from "axios";
+import { Card, globalCardsStore } from "../flashcards/cards";
 import { CardInputOmit } from "../flashcards/models/cards.model";
 import { UserDecksSettings } from "../users/user";
 import { DynamicSyncData, DynamicSyncType } from "../users/user.util";
@@ -14,28 +15,44 @@ export class SyncClient {
     this.fetcher = FetcherFactory.produce(userDecksClient.settings);
   }
   async syncHandler(): Promise<boolean> {
-    // в Скедул инит, мы поместим юзера
-    // и потом внутри, два варианта:
-    // либо через этот синк клиент (предпочтительнее)
-    // либо через юзер дек клиент
+    try {
+      // спорный момент, нарушение DRY
+      const dynUserDeck = this.userDecksClient.getDynamicUserDeck();
+      if (!dynUserDeck) throw new Error("Dynamic userDeck doesn't exist");
 
-    // rawCards = ...
-    // ГлобалКардс.что-то(rawCards, deck.id)
-    // dynamicDeck.setCardsCount(...)
+      const rawCards = await this.fetcher.getRawCards();
 
-    // спорный момент, нарушение DRY
-    const dynUserDeck = this.userDecksClient.getDynamicUserDeck();
-    if (!dynUserDeck) throw new Error("Dynamic userDeck doesn't exist");
+      const deck = globalDecksStore.getDeckById(dynUserDeck.deckId);
+      if (!deck) throw new Error("Deck doesn't exist");
 
-    const rawCards = this.fetcher.getRawCards();
+      const existedCards = await globalCardsStore.getCards(deck);
+      const filteredRawCards = this.filterByCustomId(rawCards, existedCards);
 
-    const deck = globalDecksStore.getDeckById(dynUserDeck.deckId);
-    if (!deck) throw new Error("Deck doesn't exist");
+      // повторный фильтр на уже выученные???
+      // FIX ME
 
-    // existedCards = получаем уже существующие карточки
-    // filteredRawCards = filterByCustomId() - удаляем из rawCards те карточки, которые уже существуют
+      await globalCardsStore.createCards(filteredRawCards, deck);
+      await dynUserDeck.setCardsCount(
+        dynUserDeck.cardsCount + filteredRawCards.length
+      );
 
-    return true;
+      return true;
+    } catch (error) {
+      console.log(error);
+      return false;
+    }
+  }
+  private filterByCustomId(
+    rawCards: CardInputOmit[],
+    existedCards: Card[]
+  ): CardInputOmit[] {
+    const customIds: string[] = [];
+    existedCards.forEach((c) => c.customId && customIds.push(c.customId));
+    const filtered: CardInputOmit[] = [];
+    rawCards.forEach(
+      (c) => c.customId && !customIds.includes(c.customId) && filtered.push(c)
+    );
+    return filtered;
   }
 }
 
