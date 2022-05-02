@@ -1,8 +1,12 @@
 import schedule from "node-schedule";
+import { randomIntFromInterval } from "../../utils";
 import { ObjId } from "../../utils/types";
-import { User } from "../users/user";
+import { UserDecksService } from "../decks/decks.service";
+import { globalUserDecksStore } from "../decks/userDeck";
+import { globalUserStore, User, UserId } from "../users/user";
 
 class JobStore {
+  private initialized: boolean = false;
   userJobs: UserJobsManager;
   globalJobs: GlobalJobsManager;
   constructor() {
@@ -10,8 +14,10 @@ class JobStore {
     this.globalJobs = new GlobalJobsManager();
   }
   async init() {
+    if (this.initialized) throw new Error("JobStore is already initialized");
     await this.userJobs.init();
     await this.globalJobs.init();
+    this.initialized = true;
   }
 }
 export const globalJobStore = new JobStore();
@@ -19,7 +25,15 @@ export const globalJobStore = new JobStore();
 class UserJobsManager {
   private userjobs = new Map<User, UserJobStore>();
   async init() {
-    // find dynamic userdecks
+    // спорный момент
+    const dbDynUserDeck = await UserDecksService.findUserDecks({
+      dynamic: true,
+    });
+    for (const dbDeck of dbDynUserDeck) {
+      const user = await globalUserStore.getUser(dbDeck.user);
+      this.createJob(user, UserJobTypesEnum.deckSync);
+    }
+
     // find notification(not implemented)
   }
   createJob(
@@ -29,7 +43,7 @@ class UserJobsManager {
   ) {
     const userJob = UserJobFactory.create(type, options);
     const rule = userJob.getRule(options);
-    const cb = userJob.getCallback(); // { detail, user: this._user }
+    const cb = userJob.getCallback({ userId: user.id, options }); // { detail, user: this._user }
 
     const job = schedule.scheduleJob(rule, cb);
 
@@ -37,7 +51,13 @@ class UserJobsManager {
     const userJobStore = this.getUserJobStore(user);
     userJobStore.appendJob(userJob);
   }
-  cancelJob(user: User, userJobId: UserJobId) {}
+  cancelJob(user: User, userJobId: UserJobId) {
+    const userJobStore = this.getUserJobStore(user);
+    const userJob = userJobStore.getJob(userJobId);
+    if (!userJob) throw new Error("Userjob not found");
+    userJob.cancel();
+    userJobStore.deleteJob(userJob);
+  }
   updateJob(
     user: User,
     userJobId: UserJobId,
@@ -79,6 +99,12 @@ class UserJobStore {
   appendJob(userjob: IUserJob) {
     this.userjobs.push(userjob);
   }
+  getJob(userJobId: UserJobId) {
+    return this.userjobs.find((j) => j.id === userJobId);
+  }
+  deleteJob(userJob: IUserJob) {
+    this.userjobs = this.userjobs.filter((j) => j.id !== userJob.id);
+  }
 }
 
 class UserJobFactory {
@@ -101,35 +127,59 @@ class UserJobFactory {
 
 interface IUserJob {
   readonly id: UserJobId;
-  readonly job?: schedule.Job;
+  job?: schedule.Job;
   setJob(job: schedule.Job): void;
   cancel(): void;
   getRule(options?: UserJobCreationOptions): schedule.RecurrenceSpecDateRange;
-  getCallback(): schedule.JobCallback;
+  getCallback(obj: GetCallbackAttr): schedule.JobCallback;
 }
+type GetCallbackAttr = {
+  userId: UserId;
+  options?: UserJobCreationOptions;
+};
 
 class UserDeckSyncJob implements IUserJob {
-  readonly job?: schedule.Job | undefined;
+  job?: schedule.Job | undefined;
   constructor(readonly id: UserJobId) {}
   setJob(job: schedule.Job): void {
-    throw new Error("Method not implemented.");
+    this.job = job;
   }
   cancel(): void {
-    throw new Error("Method not implemented.");
+    this.job?.cancel();
   }
   getRule(): schedule.RecurrenceSpecDateRange {
-    throw new Error("Method not implemented.");
+    let nextHour = 0;
+    let currHour = new Date().getHours();
+
+    for (let i = currHour; i <= 24; i++) {
+      if (i % 6 === 0) {
+        nextHour = i;
+        break;
+      }
+    }
+
+    const startTime = new Date().setHours(nextHour, 0, 0);
+    let rand = randomIntFromInterval(1, 59);
+
+    return { start: startTime, rule: `${rand} */1 * * *` }; // 1hr
+    // return { start: Date.now() + 100, rule: `*/3 * * * *` }; // 3min
   }
-  getCallback(): schedule.JobCallback {
-    throw new Error("Method not implemented.");
+  getCallback(obj: GetCallbackAttr): schedule.JobCallback {
+    return async () => {
+      const user = await globalUserStore.getUser(obj.userId);
+      const userDecksClient = await globalUserDecksStore.getUserDecksClient(
+        user
+      );
+      await userDecksClient.syncDynamicUserDeck();
+    };
   }
 }
 
 class UserNotificationJob implements IUserJob {
-  readonly job?: schedule.Job | undefined;
+  job?: schedule.Job | undefined;
   constructor(readonly id: UserJobId) {}
   setJob(job: schedule.Job): void {
-    throw new Error("Method not implemented.");
+    this.job = job;
   }
   cancel(): void {
     throw new Error("Method not implemented.");

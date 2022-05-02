@@ -1,4 +1,5 @@
 import { ObjId, UploadedFile } from "../../utils/types";
+import { globalJobStore, UserJobTypesEnum } from "../schedule";
 import { User, UserDecksSettings, UserId } from "../users/user";
 import {
   DynamicSyncData,
@@ -154,6 +155,7 @@ export class UserDecksClient {
   getDynamicUserDeck(): UserDeck | undefined {
     return this.userDecks.find((d) => d.dynamic);
   }
+  // не забыть про два запроса в одном экшоне
   async createDynamicUserDeck(): Promise<UserDeck> {
     const dynUserDeck = this.getDynamicUserDeck();
     if (dynUserDeck) throw new Error("Dynamic userDeck already exists");
@@ -186,8 +188,7 @@ export class UserDecksClient {
     } else {
       await this.settings.setDynamicSyncMessage("Sync error");
       await this.updateAutoSync(false);
-      // FIX ME
-      // Schedule cancel
+      globalJobStore.userJobs.cancelJob(this.user, "deckSyncJob");
     }
 
     return { settings: this.settings, deck: dynUserDeck };
@@ -207,8 +208,7 @@ export class UserDecksClient {
     await this.settings.setDynamicSyncMessage(undefined);
     this.settings.setDynamicSyncAttempts([]);
 
-    // FIX ME
-    // Schedule cancel
+    globalJobStore.userJobs.cancelJob(this.user, "deckSyncJob");
 
     return this.settings;
   }
@@ -219,8 +219,11 @@ export class UserDecksClient {
     await this.settings.setDynamicSyncType(type);
     await this.settings.setDynamicSyncData(data);
 
-    // FIX ME
-    // Schedule update(cancel + create)
+    globalJobStore.userJobs.updateJob(
+      this.user,
+      "deckSyncJob",
+      UserJobTypesEnum.deckSync
+    );
 
     return this.settings;
   }
