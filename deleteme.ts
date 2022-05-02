@@ -1,3 +1,6 @@
+import { testStore } from "./delme";
+import { other } from "./delme2";
+
 class Test {
   readonly qwe = 5;
   private asd = "xxx";
@@ -11,18 +14,23 @@ class Test {
 
 export async function deleteMe() {
   console.log("delete me");
+  other.q = 1;
 
   const cat = new Cat();
   cat.walk();
 
-  try {
-    const test = new ClassA();
-  } catch (error) {
-    // console.log(error);
-  }
+  testStore.array.push("main");
+  // try {
+  //   const test = new ClassA();
+  // } catch (error) {
+  //   // console.log(error);
+  // }
+  cat.walk();
+  console.log(testStore.array);
 
   const dog = new Dog();
   dog.walk();
+  other.method();
 }
 
 class ClassA {
@@ -60,6 +68,7 @@ interface IWalk {
 class Cat implements IWalk {
   walk() {
     console.log("cat walks");
+    testStore.array.push("cat class");
   }
   meow() {}
 }

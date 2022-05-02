@@ -54,7 +54,7 @@ class UserStore {
     const dbUser = await UserService.findOneUser({ _id: userId });
     if (!dbUser) return undefined; // throw new Error("User not found")
     const settings = await this.findUserSettings(userId);
-    if (!settings) return undefined; // throw new Error("User not found")
+    if (!settings) return undefined; // throw new Error("UserSettings not found")
     const user = new User(dbUser, settings);
     this.addUserToStore(user);
     return user;
@@ -260,4 +260,4 @@ export class UserCardsSettings {
   }
 }
 
-export const userStore = new UserStore();
+export const globalUserStore = new UserStore();

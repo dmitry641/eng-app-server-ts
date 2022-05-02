@@ -48,6 +48,7 @@ class DecksStore {
     });
     return deck;
   }
+
   getDeckById(deckId: DeckId): Deck | undefined {
     return this.decks.find((d) => d.id === deckId);
   }
