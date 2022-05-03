@@ -56,24 +56,24 @@ class UserDecksStore {
 export const globalUserDecksStore = new UserDecksStore();
 
 export class UserDecksClient {
-  readonly settings: UserDecksSettings;
+  private settings: UserDecksSettings;
   constructor(private userDecks: UserDeck[], private user: User) {
     this.settings = user.settings.userDecksSettings;
   }
   getUserDecks(): UserDeck[] {
     return this.userDecks;
   }
-  private getUserDeckById(id: UserDeckId): UserDeck | undefined {
-    return this.userDecks.find((d) => d.id === id);
+  private getUserDeckById(userDeckId: UserDeckId): UserDeck {
+    const userDeck = this.userDecks.find((d) => d.id === userDeckId);
+    if (!userDeck) throw new Error("UserDeck doesn't exist");
+    return userDeck;
   }
   async enableUserDeck(id: UserDeckId): Promise<UserDeck> {
     const userDeck = this.getUserDeckById(id);
-    if (!userDeck) throw new Error("UserDeck doesn't exist");
     return userDeck.enable();
   }
   async deleteUserDeck(id: UserDeckId) {
     const userDeck = this.getUserDeckById(id);
-    if (!userDeck) throw new Error("UserDeck doesn't exist");
     if (userDeck.dynamic) throw new Error("Dynamic deck is not allowed");
     await userDeck.delete();
     this.userDecks = this.userDecks.filter((d) => d.id != userDeck.id);
@@ -83,7 +83,6 @@ export class UserDecksClient {
     position: UserDeckPositionEnum
   ): Promise<UserDeck> {
     const userDeckOne = this.getUserDeckById(id);
-    if (!userDeckOne) throw new Error("UserDeck doesn't exist");
 
     // FIX ME. Нужно проверить правильно ли отсортировалось
     this.userDecks.sort((a, b) => a.order - b.order); // спорный момент. Тут оно не нужно, так как они уже должны быть отсортированны
@@ -113,13 +112,11 @@ export class UserDecksClient {
   }
   async toggleUserDeckPublic(userDeckId: UserDeckId): Promise<Deck> {
     const userDeck = this.getUserDeckById(userDeckId);
-    if (!userDeck) throw new Error("UserDeck doesn't exist");
     if (userDeck.dynamic) throw new Error("Dynamic deck cannot be public");
     return globalDecksStore.toggleDeckPublic(userDeck);
   }
   async addPublicDeckToUserDecks(deckId: DeckId): Promise<UserDeck> {
     const deck = globalDecksStore.getDeckById(deckId);
-    if (!deck) throw new Error("Deck doesn't exist");
     const existed = this.userDecks.find((d) => d.deckId === deck.id);
     if (existed) throw new Error("Deck already exists in userDecks");
     // Немного не правильная архитектура. Проблемы с инкапсуляцией.
@@ -179,8 +176,8 @@ export class UserDecksClient {
     }
 
     this.settings.appendDynamicSyncAttempt(Date.now());
-    const syncClient = new SyncClient(this);
-    const synced = await syncClient.syncHandler();
+    const syncClient = new SyncClient(this.settings);
+    const synced = await syncClient.syncHandler(dynUserDeck);
     if (synced) {
       await this.settings.setDynamicSyncMessage(
         `Last sync at ${new Date().toLocaleTimeString()}`

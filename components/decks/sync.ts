@@ -4,21 +4,20 @@ import { CardInputOmit } from "../flashcards/models/cards.model";
 import { UserDecksSettings } from "../users/user";
 import { DynamicSyncData, DynamicSyncType } from "../users/user.util";
 import { globalDecksStore } from "./deck";
-import { UserDecksClient } from "./userDeck";
+import { UserDeck } from "./userDeck";
 
 export const SYNC_TIMEOUT_LIMIT = 120000;
 export const SYNC_ATTEMPTS_COUNT_LIMIT = 3;
 
 export class SyncClient {
   private fetcher: IFetcher;
-  constructor(private userDecksClient: UserDecksClient) {
-    this.fetcher = FetcherFactory.produce(userDecksClient.settings);
+  constructor(private settings: UserDecksSettings) {
+    this.fetcher = FetcherFactory.produce(settings);
   }
-  async syncHandler(): Promise<boolean> {
+  async syncHandler(dynUserDeck: UserDeck): Promise<boolean> {
     try {
-      // спорный момент, нарушение DRY
-      const dynUserDeck = this.userDecksClient.getDynamicUserDeck();
-      if (!dynUserDeck) throw new Error("Dynamic userDeck doesn't exist");
+      // хотелось бы instance of UserDynamicDeck, но увы...
+      if (!dynUserDeck.dynamic) throw new Error("Dynamic userDeck is required");
 
       const rawCards = await this.fetcher.getRawCards();
 
@@ -28,8 +27,9 @@ export class SyncClient {
       const existedCards = await globalCardsStore.getCards(deck);
       const filteredRawCards = this.filterByCustomId(rawCards, existedCards);
 
-      // повторный фильтр на уже выученные???
-      // FIX ME
+      // повторный фильтр среди выученых по customId
+      // для избежания добавления уже однажды выученых(после случайного удаления колоды)
+      // FIX ME ???
 
       await globalCardsStore.createCards(filteredRawCards, deck);
       await dynUserDeck.setCardsCount(

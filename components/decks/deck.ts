@@ -49,13 +49,14 @@ class DecksStore {
     return deck;
   }
 
-  getDeckById(deckId: DeckId): Deck | undefined {
-    return this.decks.find((d) => d.id === deckId);
+  getDeckById(deckId: DeckId): Deck {
+    const deck = this.decks.find((d) => d.id === deckId);
+    if (!deck) throw new Error("Deck doesn't exist");
+    return deck;
   }
 
   async toggleDeckPublic(userDeck: UserDeck): Promise<Deck> {
     const deck = this.getDeckById(userDeck.deckId);
-    if (!deck) throw new Error("Deck not found");
     if (!deck.canBePublic) throw new Error("Deck cannot be public");
 
     if (deck.public) await deck.setPublic(false);
