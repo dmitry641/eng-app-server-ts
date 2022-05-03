@@ -55,7 +55,7 @@ class UserDecksStore {
 }
 export const globalUserDecksStore = new UserDecksStore();
 
-export class UserDecksClient {
+class UserDecksClient {
   private settings: UserDecksSettings;
   constructor(private userDecks: UserDeck[], private user: User) {
     this.settings = user.settings.userDecksSettings;

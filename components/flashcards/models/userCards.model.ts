@@ -5,13 +5,19 @@ import { CardId } from "../cards";
 export interface UserCardInput {
   user: UserId;
   card: CardId;
-}
+} // userdeck: UserDeckId??? FIX ME
 
 export interface IUserCard extends UserCardInput, Document {
-  history: { status: "enum"; date: number }[]; // FIX ME
+  history: { status: HistoryStatusEnum; date: number }[];
   deleted: boolean;
   favorite: boolean;
   showAfter: number;
+}
+
+export enum HistoryStatusEnum {
+  easy = "easy",
+  medium = "medium",
+  hard = "hard",
 }
 
 const UserCardSchema: Schema = new Schema(
@@ -24,7 +30,7 @@ const UserCardSchema: Schema = new Schema(
     showAfter: { type: Number, default: () => Date.now(), required: true },
     history: [
       {
-        status: { type: String }, //  enum: ALLOWED_STATUSES
+        status: { type: String, enum: HistoryStatusEnum },
         date: { type: Number },
       },
     ],
