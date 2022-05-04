@@ -156,7 +156,7 @@ export class User {
   }
 }
 
-class UserSettings {
+export class UserSettings {
   constructor(
     private _settings: IUserSettings,
     public readonly phoneSettings: UserPhoneSettings,
@@ -165,7 +165,7 @@ class UserSettings {
   ) {}
 }
 
-class UserPhoneSettings {
+export class UserPhoneSettings {
   private _settings: IUserPhoneSettings;
   constructor(settings: IUserPhoneSettings) {
     this._settings = settings;
@@ -255,8 +255,18 @@ export class UserDecksSettings {
 }
 export class UserCardsSettings {
   private _settings: IUserCardsSettings;
+  private _dynamicHighPriority: boolean;
+  private _shuffleDecks: boolean;
   constructor(settings: IUserCardsSettings) {
     this._settings = settings;
+    this._dynamicHighPriority = settings.dynamicHighPriority;
+    this._shuffleDecks = settings.shuffleDecks;
+  }
+  get dynamicHighPriority() {
+    return this._dynamicHighPriority;
+  }
+  get shuffleDecks() {
+    return this._shuffleDecks;
   }
 }
 

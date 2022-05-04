@@ -1,11 +1,13 @@
 import { Document, model, Schema } from "mongoose";
+import { UserDeckId } from "../../decks/userDeck";
 import { UserId } from "../../users/user";
 import { CardId } from "../cards";
 
 export interface UserCardInput {
   user: UserId;
   card: CardId;
-} // userdeck: UserDeckId??? FIX ME
+  userDeck: UserDeckId;
+}
 
 export interface IUserCard extends UserCardInput, Document {
   history: { status: HistoryStatusEnum; date: number }[];
@@ -24,6 +26,7 @@ const UserCardSchema: Schema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     card: { type: Schema.Types.ObjectId, ref: "Card", required: true },
+    userDeck: { type: Schema.Types.ObjectId, ref: "UserDeck", required: true },
     deleted: { type: Boolean, default: false, required: true },
     favorite: { type: Boolean, default: false, required: true },
     // может иначе сделать, а не showAfter

@@ -36,7 +36,7 @@ class UserDecksStore {
       deleted: false,
     });
     // FIX ME. Нужно проверить правильно ли отсортировалось
-    dbUserDecks.sort((a, b) => a.order - b.order);
+    dbUserDecks.sort(sortByOrderFn);
 
     let dynamicExist = false;
     for (let dbUserDeck of dbUserDecks) {
@@ -85,7 +85,7 @@ class UserDecksClient {
     const userDeckOne = this.getUserDeckById(id);
 
     // FIX ME. Нужно проверить правильно ли отсортировалось
-    this.userDecks.sort((a, b) => a.order - b.order); // спорный момент. Тут оно не нужно, так как они уже должны быть отсортированны
+    this.userDecks.sort(sortByOrderFn); // спорный момент. Тут оно не нужно, так как они уже должны быть отсортированны
     const currIndex = this.userDecks.findIndex((d) => d.id == userDeckOne.id);
 
     let userDeckTwo;
@@ -107,7 +107,7 @@ class UserDecksClient {
     const updatedUserDeck = await userDeckOne.setOrder(orderTwo);
 
     // FIX ME. Нужно проверить правильно ли отсортировалось
-    this.userDecks.sort((a, b) => a.order - b.order); // спорный момент
+    this.userDecks.sort(); // спорный момент
     return updatedUserDeck;
   }
   async toggleUserDeckPublic(userDeckId: UserDeckId): Promise<Deck> {
@@ -295,3 +295,6 @@ export class UserDeck {
     return this;
   }
 }
+
+export const sortByOrderFn = <T extends { order: number }>(a: T, b: T) =>
+  a.order - b.order;
