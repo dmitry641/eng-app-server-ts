@@ -46,8 +46,8 @@ export const globalCardsStore = new CardsStore();
 export type CardId = ObjId;
 export class Card {
   readonly id: CardId;
+  private readonly _card: ICard;
   private _customId?: string;
-  private _card: ICard;
   constructor(card: ICard) {
     this.id = card._id;
     this._card = card;

@@ -5,33 +5,78 @@ import {
   globalUserDecksStore,
   sortByOrderFn,
   UserDeck,
+  UserDeckId,
 } from "../decks/userDeck";
-import { User, UserCardsSettings } from "../users/user";
+import { User, UserCardsSettings, UserId } from "../users/user";
 import { Card, CardId, globalCardsStore } from "./cards";
 import { UserCardsService } from "./flashcards.service";
-import { HistoryStatusEnum, IUserCard } from "./models/userCards.model";
+import {
+  HistoryStatusEnum,
+  HistoryType,
+  IUserCard,
+} from "./models/userCards.model";
 
 const CARDS_COUNT = 15;
+const hour = 1000 * 60 * 60;
+const day = hour * 24;
+const hardArray = [hour];
+const mediumArray = [hour * 5, hour * 10];
+const easyArray = [day, day * 3, day * 7, day * 20, day * 50];
+
+class UserCardsStore {
+  private userCardsClients = new Map<UserId, UserCardsClient>();
+  // async getUserCardsClient(user: User): Promise<UserCardsClient> {}
+  // private async getUserCards(user: User): Promise<UserCard[]> {
+  //   // find deleted:false
+  // }
+}
+export const globalUserCardsStore = new UserCardsStore();
 
 class UserCardsClient {
   private settings: UserCardsSettings;
   constructor(private userCards: UserCard[], private user: User) {
     this.settings = user.settings.userCardsSettings;
   }
-  deleteUserCard(userCardId: UserCardId) {
-    // Нарушение все возможных паттернов......
-    // const userCard = getUserCard(userCardId)
-    // if userCard.deleted throw already deleted
-    // await userCard.delete()
-    // userDecksClient = globalUserDecksStore.get(this.user)
-    // const userDeck = userDecksClient.getUserDeckById(userCard.userDeckId)
-    // await userDeck.setCardsCount(userDeck.cardsCount - 1)
-    // на фронте при 200, обновлять UserDeck.cardsCount - 1
-    //
+  async deleteUserCard(userCardId: UserCardId) {
+    const userCard = this.getUserCard(userCardId);
+    if (userCard.deleted) throw new Error("UserCard is already deleted");
+    const result = await userCard.delete();
+    this.userCards = this.userCards.filter((c) => c.id !== userCardId);
+    // очень спорный момент...
+    // нарушение все возможных паттернов...
+    const userDecksClient = await globalUserDecksStore.getUserDecksClient(
+      this.user
+    );
+    const userDeck = userDecksClient.getUserDeckById(userCard.userDeck);
+    await userDeck.setCardsCount(userDeck.cardsCount - 1);
+    return result;
+    // не забыть на фронте при 200, обновлять UserDeck.cardsCount - 1
   }
-  favoriteUserCard(userCardId: UserCardId) {}
-  learnUserCard(userCardId: UserCardId, status: HistoryStatusEnum) {}
-  getFavorites() {}
+  async favoriteUserCard(userCardId: UserCardId): Promise<UserCard> {
+    const userCard = this.getUserCard(userCardId);
+    return userCard.favoriteHandler();
+  }
+  async learnUserCard(userCardId: UserCardId, status: HistoryStatusEnum) {
+    const userCard = this.getUserCard(userCardId);
+    const historyLen = Number(userCard.history.length);
+    await userCard.learn(status);
+    if (historyLen == 0) {
+      const userDecksClient = await globalUserDecksStore.getUserDecksClient(
+        this.user
+      );
+      const userDeck = userDecksClient.getUserDeckById(userCard.userDeck);
+      await userDeck.setCardsLearned(userDeck.cardsLearned + 1);
+    }
+    return userCard;
+  }
+  getFavorites(): UserCard[] {
+    return this.userCards.filter((c) => c.favorite);
+  }
+  private getUserCard(userCardId: UserCardId): UserCard {
+    const userCard = this.userCards.find((c) => c.id === userCardId);
+    if (!userCard) throw new Error("UserCard doesn't exist");
+    return userCard;
+  }
   async getUserCards(): Promise<UserCard[]> {
     let result: UserCard[] = [];
 
@@ -54,7 +99,7 @@ class UserCardsClient {
     return result;
   }
   private filterCards(cards: Card[]): Card[] {
-    const existedCardIds = this.userCards.map((c) => c.cardId);
+    const existedCardIds = this.userCards.map((c) => c.card);
     const filtered = cards.filter((c) => !existedCardIds.includes(c.id));
     return filtered; // FIX ME, протестировать
   }
@@ -127,23 +172,28 @@ function slice<T>(array: T[]): T[] {
 export type UserCardId = ObjId;
 export class UserCard {
   readonly id: UserCardId;
-  private _usercard: IUserCard;
-  private _cardId: CardId;
+  private readonly _userCard: IUserCard;
+  private _card: CardId;
+  private _userDeck: UserDeckId;
   private _deleted: boolean;
-  private _history: IUserCard["history"];
+  private _history: HistoryType[];
   private _showAfter: number;
   private _favorite: boolean;
-  constructor(usercard: IUserCard) {
-    this.id = usercard._id;
-    this._usercard = usercard;
-    this._cardId = usercard.card;
-    this._deleted = usercard.deleted;
-    this._history = usercard.history;
-    this._showAfter = usercard.showAfter;
-    this._favorite = usercard.favorite;
+  constructor(userCard: IUserCard) {
+    this.id = userCard._id;
+    this._userCard = userCard;
+    this._card = userCard.card;
+    this._userDeck = userCard.userDeck;
+    this._deleted = userCard.deleted;
+    this._history = userCard.history;
+    this._showAfter = userCard.showAfter;
+    this._favorite = userCard.favorite;
   }
-  get cardId() {
-    return this._cardId;
+  get card() {
+    return this._card;
+  }
+  get userDeck() {
+    return this._userDeck;
   }
   get deleted() {
     return this._deleted;
@@ -157,19 +207,72 @@ export class UserCard {
   get favorite() {
     return this._favorite;
   }
-  async makeLearned(status: HistoryStatusEnum) {
-    switch (status) {
-      case HistoryStatusEnum.easy:
-        return this.easy();
-      case HistoryStatusEnum.medium:
-        return this.medium();
-      case HistoryStatusEnum.hard:
-        return this.hard();
-      default:
-        throw new Error("Invalid status");
-    }
+  private async setShowAfter(value: number) {
+    this._showAfter = value;
+    this._userCard.showAfter = value;
+    this._userCard.save();
+    return this;
   }
-  private async easy() {}
-  private async medium() {}
-  private async hard() {}
+  private async appendToHistory(elem: HistoryType) {
+    this._history.push(elem);
+    this._userCard.history.push(elem);
+    this._userCard.save();
+    return this;
+  }
+  async learn(status: HistoryStatusEnum): Promise<UserCard> {
+    if (Date.now() < this.showAfter) throw new Error("Too early...");
+    const newShowAfter = calcShowAfter(status, this.history);
+    await this.setShowAfter(newShowAfter);
+    await this.appendToHistory({ status, date: Date.now() });
+    return this;
+  }
+  async delete() {
+    this._userCard.deleted = true;
+    await this._userCard.save();
+    return true;
+  }
+  async favoriteHandler() {
+    this._favorite = !this._favorite;
+    this._userCard.favorite = this._favorite;
+    this._userCard.save();
+    return this;
+  }
+}
+
+function calcShowAfter(
+  status: HistoryStatusEnum,
+  history: HistoryType[]
+): number {
+  let newShowAfter = Date.now();
+  const intervalsArray = getIntervalArray(status);
+  if (intervalsArray.length == 0) throw new Error("Array cannot be empty"); // ???
+
+  let streak = getStreak(status, history);
+  if (streak >= intervalsArray.length) {
+    streak = intervalsArray.length - 1;
+  }
+  newShowAfter += intervalsArray[streak] || 0;
+  return newShowAfter;
+}
+function getIntervalArray(status: HistoryStatusEnum) {
+  switch (status) {
+    case HistoryStatusEnum.easy:
+      return easyArray;
+    case HistoryStatusEnum.medium:
+      return mediumArray;
+    case HistoryStatusEnum.hard:
+      return hardArray;
+    default:
+      throw new Error("Invalid status");
+  }
+}
+function getStreak(status: HistoryStatusEnum, history: HistoryType[]) {
+  let result = 0;
+  let tempHistory = Array.from(history);
+  tempHistory.reverse();
+  for (let el of tempHistory) {
+    if (el.status != status) break;
+    result += 1;
+  }
+  return result;
 }

@@ -10,11 +10,13 @@ export interface UserCardInput {
 }
 
 export interface IUserCard extends UserCardInput, Document {
-  history: { status: HistoryStatusEnum; date: number }[];
+  history: HistoryType[];
   deleted: boolean;
   favorite: boolean;
   showAfter: number;
 }
+
+export type HistoryType = { status: HistoryStatusEnum; date: number };
 
 export enum HistoryStatusEnum {
   easy = "easy",

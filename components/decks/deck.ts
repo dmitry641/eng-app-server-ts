@@ -77,12 +77,12 @@ export const globalDecksStore = new DecksStore();
 export type DeckId = ObjId;
 export class Deck {
   readonly id: DeckId;
+  private readonly _deck: IDeck;
   private _name: string;
   private _canBePublic: boolean;
   private _createdBy: UserId;
   private _public: boolean;
   private _totalCardsCount: number;
-  private _deck: IDeck;
   // private cardsStore:cardsStore;
   // Тогда бы можно было бы обойтись без globalCardsStore
   // Но при этом Deck стал слишком большим + нарушение Low Coupling/High Cohesion

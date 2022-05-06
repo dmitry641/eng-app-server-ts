@@ -63,7 +63,7 @@ class UserDecksClient {
   getUserDecks(): UserDeck[] {
     return this.userDecks;
   }
-  private getUserDeckById(userDeckId: UserDeckId): UserDeck {
+  getUserDeckById(userDeckId: UserDeckId): UserDeck {
     const userDeck = this.userDecks.find((d) => d.id === userDeckId);
     if (!userDeck) throw new Error("UserDeck doesn't exist");
     return userDeck;
@@ -240,12 +240,13 @@ class UserDecksClient {
 export type UserDeckId = ObjId;
 export class UserDeck {
   readonly id: UserDeckId;
-  private _userdeck: IUserDeck;
+  private readonly _userdeck: IUserDeck;
   private _deckId: DeckId;
   private _dynamic: boolean;
   private _enabled: boolean;
   private _order: number;
   private _cardsCount: number;
+  private _cardsLearned: number;
   constructor(userdeck: IUserDeck) {
     this.id = userdeck._id;
     this._userdeck = userdeck;
@@ -254,6 +255,7 @@ export class UserDeck {
     this._enabled = userdeck.enabled;
     this._order = userdeck.order;
     this._cardsCount = userdeck.cardsCount;
+    this._cardsLearned = userdeck.cardsLearned;
   }
   get deckId() {
     return this._deckId;
@@ -269,6 +271,9 @@ export class UserDeck {
   }
   get cardsCount() {
     return this._cardsCount;
+  }
+  get cardsLearned() {
+    return this._cardsLearned;
   }
 
   async delete() {
@@ -291,6 +296,12 @@ export class UserDeck {
   async setCardsCount(value: number): Promise<UserDeck> {
     this._cardsCount = value;
     this._userdeck.cardsCount = value;
+    await this._userdeck.save();
+    return this;
+  }
+  async setCardsLearned(value: number): Promise<UserDeck> {
+    this._cardsLearned = value;
+    this._userdeck.cardsLearned = value;
     await this._userdeck.save();
     return this;
   }
