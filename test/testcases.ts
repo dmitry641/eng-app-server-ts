@@ -104,3 +104,10 @@ export const quizTestData1: QuizKeysType[] = [
       "Do you have a kind of red warning flag that indicates too much stress?",
   },
 ];
+
+export const decksTestCases = {
+  case1: {
+    pathToFile: resolve(__dirname, "file5.csv"),
+    description: "Correct file",
+  },
+};

@@ -46,8 +46,8 @@ export type CardId = ObjId;
 export class Card {
   readonly id: CardId;
   private readonly _card: ICard;
-  private _deckId: DeckId;
-  private _customId?: string;
+  readonly deckId: DeckId;
+  readonly customId?: string;
   readonly srcLang: string;
   readonly trgLang: string;
   readonly srcText: string;
@@ -55,18 +55,12 @@ export class Card {
   constructor(card: ICard) {
     this.id = card._id;
     this._card = card;
-    this._deckId = card.deck;
-    this._customId = card.customId;
+    this.deckId = card.deck;
+    this.customId = card.customId;
     this.srcLang = card.srcLang;
     this.trgLang = card.trgLang;
     this.srcText = card.srcText;
     this.trgText = card.trgText;
-  }
-  get customId() {
-    return this._customId;
-  }
-  get deckId() {
-    return this._deckId;
   }
 }
 

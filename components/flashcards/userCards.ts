@@ -1,11 +1,10 @@
 import { shuffle } from "../../utils";
 import { ObjId } from "../../utils/types";
-import { globalDecksStore } from "../decks/deck";
 import {
-  globalUserDecksStore,
   sortByOrderFn,
   UserDeck,
   UserDeckId,
+  userDecksManager,
 } from "../decks/userDeck";
 import { User, UserCardsSettings, UserId } from "../users/user";
 import { Card, CardId, globalCardsStore } from "./cards";
@@ -23,20 +22,42 @@ const hardArray = [hour];
 const mediumArray = [hour * 5, hour * 10];
 const easyArray = [day, day * 3, day * 7, day * 20, day * 50];
 
-class UserCardsStore {
+class UserCardsManager {
   private userCardsClients = new Map<UserId, UserCardsClient>();
-  // async getUserCardsClient(user: User): Promise<UserCardsClient> {}
-  // private async getUserCards(user: User): Promise<UserCard[]> {
-  //   // find deleted:false
-  // }
+  async getUserCardsClient(user: User): Promise<UserCardsClient> {
+    let userCardsClient;
+    userCardsClient = this.userCardsClients.get(user.id);
+    if (userCardsClient) return userCardsClient;
+
+    const userCards = await this.getUserCards(user);
+    userCardsClient = new UserCardsClient(userCards, user);
+
+    this.userCardsClients.set(user.id, userCardsClient);
+    return userCardsClient;
+  }
+  private async getUserCards(user: User): Promise<UserCard[]> {
+    let userCards: UserCard[] = [];
+    const dbUserCards = await UserCardsService.findUserCards({
+      user: user.id,
+      deleted: false,
+    });
+
+    for (let dbUserCard of dbUserCards) {
+      const card = globalCardsStore.getCardByCardId(dbUserCard.card);
+      const userCard = new UserCard(dbUserCard, card);
+      userCards.push(userCard);
+    }
+
+    return userCards;
+  }
 }
-export const globalUserCardsStore = new UserCardsStore();
 
 class UserCardsClient {
   private settings: UserCardsSettings;
   constructor(private userCards: UserCard[], private user: User) {
     this.settings = user.settings.userCardsSettings;
   }
+  // не забыть на фронте при 200, обновлять UserDeck.cardsCount - 1
   async deleteUserCard(userCardId: UserCardId) {
     const userCard = this.getUserCard(userCardId);
     if (userCard.deleted) throw new Error("UserCard is already deleted");
@@ -44,13 +65,10 @@ class UserCardsClient {
     this.userCards = this.userCards.filter((c) => c.id !== userCardId);
     // очень спорный момент...
     // нарушение все возможных паттернов...
-    const userDecksClient = await globalUserDecksStore.getUserDecksClient(
-      this.user
-    );
-    const userDeck = userDecksClient.getUserDeckById(userCard.userDeck);
+    const udclient = await userDecksManager.getUserDecksClient(this.user);
+    const userDeck = udclient.getUserDeckById(userCard.userDeck);
     await userDeck.setCardsCount(userDeck.cardsCount - 1);
     return result;
-    // не забыть на фронте при 200, обновлять UserDeck.cardsCount - 1
   }
   async favoriteUserCard(userCardId: UserCardId): Promise<UserCard> {
     const userCard = this.getUserCard(userCardId);
@@ -61,10 +79,8 @@ class UserCardsClient {
     const historyLen = Number(userCard.history.length);
     await userCard.learn(status);
     if (historyLen == 0) {
-      const userDecksClient = await globalUserDecksStore.getUserDecksClient(
-        this.user
-      );
-      const userDeck = userDecksClient.getUserDeckById(userCard.userDeck);
+      const udclient = await userDecksManager.getUserDecksClient(this.user);
+      const userDeck = udclient.getUserDeckById(userCard.userDeck);
       await userDeck.setCardsLearned(userDeck.cardsLearned + 1);
     }
     return userCard;
@@ -99,18 +115,14 @@ class UserCardsClient {
     return result;
   }
   private filterCards(cards: Card[]): Card[] {
-    const existedCardIds = this.userCards.map((c) => c.card);
+    const existedCardIds = this.userCards.map((c) => c.cardId);
     const filtered = cards.filter((c) => !existedCardIds.includes(c.id));
     return filtered; // FIX ME, протестировать
   }
   private async getUserCardsFromSortedUserDecks(): Promise<UserCard[]> {
     let newUserCards: UserCard[] = [];
-    const userDecksClient = await globalUserDecksStore.getUserDecksClient(
-      this.user
-    );
-    let userDecks: UserDeck[] = userDecksClient
-      .getUserDecks()
-      .sort(sortByOrderFn);
+    const udclient = await userDecksManager.getUserDecksClient(this.user);
+    let userDecks: UserDeck[] = udclient.getUserDecks().sort(sortByOrderFn);
 
     const shuffleDecks = this.settings.shuffleDecks;
     if (shuffleDecks) userDecks = shuffle(userDecks);
@@ -123,10 +135,8 @@ class UserCardsClient {
   }
   private async getUserCardsFromDynamicUserDeck(): Promise<UserCard[]> {
     let newUserCards: UserCard[] = [];
-    const userDeckClient = await globalUserDecksStore.getUserDecksClient(
-      this.user
-    );
-    const dynUserDeck = userDeckClient.getDynamicUserDeck();
+    const udclient = await userDecksManager.getUserDecksClient(this.user);
+    const dynUserDeck = udclient.getDynamicUserDeck();
     if (dynUserDeck) {
       newUserCards = await this.getUserCardsFromUserDeck(dynUserDeck);
     }
@@ -146,18 +156,17 @@ class UserCardsClient {
   ): Promise<UserCard[]> {
     // filtered + shuffled + sliced
     const processedUserCards: UserCard[] = [];
-    const deck = globalDecksStore.getDeckById(userdeck.deckId);
-    const cards = await globalCardsStore.getCards(deck);
+    const cards = globalCardsStore.getCardsByDeckId(userdeck.deckId);
     const filteredCards: Card[] = this.filterCards(cards);
     const shuffledCards: Card[] = shuffle(filteredCards);
     const slicedCards: Card[] = slice(shuffledCards);
     for (const card of slicedCards) {
-      const dbUserCard = await UserCardsService.createUserCard({
+      let dbUserCard = await UserCardsService.createUserCard({
         card: card.id,
         user: this.user.id,
         userDeck: userdeck.id,
       });
-      const userCard = new UserCard(dbUserCard);
+      const userCard = new UserCard(dbUserCard, card);
       processedUserCards.push(userCard);
     }
     this.userCards.push(...processedUserCards); // спорный момент
@@ -173,24 +182,26 @@ export type UserCardId = ObjId;
 export class UserCard {
   readonly id: UserCardId;
   private readonly _userCard: IUserCard;
-  private _card: CardId;
+  private _cardId: CardId;
   private _userDeck: UserDeckId;
   private _deleted: boolean;
   private _history: HistoryType[];
   private _showAfter: number;
   private _favorite: boolean;
-  constructor(userCard: IUserCard) {
+  private _card: Card;
+  constructor(userCard: IUserCard, card: Card) {
     this.id = userCard._id;
     this._userCard = userCard;
-    this._card = userCard.card;
+    this._cardId = userCard.card;
     this._userDeck = userCard.userDeck;
     this._deleted = userCard.deleted;
     this._history = userCard.history;
     this._showAfter = userCard.showAfter;
     this._favorite = userCard.favorite;
+    this._card = card;
   }
-  get card() {
-    return this._card;
+  get cardId() {
+    return this._cardId;
   }
   get userDeck() {
     return this._userDeck;
@@ -276,3 +287,5 @@ function getStreak(status: HistoryStatusEnum, history: HistoryType[]) {
   }
   return result;
 }
+
+export const userCardsManager = new UserCardsManager();

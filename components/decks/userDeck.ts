@@ -15,7 +15,7 @@ import {
   SYNC_TIMEOUT_LIMIT,
 } from "./sync";
 
-class UserDecksStore {
+class UserDecksManager {
   private userDecksClients = new Map<UserId, UserDecksClient>();
   async getUserDecksClient(user: User): Promise<UserDecksClient> {
     // Нарушение принципов. Гет и сет в одном месте.
@@ -45,15 +45,14 @@ class UserDecksStore {
         if (dynamicExist) throw new Error("Multiple dynamic decks");
         dynamicExist = true;
       }
-
-      const userDeck = new UserDeck(dbUserDeck);
+      const deck = globalDecksStore.getDeckById(dbUserDeck.deck);
+      const userDeck = new UserDeck(dbUserDeck, deck);
       userDecks.push(userDeck);
     }
 
     return userDecks;
   }
 }
-export const globalUserDecksStore = new UserDecksStore();
 
 class UserDecksClient {
   private settings: UserDecksSettings;
@@ -107,7 +106,7 @@ class UserDecksClient {
     const updatedUserDeck = await userDeckOne.setOrder(orderTwo);
 
     // FIX ME. Нужно проверить правильно ли отсортировалось
-    this.userDecks.sort(); // спорный момент
+    this.userDecks.sort(sortByOrderFn); // спорный момент
     return updatedUserDeck;
   }
   async toggleUserDeckPublic(userDeckId: UserDeckId): Promise<Deck> {
@@ -142,7 +141,7 @@ class UserDecksClient {
       deck: deck.id,
       order,
     });
-    const userDeck = new UserDeck(dbUserDeck);
+    const userDeck = new UserDeck(dbUserDeck, deck);
     this.userDecks.push(userDeck); // спорный момент
     return userDeck;
   }
@@ -247,7 +246,8 @@ export class UserDeck {
   private _order: number;
   private _cardsCount: number;
   private _cardsLearned: number;
-  constructor(userdeck: IUserDeck) {
+  private _deckName: string;
+  constructor(userdeck: IUserDeck, deck: Deck) {
     this.id = userdeck._id;
     this._userdeck = userdeck;
     this._deckId = userdeck.deck;
@@ -256,6 +256,7 @@ export class UserDeck {
     this._order = userdeck.order;
     this._cardsCount = userdeck.cardsCount;
     this._cardsLearned = userdeck.cardsLearned;
+    this._deckName = deck.name;
   }
   get deckId() {
     return this._deckId;
@@ -275,7 +276,9 @@ export class UserDeck {
   get cardsLearned() {
     return this._cardsLearned;
   }
-
+  get deckName() {
+    return this._deckName;
+  }
   async delete() {
     this._userdeck.deleted = true;
     await this._userdeck.save();
@@ -309,3 +312,5 @@ export class UserDeck {
 
 export const sortByOrderFn = <T extends { order: number }>(a: T, b: T) =>
   a.order - b.order;
+
+export const userDecksManager = new UserDecksManager();

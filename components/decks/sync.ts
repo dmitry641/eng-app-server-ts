@@ -24,7 +24,7 @@ export class SyncClient {
       const deck = globalDecksStore.getDeckById(dynUserDeck.deckId);
       if (!deck) throw new Error("Deck doesn't exist");
 
-      const existedCards = await globalCardsStore.getCards(deck);
+      const existedCards = globalCardsStore.getCardsByDeckId(deck.id);
       const filteredRawCards = this.filterByCustomId(rawCards, existedCards);
 
       // повторный фильтр среди выученых по customId

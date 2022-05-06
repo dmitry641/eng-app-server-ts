@@ -2,7 +2,7 @@ import schedule from "node-schedule";
 import { randomIntFromInterval } from "../../utils";
 import { ObjId } from "../../utils/types";
 import { UserDecksService } from "../decks/decks.service";
-import { globalUserDecksStore } from "../decks/userDeck";
+import { userDecksManager } from "../decks/userDeck";
 import { globalUserStore, User, UserId } from "../users/user";
 
 class JobStore {
@@ -166,10 +166,8 @@ class UserDeckSyncJob implements IUserJob {
   getCallback(obj: GetCallbackAttr): schedule.JobCallback {
     return async () => {
       const user = await globalUserStore.getUser(obj.userId);
-      const userDecksClient = await globalUserDecksStore.getUserDecksClient(
-        user
-      );
-      await userDecksClient.syncDynamicUserDeck();
+      const udclient = await userDecksManager.getUserDecksClient(user);
+      await udclient.syncDynamicUserDeck();
     };
   }
 }

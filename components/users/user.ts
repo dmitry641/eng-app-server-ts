@@ -43,9 +43,9 @@ class UserStore {
       password: hashedPassword,
       stripeCustomerId: stripeUser.id,
     });
-    const userSettings: UserSettings = await this.createUserSettings(
-      dbUser._id
-    );
+    const userSettings: UserSettings = await this.createUserSettings({
+      user: dbUser._id,
+    });
     const newUser = new User(dbUser, userSettings);
     this.addUserToStore(newUser);
     return newUser;
