@@ -1,17 +1,27 @@
 import { ObjId } from "../../utils/types";
-import { Deck } from "../decks/deck";
+import { Deck, DeckId } from "../decks/deck";
 import { CardsService } from "./flashcards.service";
 import { CardInputOmit, ICard } from "./models/cards.model";
 
 class CardsStore {
-  private cards = new Map<Deck, Card[]>(); // спорный момент, массив хуже чем CardsClient/Helper/Manager
-  async getCards(deck: Deck): Promise<Card[]> {
-    let cards: Card[] | undefined;
-    cards = this.cards.get(deck);
-    if (cards) return cards;
-    cards = await this.initCards(deck);
-    this.cards.set(deck, cards);
-    return cards;
+  private initialized: boolean = false;
+  private cards: Card[] = [];
+  async init() {
+    if (this.initialized) throw new Error("CardsStore is already initialized");
+    const dbCards = await CardsService.findCards({});
+    for (const dbCard of dbCards) {
+      const card: Card = new Card(dbCard);
+      this.cards.push(card);
+    }
+    this.initialized = true;
+  }
+  getCardByCardId(cardId: CardId): Card {
+    const card = this.cards.find((c) => c.id === cardId);
+    if (!card) throw new Error("Card doesn't exist");
+    return card;
+  }
+  getCardsByDeckId(deckId: DeckId): Card[] {
+    return this.cards.filter((c) => c.deckId === deckId);
   }
   async createCards(rawCards: CardInputOmit[], deck: Deck): Promise<Card[]> {
     const newCards: Card[] = [];
@@ -27,33 +37,37 @@ class CardsStore {
       const newCard = new Card(dbCard);
       newCards.push(newCard);
     }
-    const cards: Card[] = await this.getCards(deck);
-    cards.push(...newCards); // спорный момент
-    return cards;
-  }
-  private async initCards(deck: Deck): Promise<Card[]> {
-    const dbCards = await CardsService.findCards({ deck: deck.id });
-    const cards: Card[] = [];
-    for (const dbCard of dbCards) {
-      const card: Card = new Card(dbCard);
-      cards.push(card);
-    }
-    return cards;
+    this.cards.push(...newCards); // спорный момент
+    return newCards;
   }
 }
-export const globalCardsStore = new CardsStore();
 
 export type CardId = ObjId;
 export class Card {
   readonly id: CardId;
   private readonly _card: ICard;
+  private _deckId: DeckId;
   private _customId?: string;
+  readonly srcLang: string;
+  readonly trgLang: string;
+  readonly srcText: string;
+  readonly trgText: string;
   constructor(card: ICard) {
     this.id = card._id;
     this._card = card;
+    this._deckId = card.deck;
     this._customId = card.customId;
+    this.srcLang = card.srcLang;
+    this.trgLang = card.trgLang;
+    this.srcText = card.srcText;
+    this.trgText = card.trgText;
   }
   get customId() {
     return this._customId;
   }
+  get deckId() {
+    return this._deckId;
+  }
 }
+
+export const globalCardsStore = new CardsStore();

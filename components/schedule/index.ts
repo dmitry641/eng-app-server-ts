@@ -20,7 +20,6 @@ class JobStore {
     this.initialized = true;
   }
 }
-export const globalJobStore = new JobStore();
 
 class UserJobsManager {
   private userjobs = new Map<User, UserJobStore>();
@@ -191,3 +190,4 @@ class UserNotificationJob implements IUserJob {
     throw new Error("Method not implemented.");
   }
 }
+export const globalJobStore = new JobStore();

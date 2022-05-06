@@ -13,11 +13,13 @@ import { UserDeck } from "./userDeck";
 class DecksStore {
   private initialized: boolean = false;
   private decks: Deck[] = [];
-  init() {
-    // ???
-
+  async init() {
     if (this.initialized) throw new Error("DecksStore is already initialized");
-    // ...
+    const dbDecks = await DecksService.findDecks({});
+    for (const dbDeck of dbDecks) {
+      const deck: Deck = new Deck(dbDeck);
+      this.decks.push(deck);
+    }
     this.initialized = true;
   }
   async createDeck(file: UploadedFile, user: User): Promise<Deck> {
@@ -72,7 +74,6 @@ class DecksStore {
     return deck;
   }
 }
-export const globalDecksStore = new DecksStore();
 
 export type DeckId = ObjId;
 export class Deck {
@@ -119,3 +120,5 @@ export class Deck {
     return this;
   }
 }
+
+export const globalDecksStore = new DecksStore();
