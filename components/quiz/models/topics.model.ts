@@ -1,9 +1,11 @@
-import { model, Schema, Document } from "mongoose";
+import { Document, model, Schema } from "mongoose";
 
-export interface ITopic extends Document {
+export interface TopicInput {
   topicName: string;
   source: string;
 }
+
+export interface ITopic extends TopicInput, Document {}
 
 const TopicSchema: Schema = new Schema(
   {

@@ -1,13 +1,15 @@
-import { model, Schema, Document } from "mongoose";
+import { Document, model, Schema } from "mongoose";
 
-export interface IQuestion extends Document {
+export interface QuestionInput {
   topic: Schema.Types.ObjectId;
   question: string;
 }
 
+export interface IQuestion extends QuestionInput, Document {}
+
 const QuestionSchema: Schema = new Schema(
   {
-    topic: { type: Schema.Types.ObjectId, ref: "Topic" },
+    topic: { type: Schema.Types.ObjectId, ref: "Topic", required: true },
     question: { type: String, required: true },
   },
   { timestamps: true }

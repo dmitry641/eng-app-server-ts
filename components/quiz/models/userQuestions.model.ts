@@ -1,14 +1,16 @@
-import { model, Schema, Document } from "mongoose";
+import { Document, model, Schema } from "mongoose";
 
-export interface IUserQuestion extends Document {
+export interface UserQuestionInput {
   user: Schema.Types.ObjectId;
   question: Schema.Types.ObjectId;
 }
 
+export interface IUserQuestion extends UserQuestionInput, Document {}
+
 const UserQuestionSchema: Schema = new Schema(
   {
-    user: { type: Schema.Types.ObjectId, ref: "Topic" },
-    question: { type: Schema.Types.ObjectId, ref: "Question" },
+    user: { type: Schema.Types.ObjectId, ref: "Topic", required: true },
+    question: { type: Schema.Types.ObjectId, ref: "Question", required: true },
   },
   { timestamps: true }
 );

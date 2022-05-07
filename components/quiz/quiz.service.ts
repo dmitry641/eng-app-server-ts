@@ -1,68 +1,82 @@
+import { AnyKeys, FilterQuery } from "mongoose";
 import { randomIntFromInterval, shuffle } from "../../utils";
-import { FilterQuery, AnyKeys } from "mongoose";
+import { UserId } from "../users/user";
 import { QuestionDto } from "./dto/question.dto";
+import { TopicDto } from "./dto/topic.dto";
 import { UserTopicDto } from "./dto/userTopic.dto";
-import { IQuestion, QuestionModel } from "./models/questions.model";
-import { ITopic, TopicModel } from "./models/topics.model";
+import {
+  IQuestion,
+  QuestionInput,
+  QuestionModel,
+} from "./models/questions.model";
+import { ITopic, TopicInput, TopicModel } from "./models/topics.model";
+import {
+  IUserQuestion,
+  UserQuestionInput,
+  UserQuestionModel,
+} from "./models/userQuestions.model";
 import {
   IUserTopic,
+  UserTopicInput,
   UserTopicModel,
   UserTopicStatusEnum,
 } from "./models/userTopics.model";
-import { IUserQuestion, UserQuestionModel } from "./models/userQuestions.model";
-import { ObjId } from "../../utils/types";
 
 const questionsInRowLIMIT = 7;
 const sliceEnd = 7;
 const oneDay = 1000 * 60 * 60 * 24;
 
-interface QuizInitDto {
-  topic: UserTopicDto;
-  questions: QuestionDto[];
-}
-
-// FIX ME. try catch?
-// init переименовать?
+// FIX ME
+// init переименовать? и updateQuestion?
 class QuizService {
-  async init(userId: ObjId): Promise<QuizInitDto> {
+  async init(userId: UserId): Promise<{
+    userTopic: UserTopicDto;
+    questions: QuestionDto[];
+  }> {
     const userTopics: IUserTopic[] = await UserTopicService.findUserTopics({
       user: userId,
     });
-    let userTopic = getCurrentUserTopic(userTopics);
+    let userTopic = await getCurrentUserTopic(userTopics);
     let questions: IQuestion[];
     if (userTopic) {
-      if (userTopic.status != UserTopicStatusEnum.current) {
-        userTopic.status = UserTopicStatusEnum.current;
-        await userTopic.save();
-      }
       questions = await QuestionService.findQuestions({
         topic: userTopic.topic,
       });
     } else {
-      const topics = await TopicService.findTopics();
-      const randomNumber = randomIntFromInterval(1, topics.length - 1);
-      const randomTopic = topics[randomNumber];
-      questions = await QuestionService.findQuestions({
-        topic: randomTopic._id,
-      });
-      userTopic = await UserTopicService.createUserTopic({
-        user: userId,
-        topic: randomTopic._id,
-        status: UserTopicStatusEnum.current,
-        totalQuestionCount: questions.length,
-      });
+      const result = await getRandomUserTopicAndQuestions(userId);
+      userTopic = result.userTopic;
+      questions = result.questions;
     }
 
     const processedQuestions = getProcessedQuestions(questions, userTopic);
-    const topicDto = new UserTopicDto(await userTopic.populate("topic"));
+    const userTopicsDto = new UserTopicDto(await userTopic.populate("topic"));
     const questionsDto = processedQuestions.map((q) => new QuestionDto(q));
-    return { topic: topicDto, questions: questionsDto };
+    return { userTopic: userTopicsDto, questions: questionsDto };
   }
+  async updateQuestion() {}
+  async getTopics(userId: UserId): Promise<{
+    userTopics: UserTopicDto[];
+    topics: TopicDto[];
+  }> {
+    const userTopics = await UserTopicService.findUserTopics({
+      user: userId,
+    });
+    const topics = await TopicService.findTopics();
+    const shuffledTopics = shuffle(topics);
+    const slicedTopics = shuffledTopics.slice(0, 5);
+    // FIX ME, возможно populate будет нужен. + topicId: t._id....
+    const userTopicsDto = userTopics.map((t) => new UserTopicDto(t));
+    const topicsDto = slicedTopics.map((t) => new TopicDto(t));
+
+    return { userTopics: userTopicsDto, topics: topicsDto };
+  }
+  async changeTopic() {}
+  async blockTopic() {}
 }
 export const quizService = new QuizService();
 
 export class TopicService {
-  static async createTopic(obj: AnyKeys<ITopic>): Promise<ITopic> {
+  static async createTopic(obj: TopicInput): Promise<ITopic> {
     return TopicModel.create(obj);
   }
   static async findTopics(query: FilterQuery<ITopic> = {}): Promise<ITopic[]> {
@@ -78,7 +92,7 @@ export class TopicService {
   }
 }
 export class QuestionService {
-  static async createQuestion(obj: AnyKeys<IQuestion>): Promise<IQuestion> {
+  static async createQuestion(obj: QuestionInput): Promise<IQuestion> {
     return QuestionModel.create(obj);
   }
   static async findQuestions(
@@ -106,7 +120,7 @@ export class UserTopicService {
   ): Promise<IUserTopic | null> {
     return UserTopicModel.findOne(query);
   }
-  static async createUserTopic(obj: AnyKeys<IUserTopic>): Promise<IUserTopic> {
+  static async createUserTopic(obj: UserTopicInput): Promise<IUserTopic> {
     return UserTopicModel.create(obj);
   }
   static async updateUserTopic(
@@ -118,7 +132,7 @@ export class UserTopicService {
 }
 export class UserQuestionService {
   static async createUserQuestion(
-    obj: AnyKeys<IUserQuestion>
+    obj: UserQuestionInput
   ): Promise<IUserQuestion> {
     return UserQuestionModel.create(obj);
   }
@@ -129,7 +143,9 @@ export class UserQuestionService {
   }
 }
 
-function getCurrentUserTopic(userTopics: IUserTopic[]): IUserTopic | undefined {
+async function getCurrentUserTopic(
+  userTopics: IUserTopic[]
+): Promise<IUserTopic | undefined> {
   let userTopic;
   const currentTopic = userTopics.find(
     (topic) => topic.status == UserTopicStatusEnum.current
@@ -142,16 +158,38 @@ function getCurrentUserTopic(userTopics: IUserTopic[]): IUserTopic | undefined {
   );
   if (pausedTopic) {
     const after24hr = new Date(pausedTopic.updatedAt).getTime() + oneDay;
-
-    if (Date.now() > after24hr) return pausedTopic;
+    if (Date.now() > after24hr) return makeCurrent(pausedTopic);
   }
 
   const startedTopic = userTopics.find(
     (topic) => topic.status == UserTopicStatusEnum.started
   );
-  if (startedTopic) return startedTopic;
+  if (startedTopic) return makeCurrent(startedTopic);
 
   return userTopic;
+}
+
+async function getRandomUserTopicAndQuestions(
+  userId: UserId
+): Promise<{ userTopic: IUserTopic; questions: IQuestion[] }> {
+  const topics = await TopicService.findTopics();
+  const randomNumber = randomIntFromInterval(1, topics.length - 1);
+  const randomTopic = topics[randomNumber];
+  const questions = await QuestionService.findQuestions({
+    topic: randomTopic._id,
+  });
+  const userTopic = await UserTopicService.createUserTopic({
+    user: userId,
+    topic: randomTopic._id,
+    status: UserTopicStatusEnum.current,
+    totalQuestionCount: questions.length,
+  });
+  return { userTopic, questions };
+}
+
+async function makeCurrent(userTopic: IUserTopic): Promise<IUserTopic> {
+  userTopic.status = UserTopicStatusEnum.current;
+  return userTopic.save();
 }
 
 // FIX ME, протестировать, возмножно тут Populate нужен

@@ -16,11 +16,6 @@ import {
 } from "./models/userCards.model";
 
 const CARDS_COUNT = 15;
-const hour = 1000 * 60 * 60;
-const day = hour * 24;
-const hardArray = [hour];
-const mediumArray = [hour * 5, hour * 10];
-const easyArray = [day, day * 3, day * 7, day * 20, day * 50];
 
 class UserCardsManager {
   private userCardsClients = new Map<UserId, UserCardsClient>();
@@ -265,7 +260,15 @@ function calcShowAfter(
   newShowAfter += intervalsArray[streak] || 0;
   return newShowAfter;
 }
-function getIntervalArray(status: HistoryStatusEnum) {
+function getIntervalArray(
+  status: HistoryStatusEnum,
+  hour: number = 1000 * 60 * 60
+) {
+  const day = hour * 24;
+  const hardArray = [hour];
+  const mediumArray = [hour * 5, hour * 10];
+  const easyArray = [day, day * 3, day * 7, day * 20, day * 50];
+
   switch (status) {
     case HistoryStatusEnum.easy:
       return easyArray;

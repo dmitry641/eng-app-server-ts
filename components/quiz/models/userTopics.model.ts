@@ -10,27 +10,30 @@ export enum UserTopicStatusEnum {
   blocked = "blocked",
 }
 
-export interface IUserTopic extends DocumentWithTimestamps {
+export interface UserTopicInput {
   user: Schema.Types.ObjectId;
   topic: Schema.Types.ObjectId;
-  status: UserTopicStatusEnum;
   totalQuestionCount: number;
+  status: UserTopicStatusEnum;
+}
+
+export interface IUserTopic extends UserTopicInput, DocumentWithTimestamps {
   learnedQuestions: Schema.Types.ObjectId[];
   questionsInRow: number;
 }
 
 const UserTopicSchema: Schema = new Schema(
   {
-    user: { type: Schema.Types.ObjectId, ref: "User" },
-    topic: { type: Schema.Types.ObjectId, ref: "Topic" },
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    topic: { type: Schema.Types.ObjectId, ref: "Topic", required: true },
     status: {
       type: String,
       enum: UserTopicStatusEnum,
-      default: UserTopicStatusEnum.notStarted,
+      required: true,
     },
     totalQuestionCount: { type: Number, required: true },
     learnedQuestions: [{ type: Schema.Types.ObjectId, ref: "Question" }], // FIX ME. Сработает?
-    questionsInRow: { type: Number, default: 0 },
+    questionsInRow: { type: Number, default: 0, required: true },
   },
   { timestamps: true }
 );
