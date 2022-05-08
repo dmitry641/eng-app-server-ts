@@ -1,4 +1,4 @@
-import { AnyKeys, FilterQuery } from "mongoose";
+import { FilterQuery } from "mongoose";
 import { randomIntFromInterval, shuffle } from "../../utils";
 import { UserId } from "../users/user";
 import { QuestionDto } from "./dto/question.dto";
@@ -26,18 +26,19 @@ const questionsInRowLIMIT = 7;
 const sliceEnd = 7;
 const oneDay = 1000 * 60 * 60 * 24;
 
+interface QuizInit {
+  userTopic: UserTopicDto;
+  questions: QuestionDto[];
+}
+
 // FIX ME
 // init переименовать? и updateQuestion?
 class QuizService {
-  async init(userId: UserId): Promise<{
-    userTopic: UserTopicDto;
-    questions: QuestionDto[];
-  }> {
-    const userTopics: IUserTopic[] = await UserTopicService.findUserTopics({
-      user: userId,
-    });
-    let userTopic = await getCurrentUserTopic(userTopics);
+  // getCurrentUserTopic()
+  // getQuestions()
+  async init(userId: UserId): Promise<QuizInit> {
     let questions: IQuestion[];
+    let userTopic = await getCurrentUserTopic(userId);
     if (userTopic) {
       questions = await QuestionService.findQuestions({
         topic: userTopic.topic,
@@ -53,7 +54,50 @@ class QuizService {
     const questionsDto = processedQuestions.map((q) => new QuestionDto(q));
     return { userTopic: userTopicsDto, questions: questionsDto };
   }
-  async updateQuestion() {}
+  async learnQuestion(
+    userId: UserId,
+    questionId: string
+  ): Promise<{ changeTopic: boolean }> {
+    const question = await QuestionService.findOneQuestion({ _id: questionId });
+    if (!question) throw new Error("Question not found");
+
+    const userTopic = await UserTopicService.findOneUserTopic({
+      user: userId,
+      status: UserTopicStatusEnum.current,
+    });
+    if (!userTopic) throw new Error("UserTopic not found");
+
+    if (userTopic.topic !== question.topic) throw new Error("Wrong questionId");
+
+    const learnedQuestions = userTopic.learnedQuestions;
+    if (learnedQuestions.includes(question._id)) {
+      throw new Error("Question is already learned");
+    }
+
+    learnedQuestions.push(question._id);
+    userTopic.questionsInRow++;
+
+    let changeTopic = false;
+
+    if (userTopic.questionsInRow == questionsInRowLIMIT) {
+      userTopic.status = UserTopicStatusEnum.paused;
+      userTopic.questionsInRow = 0;
+      changeTopic = true;
+    }
+    if (learnedQuestions.length == userTopic.totalQuestionCount) {
+      userTopic.status = UserTopicStatusEnum.finished;
+      changeTopic = true;
+    }
+
+    await userTopic.save();
+    await UserQuestionService.createUserQuestion({
+      user: userId,
+      question: question._id,
+    });
+
+    return { changeTopic };
+  }
+  // Можно будет разделить topic и userTopics, для избежания topicId: t._id...
   async getTopics(userId: UserId): Promise<{
     userTopics: UserTopicDto[];
     topics: TopicDto[];
@@ -64,14 +108,95 @@ class QuizService {
     const topics = await TopicService.findTopics();
     const shuffledTopics = shuffle(topics);
     const slicedTopics = shuffledTopics.slice(0, 5);
-    // FIX ME, возможно populate будет нужен. + topicId: t._id....
     const userTopicsDto = userTopics.map((t) => new UserTopicDto(t));
     const topicsDto = slicedTopics.map((t) => new TopicDto(t));
 
     return { userTopics: userTopicsDto, topics: topicsDto };
   }
-  async changeTopic() {}
-  async blockTopic() {}
+  async addTopicToUserTopics(
+    userId: UserId,
+    topicId: string
+  ): Promise<UserTopicDto> {
+    const topic = await TopicService.findOneTopic({ _id: topicId });
+    if (!topic) throw new Error("Topic doesn't exist");
+
+    const questions = await QuestionService.findQuestions({ topic: topic._id });
+
+    const userTopic = await UserTopicService.createUserTopic({
+      topic: topic._id,
+      user: userId,
+      status: UserTopicStatusEnum.started,
+      totalQuestionCount: questions.length,
+    });
+
+    const userTopicDto = new UserTopicDto(userTopic);
+    return userTopicDto;
+  }
+  // два запроса: add -> change
+  async changeCurrentUserTopic(
+    userId: UserId,
+    userTopicId: string
+  ): Promise<QuizInit> {
+    const userTopic = await UserTopicService.findOneUserTopic({
+      _id: userTopicId,
+      user: userId,
+    });
+    if (!userTopic) throw new Error("UserTopic doesn't exist");
+
+    const currentUserTopic = await UserTopicService.findOneUserTopic({
+      user: userId,
+      status: UserTopicStatusEnum.current,
+    });
+    if (currentUserTopic) {
+      if (userTopic._id === currentUserTopic._id) {
+        throw new Error("UserTopic is current already");
+      }
+      currentUserTopic.questionsInRow = 0;
+      currentUserTopic.status = UserTopicStatusEnum.started;
+      await currentUserTopic.save();
+    }
+
+    if (userTopic.status === UserTopicStatusEnum.blocked) {
+      throw new Error("UserTopic is blocked");
+    }
+
+    userTopic.status = UserTopicStatusEnum.current;
+    await userTopic.save();
+
+    const questions = await QuestionService.findQuestions({
+      topic: userTopic.topic,
+    });
+
+    const processedQuestions: IQuestion[] = getProcessedQuestions(
+      questions,
+      userTopic
+    );
+    const userTopicDto = new UserTopicDto(userTopic);
+    const questionsDto = processedQuestions.map((q) => new QuestionDto(q));
+    return { userTopic: userTopicDto, questions: questionsDto };
+  }
+  async blockUserTopic(
+    userId: UserId,
+    userTopicId: string
+  ): Promise<UserTopicDto> {
+    const userTopic = await UserTopicService.findOneUserTopic({
+      _id: userTopicId,
+      user: userId,
+    });
+    if (!userTopic) throw new Error("UserTopic doesn't exist");
+
+    if (userTopic.status === UserTopicStatusEnum.current) {
+      throw new Error("Current userTopic cannot be blocked");
+    }
+    userTopic.status =
+      userTopic.status === UserTopicStatusEnum.blocked
+        ? UserTopicStatusEnum.started
+        : UserTopicStatusEnum.blocked;
+    await userTopic.save();
+
+    const userTopicDto = new UserTopicDto(userTopic);
+    return userTopicDto;
+  }
 }
 export const quizService = new QuizService();
 
@@ -123,12 +248,6 @@ export class UserTopicService {
   static async createUserTopic(obj: UserTopicInput): Promise<IUserTopic> {
     return UserTopicModel.create(obj);
   }
-  static async updateUserTopic(
-    query: FilterQuery<IUserTopic>,
-    update: AnyKeys<IUserTopic>
-  ) {
-    return UserTopicModel.updateOne(query, update);
-  }
 }
 export class UserQuestionService {
   static async createUserQuestion(
@@ -144,8 +263,12 @@ export class UserQuestionService {
 }
 
 async function getCurrentUserTopic(
-  userTopics: IUserTopic[]
+  userId: UserId
 ): Promise<IUserTopic | undefined> {
+  const userTopics: IUserTopic[] = await UserTopicService.findUserTopics({
+    user: userId,
+  });
+
   let userTopic;
   const currentTopic = userTopics.find(
     (topic) => topic.status == UserTopicStatusEnum.current

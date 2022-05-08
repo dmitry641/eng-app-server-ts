@@ -2,7 +2,6 @@ import { model, Schema } from "mongoose";
 import { DocumentWithTimestamps } from "../../../utils/types";
 
 export enum UserTopicStatusEnum {
-  notStarted = "not started",
   current = "current",
   paused = "paused",
   started = "started",
