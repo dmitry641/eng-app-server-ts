@@ -1,9 +1,4 @@
 import { FilterQuery } from "mongoose";
-import { randomIntFromInterval, shuffle } from "../../utils";
-import { UserId } from "../users/user";
-import { QuestionDto } from "./dto/question.dto";
-import { TopicDto } from "./dto/topic.dto";
-import { UserTopicDto } from "./dto/userTopic.dto";
 import {
   IQuestion,
   QuestionInput,
@@ -19,23 +14,19 @@ import {
   IUserTopic,
   UserTopicInput,
   UserTopicModel,
-  UserTopicStatusEnum,
 } from "./models/userTopics.model";
 
-const questionsInRowLIMIT = 7;
-const sliceEnd = 7;
-const oneDay = 1000 * 60 * 60 * 24;
+export const questionsInRowLIMIT = 7;
+export const questionSliceEnd = 7;
+export const oneDay = 1000 * 60 * 60 * 24;
 
+/*
 interface QuizInit {
   userTopic: UserTopicDto;
   questions: QuestionDto[];
 }
 
-// FIX ME
-// init переименовать? и updateQuestion?
 class QuizService {
-  // getCurrentUserTopic()
-  // getQuestions()
   async init(userId: UserId): Promise<QuizInit> {
     let questions: IQuestion[];
     let userTopic = await getCurrentUserTopic(userId);
@@ -97,11 +88,11 @@ class QuizService {
 
     return { changeTopic };
   }
-  // Можно будет разделить topic и userTopics, для избежания topicId: t._id...
   async getTopics(userId: UserId): Promise<{
     userTopics: UserTopicDto[];
     topics: TopicDto[];
   }> {
+    // тот же баг, могут выпасть начатые топики
     const userTopics = await UserTopicService.findUserTopics({
       user: userId,
     });
@@ -167,10 +158,7 @@ class QuizService {
       topic: userTopic.topic,
     });
 
-    const processedQuestions: IQuestion[] = getProcessedQuestions(
-      questions,
-      userTopic
-    );
+    const processedQuestions = getProcessedQuestions(questions, userTopic);
     const userTopicDto = new UserTopicDto(userTopic);
     const questionsDto = processedQuestions.map((q) => new QuestionDto(q));
     return { userTopic: userTopicDto, questions: questionsDto };
@@ -199,7 +187,7 @@ class QuizService {
   }
 }
 export const quizService = new QuizService();
-
+*/
 export class TopicService {
   static async createTopic(obj: TopicInput): Promise<ITopic> {
     return TopicModel.create(obj);
@@ -262,6 +250,7 @@ export class UserQuestionService {
   }
 }
 
+/*
 async function getCurrentUserTopic(
   userId: UserId
 ): Promise<IUserTopic | undefined> {
@@ -295,6 +284,7 @@ async function getCurrentUserTopic(
 async function getRandomUserTopicAndQuestions(
   userId: UserId
 ): Promise<{ userTopic: IUserTopic; questions: IQuestion[] }> {
+  // баг: может выпасть уже пройденый/начатый/заблокированный топик
   const topics = await TopicService.findTopics();
   const randomNumber = randomIntFromInterval(1, topics.length - 1);
   const randomTopic = topics[randomNumber];
@@ -315,7 +305,6 @@ async function makeCurrent(userTopic: IUserTopic): Promise<IUserTopic> {
   return userTopic.save();
 }
 
-// FIX ME, протестировать, возмножно тут Populate нужен
 function getProcessedQuestions(
   questions: IQuestion[],
   userTopic: IUserTopic
@@ -324,6 +313,7 @@ function getProcessedQuestions(
     (q) => !userTopic.learnedQuestions.includes(q._id)
   );
   const shuffled = shuffle<IQuestion>(filtered);
-  const sliced = shuffled.slice(0, sliceEnd);
+  const sliced = shuffled.slice(0, questionSliceEnd);
   return sliced;
 }
+*/

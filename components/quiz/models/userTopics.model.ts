@@ -17,7 +17,6 @@ export interface UserTopicInput {
 }
 
 export interface IUserTopic extends UserTopicInput, DocumentWithTimestamps {
-  learnedQuestions: Schema.Types.ObjectId[];
   questionsInRow: number;
 }
 
@@ -31,7 +30,6 @@ const UserTopicSchema: Schema = new Schema(
       required: true,
     },
     totalQuestionCount: { type: Number, required: true },
-    learnedQuestions: [{ type: Schema.Types.ObjectId, ref: "Question" }], // FIX ME. Сработает?
     questionsInRow: { type: Number, default: 0, required: true },
   },
   { timestamps: true }
