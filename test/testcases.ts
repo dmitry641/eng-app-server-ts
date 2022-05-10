@@ -72,36 +72,34 @@ export const quizTestCases = {
 export const quizTestData1: QuizKeysType[] = [
   {
     topicName: "Tax",
-    question:
-      "What would happen in your country if everyone stopped paying tax?",
+    text: "What would happen in your country if everyone stopped paying tax?",
   },
   {
     topicName: "Tax",
-    question: "Do you know what taxes are spent on in your country?",
+    text: "Do you know what taxes are spent on in your country?",
   },
   {
     topicName: "Tax",
-    question: "Would you like to move to a country where there are no taxes?",
+    text: "Would you like to move to a country where there are no taxes?",
   },
   {
     topicName: "Tax",
-    question: "Is tax an important issue at election time?",
+    text: "Is tax an important issue at election time?",
   },
-  { topicName: "Stress", question: "What is stress?" },
-  { topicName: "Stress", question: "What causes stress?" },
+  { topicName: "Stress", text: "What is stress?" },
+  { topicName: "Stress", text: "What causes stress?" },
   {
     topicName: "Stress",
-    question: "How do you recognize stress in your life?",
+    text: "How do you recognize stress in your life?",
   },
   {
     topicName: "Stress",
-    question: "Have you been under stress recently?",
+    text: "Have you been under stress recently?",
   },
-  { topicName: "Stress", question: "How does stress affect you?" },
+  { topicName: "Stress", text: "How does stress affect you?" },
   {
     topicName: "Stress",
-    question:
-      "Do you have a kind of red warning flag that indicates too much stress?",
+    text: "Do you have a kind of red warning flag that indicates too much stress?",
   },
 ];
 

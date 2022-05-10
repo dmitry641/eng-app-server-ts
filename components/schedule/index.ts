@@ -30,6 +30,8 @@ class UserJobsManager {
     });
     for (const dbDeck of dbDynUserDeck) {
       const user = await globalUserStore.getUser(dbDeck.user);
+      // FIX ME, нужно проверять, autoSync включен или нет
+      // либо всё же сделать финальую проверку в getCallback
       this.createJob(user, UserJobTypesEnum.deckSync);
     }
 
@@ -167,6 +169,10 @@ class UserDeckSyncJob implements IUserJob {
     return async () => {
       const user = await globalUserStore.getUser(obj.userId);
       const udclient = await userDecksManager.getUserDecksClient(user);
+      // if dynamic doesn't exist return null/cancel job
+      // if dynamicAutoSync false return null/cancel job
+      // FIX ME, потестить, try catch добавить
+      // либо в updateSyncDataType
       await udclient.syncDynamicUserDeck();
     };
   }

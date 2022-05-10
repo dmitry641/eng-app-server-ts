@@ -132,6 +132,9 @@ class UserDecksClient {
     const userDeck: UserDeck = await this.newUserDeck(deck);
     return userDeck;
   }
+  createZipUserDeck() {
+    throw new Error("not implemented");
+  }
   private async newUserDeck(deck: Deck): Promise<UserDeck> {
     const order = this.settings.getMaxOrder() + 1;
     await this.settings.setMaxOrder(order);
@@ -220,13 +223,16 @@ class UserDecksClient {
       "deckSyncJob",
       UserJobTypesEnum.deckSync
     );
+    // FIX ME, возможно нужно сделать по условию.
+    // Либо cancel, либо create.
+    // И тогда в UserDeckSyncJob.getCallback можно было не делать доп проверки
 
     return this.settings;
   }
   async updateAutoSync(value: boolean): Promise<UserDecksSettings> {
+    // FIX ME, schedule cancel/update
     return this.settings.setDynamicAutoSync(value);
   }
-
   private async tryToResetAttempts() {
     const lastAttempt = this.settings.getLastDynamicSyncAttempt();
     if (lastAttempt && Date.now() > lastAttempt + SYNC_TIMEOUT_LIMIT) {

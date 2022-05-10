@@ -2,6 +2,7 @@ import { globalDecksStore } from "./components/decks/deck";
 import { userDecksManager } from "./components/decks/userDeck";
 import { globalCardsStore } from "./components/flashcards/cards";
 import { userCardsManager } from "./components/flashcards/userCards";
+import { userQuizManager } from "./components/quiz/userQuiz";
 import { globalUserStore } from "./components/users/user";
 import { decksTestCases } from "./test/testcases";
 import { getBuffer } from "./utils";
@@ -42,6 +43,12 @@ export async function deleteMe() {
   const userCards = await ucclient.getUserCards();
   console.log(userCards.length);
   console.log(userCards[0]);
+
+  const uqclient = await userQuizManager.getUserQuizClient(user);
+  const userTopic = await uqclient.initUserTopic();
+  console.log(userTopic);
+  const questions = await uqclient.getQuestions();
+  console.log(questions);
 }
 
 class ClassA {

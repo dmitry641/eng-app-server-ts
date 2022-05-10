@@ -2,12 +2,12 @@ import path from "path";
 import { getBuffer, getCsvData } from "../../utils";
 import { QuestionService, TopicService } from "./quiz.service";
 
-export const quizCsvHeaders = ["topicName", "question"] as const;
+export const quizCsvHeaders = ["topicName", "text"] as const;
 export type QuizKeysType = { [K in typeof quizCsvHeaders[number]]: string };
 // или так
 // type QuizKeysType = {
 //   topicName: ITopic["topicName"];
-//   question: IQuestion["question"];
+//   text: IQuestion["text"];
 // };
 
 type CreateCollType = {
@@ -68,7 +68,7 @@ export class QuizUtil {
       for (let el of questions) {
         await QuestionService.createQuestion({
           topic: topic._id,
-          question: el.question,
+          text: el.text,
         });
       }
     }
