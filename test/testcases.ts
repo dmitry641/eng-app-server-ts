@@ -107,5 +107,11 @@ export const decksTestCases = {
   case1: {
     pathToFile: resolve(__dirname, "file5.csv"),
     description: "Correct file",
+    cardsCount: 10,
+  },
+  case2: {
+    pathToFile: resolve(__dirname, "file6.csv"),
+    description: "Incorrect file",
+    cardsCount: 1,
   },
 };

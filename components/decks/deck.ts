@@ -50,13 +50,14 @@ class DecksStore {
     });
     return deck;
   }
-
   getDeckById(deckId: DeckId): Deck {
     const deck = this.decks.find((d) => d.id === deckId);
     if (!deck) throw new Error("Deck doesn't exist");
     return deck;
   }
-
+  getPublicDecks(): Deck[] {
+    return this.decks.filter((d) => d.public);
+  }
   async toggleDeckPublic(userDeck: UserDeck): Promise<Deck> {
     const deck = this.getDeckById(userDeck.deckId);
     if (!deck.canBePublic) throw new Error("Deck cannot be public");
@@ -66,7 +67,6 @@ class DecksStore {
 
     return deck;
   }
-
   private async newDeck(obj: DeckInput): Promise<Deck> {
     const dbDeck: IDeck = await DecksService.createDeck(obj);
     const deck: Deck = new Deck(dbDeck);

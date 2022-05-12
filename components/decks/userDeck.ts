@@ -35,8 +35,7 @@ class UserDecksManager {
       user: user.id,
       deleted: false,
     });
-    // FIX ME. Нужно проверить правильно ли отсортировалось
-    dbUserDecks.sort(sortByOrderFn);
+    dbUserDecks.sort(ascSortByOrderFn);
 
     let dynamicExist = false;
     for (let dbUserDeck of dbUserDecks) {
@@ -54,8 +53,11 @@ class UserDecksManager {
   }
 }
 
-class UserDecksClient {
+export class UserDecksClient {
   private settings: UserDecksSettings;
+  // userDecks должен быть readonly/readonlyArray
+  // а также мы должны возвращать ДТО из каждого метода(инкапсуляция)
+  // обычных Deck это тоже касается(и userCard и card)
   constructor(private userDecks: UserDeck[], private user: User) {
     this.settings = user.settings.userDecksSettings;
   }
@@ -67,24 +69,25 @@ class UserDecksClient {
     if (!userDeck) throw new Error("UserDeck doesn't exist");
     return userDeck;
   }
-  async enableUserDeck(id: UserDeckId): Promise<UserDeck> {
-    const userDeck = this.getUserDeckById(id);
+  async enableUserDeck(userDeckId: UserDeckId): Promise<UserDeck> {
+    const userDeck = this.getUserDeckById(userDeckId);
     return userDeck.enable();
   }
-  async deleteUserDeck(id: UserDeckId) {
-    const userDeck = this.getUserDeckById(id);
+  async deleteUserDeck(userDeckId: UserDeckId): Promise<UserDeck> {
+    const userDeck = this.getUserDeckById(userDeckId);
     if (userDeck.dynamic) throw new Error("Dynamic deck is not allowed");
     await userDeck.delete();
     this.userDecks = this.userDecks.filter((d) => d.id != userDeck.id);
+    return userDeck;
   }
   async moveUserDeck(
-    id: UserDeckId,
+    userDeckId: UserDeckId,
     position: UserDeckPositionEnum
   ): Promise<UserDeck> {
-    const userDeckOne = this.getUserDeckById(id);
+    const userDeckOne = this.getUserDeckById(userDeckId);
 
-    // FIX ME. Нужно проверить правильно ли отсортировалось
-    this.userDecks.sort(sortByOrderFn); // спорный момент. Тут оно не нужно, так как они уже должны быть отсортированны
+    // спорный момент. Вероятно не нужно, так как они уже должны быть отсортированны
+    this.userDecks.sort(ascSortByOrderFn);
     const currIndex = this.userDecks.findIndex((d) => d.id == userDeckOne.id);
 
     let userDeckTwo;
@@ -98,16 +101,15 @@ class UserDecksClient {
       default:
         throw new Error("not implemented");
     }
-    if (!userDeckTwo) throw new Error("out of bounds");
+    if (!userDeckTwo) return userDeckOne; // out of bounds
 
     let orderOne = Number(userDeckOne.order);
     let orderTwo = Number(userDeckTwo.order);
     await userDeckTwo.setOrder(orderOne);
-    const updatedUserDeck = await userDeckOne.setOrder(orderTwo);
+    await userDeckOne.setOrder(orderTwo);
 
-    // FIX ME. Нужно проверить правильно ли отсортировалось
-    this.userDecks.sort(sortByOrderFn); // спорный момент
-    return updatedUserDeck;
+    this.userDecks.sort(ascSortByOrderFn); // спорный момент
+    return userDeckOne;
   }
   async toggleUserDeckPublic(userDeckId: UserDeckId): Promise<Deck> {
     const userDeck = this.getUserDeckById(userDeckId);
@@ -125,7 +127,12 @@ class UserDecksClient {
     const userDeck: UserDeck = await this.newUserDeck(deck);
     return userDeck;
   }
-
+  getPublicDecks(): Deck[] {
+    const decks = globalDecksStore.getPublicDecks();
+    const existedIds = this.userDecks.map((d) => d.deckId);
+    const filteredDecks = decks.filter((d) => !existedIds.includes(d.id));
+    return filteredDecks;
+  }
   // не забыть сделать проверку файла. Либо тут либо в контроллере
   async createUserDeck(file: UploadedFile): Promise<UserDeck> {
     const deck: Deck = await globalDecksStore.createDeck(file, this.user);
@@ -249,6 +256,7 @@ export class UserDeck {
   private _deckId: DeckId;
   private _dynamic: boolean;
   private _enabled: boolean;
+  private _deleted: boolean;
   private _order: number;
   private _cardsCount: number;
   private _cardsLearned: number;
@@ -259,6 +267,7 @@ export class UserDeck {
     this._deckId = userdeck.deck;
     this._dynamic = userdeck.dynamic;
     this._enabled = userdeck.enabled;
+    this._deleted = userdeck.deleted;
     this._order = userdeck.order;
     this._cardsCount = userdeck.cardsCount;
     this._cardsLearned = userdeck.cardsLearned;
@@ -273,6 +282,9 @@ export class UserDeck {
   get enabled() {
     return this._enabled;
   }
+  get deleted() {
+    return this._deleted;
+  }
   get order() {
     return this._order;
   }
@@ -286,6 +298,7 @@ export class UserDeck {
     return this._deckName;
   }
   async delete() {
+    this._deleted = true;
     this._userdeck.deleted = true;
     await this._userdeck.save();
     return true;
@@ -316,7 +329,7 @@ export class UserDeck {
   }
 }
 
-export const sortByOrderFn = <T extends { order: number }>(a: T, b: T) =>
+export const ascSortByOrderFn = <T extends { order: number }>(a: T, b: T) =>
   a.order - b.order;
 
 export const userDecksManager = new UserDecksManager();

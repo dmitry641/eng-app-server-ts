@@ -1,6 +1,6 @@
 import { readFileSync } from "fs";
 import { getBuffer, getCsvData, shuffle } from ".";
-import { quizTestCases } from "../test/testcases";
+import { decksTestCases, quizTestCases } from "../test/testcases";
 
 describe("Util: getBuffer function", () => {
   const wrongPath = quizTestCases.case1.pathToFile;
@@ -10,7 +10,7 @@ describe("Util: getBuffer function", () => {
     getBuffer(wrongPath);
   }
 
-  it("file doest exist; thrown error", async () => {
+  it("file doesn't exist; thrown error", async () => {
     expect(getBufferWithWrongPath).toThrowError(`${wrongPath} doesn't exists`);
   });
   it("file exists; result is buffer", async () => {
@@ -112,6 +112,17 @@ describe("Util: getCsvData function", () => {
     expect(result.length).toBe(lines);
     for (let obj of result) {
       expect(Object.keys(obj)).toEqual(tc.csvHeaders);
+    }
+  });
+  // cards tests
+  it("incorrect buffer", async () => {
+    const tc = decksTestCases.case2;
+    const buffer = getBuffer(tc.pathToFile);
+    const headers = ["1", "2", "3", "4"];
+    const result = await getCsvData(buffer, headers, ",");
+    expect(result.length).toBe(tc.cardsCount);
+    for (let obj of result) {
+      expect(Object.keys(obj)).toEqual(headers);
     }
   });
 });

@@ -17,7 +17,6 @@ export interface IUserDecksSettings extends UserDecksSettingsInput, Document {
 const UserDecksSettingsSchema: Schema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
-
     maxOrder: { type: Number, default: 0, required: true },
     dynamicAutoSync: { type: Boolean, default: false, required: true },
     dynamicSyncType: { type: String, enum: DynamicSyncType },

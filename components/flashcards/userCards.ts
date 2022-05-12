@@ -1,7 +1,7 @@
 import { shuffle } from "../../utils";
 import { ObjId } from "../../utils/types";
 import {
-  sortByOrderFn,
+  ascSortByOrderFn,
   UserDeck,
   UserDeckId,
   userDecksManager,
@@ -67,7 +67,9 @@ class UserCardsClient {
   }
   async favoriteUserCard(userCardId: UserCardId): Promise<UserCard> {
     const userCard = this.getUserCard(userCardId);
-    return userCard.favoriteHandler();
+    if (userCard.favorite) await userCard.setFavorite(false);
+    else await userCard.setFavorite(true);
+    return userCard;
   }
   async learnUserCard(userCardId: UserCardId, status: HistoryStatusEnum) {
     const userCard = this.getUserCard(userCardId);
@@ -117,7 +119,7 @@ class UserCardsClient {
   private async getUserCardsFromSortedUserDecks(): Promise<UserCard[]> {
     let newUserCards: UserCard[] = [];
     const udclient = await userDecksManager.getUserDecksClient(this.user);
-    let userDecks: UserDeck[] = udclient.getUserDecks().sort(sortByOrderFn);
+    let userDecks: UserDeck[] = udclient.getUserDecks().sort(ascSortByOrderFn);
 
     const shuffleDecks = this.settings.shuffleDecks;
     if (shuffleDecks) userDecks = shuffle(userDecks);
@@ -237,9 +239,9 @@ export class UserCard {
     await this._userCard.save();
     return true;
   }
-  async favoriteHandler() {
-    this._favorite = !this._favorite;
-    this._userCard.favorite = this._favorite;
+  async setFavorite(value: boolean) {
+    this._favorite = value;
+    this._userCard.favorite = value;
     this._userCard.save();
     return this;
   }
