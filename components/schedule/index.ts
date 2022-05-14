@@ -4,6 +4,7 @@ import { ObjId } from "../../utils/types";
 import { UserDecksService } from "../decks/decks.service";
 import { userDecksManager } from "../decks/userDeck";
 import { globalUserStore, User, UserId } from "../users/user";
+import { UserJobTypesEnum } from "./types";
 
 class JobStore {
   private initialized: boolean = false;
@@ -21,7 +22,7 @@ class JobStore {
   }
 }
 
-class UserJobsManager {
+export class UserJobsManager {
   private userjobs = new Map<User, UserJobStore>();
   async init() {
     // спорный момент
@@ -30,8 +31,6 @@ class UserJobsManager {
     });
     for (const dbDeck of dbDynUserDeck) {
       const user = await globalUserStore.getUser(dbDeck.user);
-      // FIX ME, нужно проверять, autoSync включен или нет
-      // либо всё же сделать финальую проверку в getCallback
       this.createJob(user, UserJobTypesEnum.deckSync);
     }
 
@@ -44,7 +43,7 @@ class UserJobsManager {
   ) {
     const userJob = UserJobFactory.create(type, options);
     const rule = userJob.getRule(options);
-    const cb = userJob.getCallback({ userId: user.id, options }); // { detail, user: this._user }
+    const cb = userJob.getCallback({ userId: user.id, options });
 
     const job = schedule.scheduleJob(rule, cb);
 
@@ -55,7 +54,7 @@ class UserJobsManager {
   cancelJob(user: User, userJobId: UserJobId) {
     const userJobStore = this.getUserJobStore(user);
     const userJob = userJobStore.getJob(userJobId);
-    if (!userJob) throw new Error("Userjob not found");
+    if (!userJob) return; // Userjob not found
     userJob.cancel();
     userJobStore.deleteJob(userJob);
   }
@@ -90,10 +89,6 @@ type UserJobId = ObjId | "deckSyncJob";
 type UserJobCreationOptions = {
   detail?: { id: ObjId };
 };
-export enum UserJobTypesEnum {
-  deckSync = "deckSync",
-  notification = "notification",
-}
 
 class UserJobStore {
   private userjobs: IUserJob[] = [];
@@ -149,6 +144,7 @@ class UserDeckSyncJob implements IUserJob {
     this.job?.cancel();
   }
   getRule(): schedule.RecurrenceSpecDateRange {
+    // FIX ME, сделать тестируемым
     let nextHour = 0;
     let currHour = new Date().getHours();
 
@@ -167,12 +163,22 @@ class UserDeckSyncJob implements IUserJob {
   }
   getCallback(obj: GetCallbackAttr): schedule.JobCallback {
     return async () => {
+      // FIX ME, протестировать
+      // если this.cancel() не будет работать
+      // то тогда в init и в других местах нужно будет убирать
+      // globalJobStore.userJobs.updateJob
+      // и добавлять проверки + create/cancel, а не update
       const user = await globalUserStore.getUser(obj.userId);
+      const autoSync = user.settings.userDecksSettings.dynamicAutoSync;
+      const syncData =
+        Boolean(user.settings.userDecksSettings.dynamicSyncType) &&
+        Boolean(user.settings.userDecksSettings.dynamicSyncData);
       const udclient = await userDecksManager.getUserDecksClient(user);
-      // if dynamic doesn't exist return null/cancel job
-      // if dynamicAutoSync false return null/cancel job
-      // FIX ME, потестить, try catch добавить
-      // либо в updateSyncDataType
+      const dynUserDeck = Boolean(udclient.getDynamicUserDeck());
+      if (!autoSync || !syncData || !dynUserDeck) {
+        this.cancel();
+        return null;
+      }
       await udclient.syncDynamicUserDeck();
     };
   }

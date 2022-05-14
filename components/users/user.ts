@@ -173,83 +173,83 @@ export class UserPhoneSettings {
 }
 export class UserDecksSettings {
   private _settings: IUserDecksSettings;
-  private maxOrder: number;
-  private dynamicSyncType?: IUserDecksSettings["dynamicSyncType"];
-  private dynamicSyncData?: IUserDecksSettings["dynamicSyncData"];
-  private dynamicAutoSync?: boolean;
-  private dynamicSyncMessage?: IUserDecksSettings["dynamicSyncMessage"];
-  private dynamicSyncAttempts: number[] = [];
+  private _maxOrder: number;
+  private _dynamicSyncType?: IUserDecksSettings["dynamicSyncType"];
+  private _dynamicSyncData?: IUserDecksSettings["dynamicSyncData"];
+  private _dynamicAutoSync: boolean;
+  private _dynamicSyncMessage?: IUserDecksSettings["dynamicSyncMessage"];
+  private _dynamicSyncAttempts: number[] = [];
   constructor(settings: IUserDecksSettings) {
     this._settings = settings;
-    this.maxOrder = settings.maxOrder;
-    this.dynamicSyncType = settings.dynamicSyncType;
-    this.dynamicSyncData = settings.dynamicSyncData;
-    this.dynamicAutoSync = settings.dynamicAutoSync;
-    this.dynamicSyncMessage = settings.dynamicSyncMessage;
+    this._maxOrder = settings.maxOrder;
+    this._dynamicSyncType = settings.dynamicSyncType;
+    this._dynamicSyncData = settings.dynamicSyncData;
+    this._dynamicAutoSync = settings.dynamicAutoSync;
+    this._dynamicSyncMessage = settings.dynamicSyncMessage;
   }
-  getMaxOrder() {
-    return this.maxOrder;
+  get maxOrder() {
+    return this._maxOrder;
   }
   async setMaxOrder(num: number): Promise<UserDecksSettings> {
-    this.maxOrder = num;
+    this._maxOrder = num;
     this._settings.maxOrder = num;
-    this._settings.save(); // спорный момент
+    await this._settings.save(); // спорный момент
     return this;
   }
-  getDynamicSyncType() {
-    return this.dynamicSyncType;
+  get dynamicSyncType() {
+    return this._dynamicSyncType;
   }
   async setDynamicSyncType(
     type: DynamicSyncType | undefined
   ): Promise<UserDecksSettings> {
-    this.dynamicSyncType = type;
+    this._dynamicSyncType = type;
     this._settings.dynamicSyncType = type;
-    this._settings.save();
+    await this._settings.save();
     return this;
   }
-  getDynamicSyncData() {
-    return this.dynamicSyncData;
+  get dynamicSyncData() {
+    return this._dynamicSyncData;
   }
   async setDynamicSyncData(
     data: DynamicSyncData | undefined
   ): Promise<UserDecksSettings> {
-    this.dynamicSyncData = data;
+    this._dynamicSyncData = data;
     this._settings.dynamicSyncData = data;
-    this._settings.save();
+    await this._settings.save();
     return this;
   }
-  getDynamicAutoSync() {
-    return this.dynamicAutoSync;
+  get dynamicAutoSync() {
+    return this._dynamicAutoSync;
   }
   async setDynamicAutoSync(value: boolean): Promise<UserDecksSettings> {
-    this.dynamicAutoSync = value;
+    this._dynamicAutoSync = value;
     this._settings.dynamicAutoSync = value;
-    this._settings.save();
+    await this._settings.save();
     return this;
   }
-  getDynamicSyncMessage() {
-    return this.dynamicSyncMessage;
+  get dynamicSyncMessage() {
+    return this._dynamicSyncMessage;
   }
   async setDynamicSyncMessage(
     msg: string | undefined
   ): Promise<UserDecksSettings> {
-    this.dynamicSyncMessage = msg;
+    this._dynamicSyncMessage = msg;
     this._settings.dynamicSyncMessage = msg;
-    this._settings.save();
+    await this._settings.save();
     return this;
   }
-  getDynamicSyncAttempts() {
-    return this.dynamicSyncAttempts;
+  get dynamicSyncAttempts() {
+    return this._dynamicSyncAttempts;
   }
   getLastDynamicSyncAttempt() {
-    return this.dynamicSyncAttempts.at(-1);
+    return this._dynamicSyncAttempts.at(-1);
   }
   setDynamicSyncAttempts(arr: number[]): UserDecksSettings {
-    this.dynamicSyncAttempts = arr;
+    this._dynamicSyncAttempts = arr;
     return this;
   }
   appendDynamicSyncAttempt(value: number): UserDecksSettings {
-    this.dynamicSyncAttempts.push(value);
+    this._dynamicSyncAttempts.push(value);
     return this;
   }
 }

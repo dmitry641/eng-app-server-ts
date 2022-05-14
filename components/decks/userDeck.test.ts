@@ -2,15 +2,30 @@ import { connectToTestDB, disconnectFromDB } from "../../db";
 import { decksTestCases } from "../../test/testcases";
 import { getBuffer } from "../../utils";
 import { globalCardsStore } from "../flashcards/cards";
+import { globalJobStore } from "../schedule";
 import { globalUserStore, User } from "../users/user";
-import { UserDeckPositionEnum } from "../users/user.util";
+import { DynamicSyncType, UserDeckPositionEnum } from "../users/user.util";
 import { globalDecksStore } from "./deck";
+import { UserDecksService } from "./decks.service";
 import {
   ascSortByOrderFn,
   UserDeck,
   UserDecksClient,
   userDecksManager,
 } from "./userDeck";
+
+jest.mock("../schedule", () => {
+  //  globalJobStore: { userJobs: { updateJob: () => console.log("test") } },
+  return {
+    globalJobStore: {
+      userJobs: {
+        updateJob: jest.fn(() => null),
+        cancelJob: jest.fn(() => null),
+        createJob: jest.fn(() => null),
+      },
+    },
+  };
+});
 
 describe("UserDecksManager", () => {
   describe("getUserDecksClient", () => {
@@ -62,17 +77,24 @@ describe("UserDecksClient", () => {
       const tc = decksTestCases.case1;
       const buffer = getBuffer(tc.pathToFile);
       const deckName = String(Math.random());
+
+      const spyCreateDeck = jest.spyOn(globalDecksStore, "createDeck");
+      const spyServiceCreate = jest.spyOn(UserDecksService, "createUserDeck");
       const userDeck = await udclient.createUserDeck({
         buffer,
         mimetype: "csv",
         originalname: deckName,
       });
+      expect(spyCreateDeck).toBeCalled();
+      expect(spyServiceCreate).toBeCalled();
+
       expect(userDeck.deckName).toBe(deckName);
       expect(userDeck.cardsCount).toBe(tc.cardsCount);
       expect(userDeck.cardsLearned).toBe(0);
       expect(userDeck.dynamic).toBe(false);
       expect(userDeck.enabled).toBe(true);
-      const order = user.settings.userDecksSettings.getMaxOrder();
+      expect(userDeck.deleted).toBe(false);
+      const order = user.settings.userDecksSettings.maxOrder;
       expect(userDeck.order).toBe(order);
 
       const deck = globalDecksStore.getDeckById(userDeck.deckId);
@@ -122,6 +144,7 @@ describe("UserDecksClient", () => {
         originalname: String(Math.random()),
       });
     });
+    it("1", () => expect(1).toBe(1));
     it("userdeck exists", () => {
       const result = udclient.getUserDeckById(userDeck.id);
       expect(result).toBe(userDeck);
@@ -447,6 +470,145 @@ describe("UserDecksClient: public decks", () => {
     user1Decks = user1dclient.getUserDecks();
     expect(user1Decks.length).toBe(3);
   });
+  afterAll(async () => {
+    await disconnectFromDB();
+  });
+});
+
+describe("UserDecksClient: dynamic deck", () => {
+  let user: User;
+  let udclient: UserDecksClient;
+  let userDeck1: UserDeck;
+  let userDeck2: UserDeck;
+  const tc = decksTestCases.case1;
+  const buffer = getBuffer(tc.pathToFile);
+  beforeAll(async () => {
+    await connectToTestDB();
+  });
+  beforeEach(async () => {
+    let userEmail = String(Math.random()) + "@email.com";
+
+    user = await globalUserStore.createUser({
+      email: userEmail,
+      name: "123",
+      password: "123",
+    });
+    udclient = await userDecksManager.getUserDecksClient(user);
+    userDeck1 = await udclient.createUserDeck({
+      buffer,
+      mimetype: "csv",
+      originalname: String(Math.random()),
+    });
+    userDeck2 = await udclient.createUserDeck({
+      buffer,
+      mimetype: "csv",
+      originalname: String(Math.random()),
+    });
+  });
+
+  it("createDynamicUserDeck", async () => {
+    let dynUserDeck = udclient.getDynamicUserDeck();
+    expect(dynUserDeck).toBe(undefined);
+
+    const spyCreateDeck = jest.spyOn(globalDecksStore, "createDynamicDeck");
+    const spyServiceCreate = jest.spyOn(UserDecksService, "createUserDeck");
+    const spyUpdateAutoSync = jest.spyOn(udclient, "updateAutoSync");
+
+    const userDeck = await udclient.createDynamicUserDeck();
+    expect(spyCreateDeck).toBeCalled();
+    expect(spyServiceCreate).toBeCalled();
+    expect(spyUpdateAutoSync).toBeCalled();
+
+    let settings = udclient.getUserDeckSettings();
+    expect(settings.dynamicAutoSync).toBe(true);
+
+    expect(globalJobStore.userJobs.updateJob).toBeCalled();
+
+    expect(userDeck.deckName).toBe("Dynamic deck");
+    expect(userDeck.cardsCount).toBe(0);
+    expect(userDeck.cardsLearned).toBe(0);
+    expect(userDeck.dynamic).toBe(true);
+    expect(userDeck.enabled).toBe(true);
+    expect(userDeck.deleted).toBe(false);
+    const order = user.settings.userDecksSettings.maxOrder;
+    expect(userDeck.order).toBe(order);
+
+    const deck = globalDecksStore.getDeckById(userDeck.deckId);
+    expect(deck.canBePublic).toBe(false);
+    expect(deck.createdBy).toBe(user.id);
+    expect(deck.name).toBe("Dynamic deck");
+    expect(deck.public).toBe(false);
+    expect(deck.totalCardsCount).toBe(0);
+
+    expect(userDeck.deckId).toBe(deck.id);
+
+    const cards = globalCardsStore.getCardsByDeckId(deck.id);
+    expect(cards.length).toBe(0);
+
+    const userDecks = udclient.getUserDecks();
+    const includes = userDecks.includes(userDeck);
+    expect(includes).toBe(true);
+
+    dynUserDeck = udclient.getDynamicUserDeck();
+    expect(dynUserDeck).toBeTruthy();
+
+    try {
+      await udclient.createDynamicUserDeck();
+    } catch (error) {
+      expect(error).toMatchObject({
+        message: "Dynamic userDeck already exists",
+      });
+    }
+
+    await udclient.deleteDynamicUserDeck();
+  });
+  it("deleteDynamicUserDeck", async () => {
+    let dynUserDeck = udclient.getDynamicUserDeck();
+    expect(dynUserDeck).toBe(undefined);
+    await udclient.createDynamicUserDeck();
+    dynUserDeck = udclient.getDynamicUserDeck();
+    expect(dynUserDeck).toBeTruthy();
+    let userDecks = udclient.getUserDecks();
+    expect(userDecks).toContain(dynUserDeck);
+
+    const settings = await udclient.deleteDynamicUserDeck();
+
+    userDecks = udclient.getUserDecks();
+    expect(userDecks).not.toContain(dynUserDeck);
+
+    expect(settings.dynamicAutoSync).toBe(false);
+    expect(settings.dynamicSyncType).toBe(undefined);
+    expect(settings.dynamicSyncData).toBe(undefined);
+    expect(settings.dynamicSyncMessage).toBe(undefined);
+    expect(settings.dynamicSyncAttempts.length).toBe(0);
+
+    expect(globalJobStore.userJobs.cancelJob).toBeCalled();
+
+    try {
+      await udclient.deleteDynamicUserDeck();
+    } catch (error) {
+      expect(error).toMatchObject({
+        message: "Dynamic userDeck doesn't exist",
+      });
+    }
+  });
+  it("syncDynamicUserDeck", async () => {});
+  it("updateSyncDataType", async () => {
+    const accName = "test";
+    const settings = await udclient.updateSyncDataType(
+      DynamicSyncType.reverso,
+      { accountName: accName }
+    );
+    expect(globalJobStore.userJobs.updateJob).toBeCalled();
+    expect(settings.dynamicSyncType).toBe(DynamicSyncType.reverso);
+    expect(settings.dynamicSyncData).toMatchObject({ accountName: accName });
+  });
+  it("updateAutoSync", async () => {
+    let settings = await udclient.updateAutoSync(false);
+    expect(globalJobStore.userJobs.updateJob).toBeCalled();
+    expect(settings.dynamicAutoSync).toBe(false);
+  });
+
   afterAll(async () => {
     await disconnectFromDB();
   });

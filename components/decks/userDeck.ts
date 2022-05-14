@@ -1,5 +1,6 @@
 import { ObjId, UploadedFile } from "../../utils/types";
-import { globalJobStore, UserJobTypesEnum } from "../schedule";
+import { globalJobStore } from "../schedule";
+import { UserJobTypesEnum } from "../schedule/types";
 import { User, UserDecksSettings, UserId } from "../users/user";
 import {
   DynamicSyncData,
@@ -61,9 +62,13 @@ export class UserDecksClient {
   constructor(private userDecks: UserDeck[], private user: User) {
     this.settings = user.settings.userDecksSettings;
   }
+  getUserDeckSettings() {
+    return this.settings;
+  }
   getUserDecks(): UserDeck[] {
     return this.userDecks;
   }
+  // 2methods: private; getUserDeckDTO()
   getUserDeckById(userDeckId: UserDeckId): UserDeck {
     const userDeck = this.userDecks.find((d) => d.id === userDeckId);
     if (!userDeck) throw new Error("UserDeck doesn't exist");
@@ -142,14 +147,18 @@ export class UserDecksClient {
   createZipUserDeck() {
     throw new Error("not implemented");
   }
-  private async newUserDeck(deck: Deck): Promise<UserDeck> {
-    const order = this.settings.getMaxOrder() + 1;
+  private async newUserDeck(
+    deck: Deck,
+    dynamic: boolean = false
+  ): Promise<UserDeck> {
+    const order = this.settings.maxOrder + 1;
     await this.settings.setMaxOrder(order);
     const dbUserDeck: IUserDeck = await UserDecksService.createUserDeck({
       user: this.user.id,
       cardsCount: deck.totalCardsCount,
       deck: deck.id,
       order,
+      dynamic,
     });
     const userDeck = new UserDeck(dbUserDeck, deck);
     this.userDecks.push(userDeck); // спорный момент
@@ -166,7 +175,7 @@ export class UserDecksClient {
     const dynUserDeck = this.getDynamicUserDeck();
     if (dynUserDeck) throw new Error("Dynamic userDeck already exists");
     const deck: Deck = await globalDecksStore.createDynamicDeck(this.user);
-    const userDeck = await this.newUserDeck(deck);
+    const userDeck = await this.newUserDeck(deck, true);
     await this.updateAutoSync(true); // спорный момент, нарушение принципов
     return userDeck;
   }
@@ -176,10 +185,10 @@ export class UserDecksClient {
   }> {
     const dynUserDeck = this.getDynamicUserDeck();
     if (!dynUserDeck) throw new Error("Dynamic userDeck doesn't exist");
-
+    // FIX ME + settings check
     await this.tryToResetAttempts();
 
-    const attemptsCount = this.settings.getDynamicSyncAttempts().length;
+    const attemptsCount = this.settings.dynamicSyncAttempts.length;
     if (attemptsCount >= SYNC_ATTEMPTS_COUNT_LIMIT) {
       throw new Error("Too many attempts. Try again later...");
     }
@@ -230,14 +239,15 @@ export class UserDecksClient {
       "deckSyncJob",
       UserJobTypesEnum.deckSync
     );
-    // FIX ME, возможно нужно сделать по условию.
-    // Либо cancel, либо create.
-    // И тогда в UserDeckSyncJob.getCallback можно было не делать доп проверки
 
     return this.settings;
   }
   async updateAutoSync(value: boolean): Promise<UserDecksSettings> {
-    // FIX ME, schedule cancel/update
+    globalJobStore.userJobs.updateJob(
+      this.user,
+      "deckSyncJob",
+      UserJobTypesEnum.deckSync
+    );
     return this.settings.setDynamicAutoSync(value);
   }
   private async tryToResetAttempts() {

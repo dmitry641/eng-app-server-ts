@@ -252,7 +252,7 @@ export class UserTopic {
   async setStatus(status: UserTopicStatusEnum): Promise<UserTopic> {
     this._status = status;
     this._userTopic.status = status;
-    this._userTopic.save();
+    await this._userTopic.save();
     return this;
   }
   get questionsInRow() {
@@ -261,7 +261,7 @@ export class UserTopic {
   async setQuestionsInRow(value: number): Promise<UserTopic> {
     this._questionsInRow = value;
     this._userTopic.questionsInRow = value;
-    this._userTopic.save();
+    await this._userTopic.save();
     return this;
   }
 }

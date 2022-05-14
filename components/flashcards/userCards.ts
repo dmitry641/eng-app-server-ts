@@ -218,13 +218,13 @@ export class UserCard {
   private async setShowAfter(value: number) {
     this._showAfter = value;
     this._userCard.showAfter = value;
-    this._userCard.save();
+    await this._userCard.save();
     return this;
   }
   private async appendToHistory(elem: HistoryType) {
     this._history.push(elem);
     this._userCard.history.push(elem);
-    this._userCard.save();
+    await this._userCard.save();
     return this;
   }
   async learn(status: HistoryStatusEnum): Promise<UserCard> {
@@ -242,7 +242,7 @@ export class UserCard {
   async setFavorite(value: boolean) {
     this._favorite = value;
     this._userCard.favorite = value;
-    this._userCard.save();
+    await this._userCard.save();
     return this;
   }
 }

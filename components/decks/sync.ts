@@ -59,10 +59,10 @@ export class SyncClient {
 class FetcherFactory {
   static produce(settings: UserDecksSettings): IFetcher {
     // очень спорный момент с throw new Error()
-    const type = settings.getDynamicSyncType();
+    const type = settings.dynamicSyncType;
     if (!type) throw new Error("DynamicSyncType is undefined");
-    const data = settings.getDynamicSyncData();
-    if (!data) throw new Error("dynamicSyncData is undefined");
+    const data = settings.dynamicSyncData;
+    if (!data) throw new Error("DynamicSyncData is undefined");
     switch (type) {
       case DynamicSyncType.reverso:
         return new ReversoFetcher(data);
