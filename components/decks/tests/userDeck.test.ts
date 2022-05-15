@@ -1,21 +1,22 @@
-import { connectToTestDB, disconnectFromDB } from "../../db";
-import { decksTestCases } from "../../test/testcases";
-import { getBuffer } from "../../utils";
-import { globalCardsStore } from "../flashcards/cards";
-import { globalJobStore } from "../schedule";
-import { globalUserStore, User } from "../users/user";
-import { DynamicSyncType, UserDeckPositionEnum } from "../users/user.util";
-import { globalDecksStore } from "./deck";
-import { UserDecksService } from "./decks.service";
+import { connectToTestDB, disconnectFromDB } from "../../../db";
+import { decksTestCases } from "../../../test/testcases";
+import { getBuffer } from "../../../utils";
+import { globalCardsStore } from "../../flashcards/cards";
+import { globalJobStore } from "../../schedule";
+import { globalUserStore, User, UserDecksSettings } from "../../users/user";
+import { DynamicSyncType, UserDeckPositionEnum } from "../../users/user.util";
+import { globalDecksStore } from "../deck";
+import { UserDecksService } from "../services/userDecks.service";
+import { SyncClient } from "../sync";
 import {
   ascSortByOrderFn,
   UserDeck,
   UserDecksClient,
   userDecksManager,
-} from "./userDeck";
+} from "../userDeck";
 
-jest.mock("../schedule", () => {
-  //  globalJobStore: { userJobs: { updateJob: () => console.log("test") } },
+// https://stackoverflow.com/questions/50091438/jest-how-to-mock-one-specific-method-of-a-class
+jest.mock("../../schedule", () => {
   return {
     globalJobStore: {
       userJobs: {
@@ -34,6 +35,9 @@ describe("UserDecksManager", () => {
     });
   });
   describe("getUserDecks", () => {
+    // service get users (может быть пусто)
+    // create user
+    // getUserDecks
     it("...", () => {
       expect(1).toBe(1);
     });
@@ -144,7 +148,6 @@ describe("UserDecksClient", () => {
         originalname: String(Math.random()),
       });
     });
-    it("1", () => expect(1).toBe(1));
     it("userdeck exists", () => {
       const result = udclient.getUserDeckById(userDeck.id);
       expect(result).toBe(userDeck);
@@ -448,7 +451,17 @@ describe("UserDecksClient: public decks", () => {
     publicUser1Decks = user1dclient.getPublicDecks();
     expect(publicUser1Decks.length).toBe(0);
   });
-  it.todo("toggleUserDeckPublic: dynamic deck");
+  it("toggleUserDeckPublic: dynamic deck", async () => {
+    const dynUserDeck = await user1dclient.createDynamicUserDeck();
+    try {
+      await user1dclient.toggleUserDeckPublic(dynUserDeck.id);
+    } catch (error) {
+      expect(error).toMatchObject({
+        message: "Dynamic deck cannot be public",
+      });
+    }
+    await user1dclient.deleteDynamicUserDeck();
+  });
 
   it("addPublicDeckToUserDecks", async () => {
     let user1Decks = user1dclient.getUserDecks();
@@ -592,7 +605,60 @@ describe("UserDecksClient: dynamic deck", () => {
       });
     }
   });
-  it("syncDynamicUserDeck", async () => {});
+  it("syncDynamicUserDeck", async () => {
+    await udclient.createDynamicUserDeck();
+
+    try {
+      await udclient.syncDynamicUserDeck();
+    } catch (error) {
+      expect(error).toMatchObject({
+        message: "DynamicSyncType is undefined",
+      });
+    }
+    await udclient.updateSyncDataType(DynamicSyncType.reverso, {
+      accountName: "test",
+    });
+
+    // syncHandler -> false
+    SyncClient.prototype.syncHandler = jest.fn(async () => false);
+    let spySyncHandler = jest.spyOn(SyncClient.prototype, "syncHandler");
+    let spyDynSyncMsg = jest.spyOn(
+      UserDecksSettings.prototype,
+      "setDynamicSyncMessage"
+    );
+    let spyDynSyncAuto = jest.spyOn(
+      UserDecksSettings.prototype,
+      "setDynamicAutoSync"
+    );
+    await udclient.syncDynamicUserDeck();
+    expect(spySyncHandler).toBeCalled();
+    expect(spyDynSyncAuto).toBeCalledWith(false);
+    expect(spyDynSyncMsg).toBeCalledWith("Sync error");
+    expect(globalJobStore.userJobs.cancelJob).toBeCalled();
+
+    // syncHandler -> true
+    SyncClient.prototype.syncHandler = jest.fn(async () => true);
+    spySyncHandler = jest.spyOn(SyncClient.prototype, "syncHandler");
+    spyDynSyncMsg = jest.spyOn(
+      UserDecksSettings.prototype,
+      "setDynamicSyncMessage"
+    );
+    await udclient.syncDynamicUserDeck();
+    expect(spySyncHandler).toBeCalled();
+    expect(spyDynSyncMsg).toBeCalledWith(
+      expect.stringContaining("Last sync at")
+    );
+
+    await udclient.syncDynamicUserDeck();
+    try {
+      await udclient.syncDynamicUserDeck();
+    } catch (error) {
+      expect(error).toMatchObject({
+        message: "Too many attempts. Try again later...",
+      });
+    }
+    await udclient.deleteDynamicUserDeck();
+  });
   it("updateSyncDataType", async () => {
     const accName = "test";
     const settings = await udclient.updateSyncDataType(

@@ -1,7 +1,6 @@
 import axios, { AxiosRequestConfig } from "axios";
 import { Card, globalCardsStore } from "../flashcards/cards";
 import { CardInputOmit } from "../flashcards/models/cards.model";
-import { UserDecksSettings } from "../users/user";
 import { DynamicSyncData, DynamicSyncType } from "../users/user.util";
 import { globalDecksStore } from "./deck";
 import { UserDeck } from "./userDeck";
@@ -11,8 +10,8 @@ export const SYNC_ATTEMPTS_COUNT_LIMIT = 3;
 
 export class SyncClient {
   private fetcher: IFetcher;
-  constructor(private settings: UserDecksSettings) {
-    this.fetcher = FetcherFactory.produce(settings);
+  constructor(type: DynamicSyncType, data: DynamicSyncData) {
+    this.fetcher = FetcherFactory.produce(type, data);
   }
   async syncHandler(dynUserDeck: UserDeck): Promise<boolean> {
     try {
@@ -57,12 +56,7 @@ export class SyncClient {
 }
 
 class FetcherFactory {
-  static produce(settings: UserDecksSettings): IFetcher {
-    // очень спорный момент с throw new Error()
-    const type = settings.dynamicSyncType;
-    if (!type) throw new Error("DynamicSyncType is undefined");
-    const data = settings.dynamicSyncData;
-    if (!data) throw new Error("DynamicSyncData is undefined");
+  static produce(type: DynamicSyncType, data: DynamicSyncData): IFetcher {
     switch (type) {
       case DynamicSyncType.reverso:
         return new ReversoFetcher(data);

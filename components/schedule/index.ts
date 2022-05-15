@@ -1,7 +1,7 @@
 import schedule from "node-schedule";
 import { randomIntFromInterval } from "../../utils";
 import { ObjId } from "../../utils/types";
-import { UserDecksService } from "../decks/decks.service";
+import { UserDecksService } from "../decks/services/userDecks.service";
 import { userDecksManager } from "../decks/userDeck";
 import { globalUserStore, User, UserId } from "../users/user";
 import { UserJobTypesEnum } from "./types";
@@ -163,23 +163,20 @@ class UserDeckSyncJob implements IUserJob {
   }
   getCallback(obj: GetCallbackAttr): schedule.JobCallback {
     return async () => {
-      // FIX ME, протестировать
-      // если this.cancel() не будет работать
-      // то тогда в init и в других местах нужно будет убирать
-      // globalJobStore.userJobs.updateJob
-      // и добавлять проверки + create/cancel, а не update
-      const user = await globalUserStore.getUser(obj.userId);
-      const autoSync = user.settings.userDecksSettings.dynamicAutoSync;
-      const syncData =
-        Boolean(user.settings.userDecksSettings.dynamicSyncType) &&
-        Boolean(user.settings.userDecksSettings.dynamicSyncData);
-      const udclient = await userDecksManager.getUserDecksClient(user);
-      const dynUserDeck = Boolean(udclient.getDynamicUserDeck());
-      if (!autoSync || !syncData || !dynUserDeck) {
+      try {
+        // FIX ME, протестировать
+        // если this.cancel() не будет работать
+        // то тогда в init и в других местах нужно будет убирать
+        // globalJobStore.userJobs.updateJob
+        // и добавлять проверки + create/cancel, а не update
+        const user = await globalUserStore.getUser(obj.userId);
+        const autoSync = user.settings.userDecksSettings.dynamicAutoSync;
+        if (!autoSync) throw new Error("DynamicAutoSync is false");
+        const udclient = await userDecksManager.getUserDecksClient(user);
+        await udclient.syncDynamicUserDeck();
+      } catch (error) {
         this.cancel();
-        return null;
       }
-      await udclient.syncDynamicUserDeck();
     };
   }
 }

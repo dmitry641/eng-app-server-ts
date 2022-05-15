@@ -6,8 +6,8 @@ import {
   CardsKeysType,
 } from "../flashcards/models/cards.model";
 import { User, UserId } from "../users/user";
-import { DecksService } from "./decks.service";
 import { DeckInput, IDeck } from "./models/decks.model";
+import { DecksService } from "./services/decks.service";
 import { UserDeck } from "./userDeck";
 
 class DecksStore {
@@ -51,6 +51,7 @@ class DecksStore {
     return deck;
   }
   getDeckById(deckId: DeckId): Deck {
+    // if (!this.initialized) throw new Error("Not initialized")
     const deck = this.decks.find((d) => d.id === deckId);
     if (!deck) throw new Error("Deck doesn't exist");
     return deck;

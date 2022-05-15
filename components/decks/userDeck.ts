@@ -8,8 +8,8 @@ import {
   UserDeckPositionEnum,
 } from "../users/user.util";
 import { Deck, DeckId, globalDecksStore } from "./deck";
-import { UserDecksService } from "./decks.service";
 import { IUserDeck } from "./models/userDecks.model";
+import { UserDecksService } from "./services/userDecks.service";
 import {
   SyncClient,
   SYNC_ATTEMPTS_COUNT_LIMIT,
@@ -185,7 +185,11 @@ export class UserDecksClient {
   }> {
     const dynUserDeck = this.getDynamicUserDeck();
     if (!dynUserDeck) throw new Error("Dynamic userDeck doesn't exist");
-    // FIX ME + settings check
+    const type = this.settings.dynamicSyncType;
+    if (!type) throw new Error("DynamicSyncType is undefined");
+    const data = this.settings.dynamicSyncData;
+    if (!data) throw new Error("DynamicSyncData is undefined");
+
     await this.tryToResetAttempts();
 
     const attemptsCount = this.settings.dynamicSyncAttempts.length;
@@ -194,7 +198,7 @@ export class UserDecksClient {
     }
 
     this.settings.appendDynamicSyncAttempt(Date.now());
-    const syncClient = new SyncClient(this.settings);
+    const syncClient = new SyncClient(type, data);
     const synced = await syncClient.syncHandler(dynUserDeck);
     if (synced) {
       await this.settings.setDynamicSyncMessage(
