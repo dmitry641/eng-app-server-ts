@@ -56,9 +56,6 @@ class UserDecksManager {
 
 export class UserDecksClient {
   private settings: UserDecksSettings;
-  // userDecks должен быть readonly/readonlyArray
-  // а также мы должны возвращать ДТО из каждого метода(инкапсуляция)
-  // обычных Deck это тоже касается(и userCard и card)
   constructor(private userDecks: UserDeck[], private user: User) {
     this.settings = user.settings.userDecksSettings;
   }
@@ -113,7 +110,7 @@ export class UserDecksClient {
     await userDeckTwo.setOrder(orderOne);
     await userDeckOne.setOrder(orderTwo);
 
-    this.userDecks.sort(ascSortByOrderFn); // спорный момент
+    this.userDecks.sort(ascSortByOrderFn);
     return userDeckOne;
   }
   async toggleUserDeckPublic(userDeckId: UserDeckId): Promise<Deck> {
@@ -138,7 +135,6 @@ export class UserDecksClient {
     const filteredDecks = decks.filter((d) => !existedIds.includes(d.id));
     return filteredDecks;
   }
-  // не забыть сделать проверку файла. Либо тут либо в контроллере
   async createUserDeck(file: UploadedFile): Promise<UserDeck> {
     const deck: Deck = await globalDecksStore.createDeck(file, this.user);
     const userDeck: UserDeck = await this.newUserDeck(deck);
@@ -164,13 +160,9 @@ export class UserDecksClient {
     this.userDecks.push(userDeck); // спорный момент
     return userDeck;
   }
-  //
-  // dynamic
-  //
   getDynamicUserDeck(): UserDeck | undefined {
     return this.userDecks.find((d) => d.dynamic);
   }
-  // не забыть про два запроса в одном экшоне
   async createDynamicUserDeck(): Promise<UserDeck> {
     const dynUserDeck = this.getDynamicUserDeck();
     if (dynUserDeck) throw new Error("Dynamic userDeck already exists");

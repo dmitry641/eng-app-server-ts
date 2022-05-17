@@ -1,6 +1,6 @@
 import axios, { AxiosRequestConfig } from "axios";
 import { Card, globalCardsStore } from "../flashcards/cards";
-import { CardInputOmit } from "../flashcards/models/cards.model";
+import { CardInputOmit, CardsKeysType } from "../flashcards/models/cards.model";
 import { DynamicSyncData, DynamicSyncType } from "../users/user.util";
 import { globalDecksStore } from "./deck";
 import { UserDeck } from "./userDeck";
@@ -18,13 +18,13 @@ export class SyncClient {
       // хотелось бы instance of UserDynamicDeck, но увы...
       if (!dynUserDeck.dynamic) throw new Error("Dynamic userDeck is required");
 
-      const rawCards = await this.fetcher.getRawCards();
-
       const deck = globalDecksStore.getDeckById(dynUserDeck.deckId);
       if (!deck) throw new Error("Deck doesn't exist");
 
+      const rawCards = await this.fetcher.getRawCards();
+
       const existedCards = globalCardsStore.getCardsByDeckId(deck.id);
-      const filteredRawCards = this.filterByCustomId(rawCards, existedCards);
+      const filteredRawCards = filterByCustomId(rawCards, existedCards);
 
       // повторный фильтр среди выученых по customId
       // для избежания добавления уже однажды выученых(после случайного удаления колоды)
@@ -37,22 +37,22 @@ export class SyncClient {
 
       return true;
     } catch (error) {
-      console.log(error);
       return false;
     }
   }
-  private filterByCustomId(
-    rawCards: CardInputOmit[],
-    existedCards: Card[]
-  ): CardInputOmit[] {
-    const customIds: string[] = [];
-    existedCards.forEach((c) => c.customId && customIds.push(c.customId));
-    const filtered: CardInputOmit[] = [];
-    rawCards.forEach(
-      (c) => c.customId && !customIds.includes(c.customId) && filtered.push(c)
-    );
-    return filtered;
-  }
+}
+
+export function filterByCustomId(
+  rawCards: CardInputOmit[],
+  existedCards: Card[]
+): CardInputOmit[] {
+  const customIds: string[] = [];
+  existedCards.forEach((c) => c.customId && customIds.push(c.customId));
+  const filtered: CardInputOmit[] = [];
+  rawCards.forEach(
+    (c) => c.customId && !customIds.includes(c.customId) && filtered.push(c)
+  );
+  return filtered;
 }
 
 class FetcherFactory {
@@ -73,7 +73,7 @@ interface IFetcher {
   getRawCards(): Promise<CardInputOmit[]>;
 }
 
-class ReversoFetcher implements IFetcher {
+export class ReversoFetcher implements IFetcher {
   readonly data: DynamicSyncData;
   constructor(syncData: DynamicSyncData) {
     this.data = syncData;
@@ -90,8 +90,10 @@ class ReversoFetcher implements IFetcher {
     };
     const url = `https://context.reverso.net/bst-web-user/user/favourites/shared?userName=${accName}&start=0&length=1000&order=10`;
     const response = await axios.get<IReversoResponse>(url, options);
-    const results = response.data.results;
+    const results = response?.data?.results;
     if (!results) throw new Error("Reverso fetch data error");
+    if (!Array.isArray(results))
+      throw new Error("Reverso results must be an array");
     const parsedWords = this.parseData(results);
     return parsedWords;
   }
@@ -122,15 +124,11 @@ class GoogleFetcher implements IFetcher {
   }
 }
 
-interface IReversoResponse {
+export interface IReversoResponse {
   numTotalResults: number;
   numFilteredResults: number;
   results: IReversoResult[];
 }
-interface IReversoResult {
+export type IReversoResult = {
   id: number;
-  srcText: string;
-  trgText: string;
-  srcLang: string;
-  trgLang: string;
-}
+} & CardsKeysType;

@@ -1,4 +1,5 @@
 import { resolve } from "path";
+import { IReversoResponse } from "../components/decks/sync";
 import { QuizKeysType } from "../components/quiz/quiz.util";
 
 // { [K: string]: { pathToFile: string; csvHeaders: string[] } }
@@ -114,4 +115,49 @@ export const decksTestCases = {
     description: "Incorrect file",
     cardsCount: 1,
   },
+};
+
+export const rawCardsTestData1 = [
+  {
+    srcLang: "English",
+    trgLang: "Russian",
+    srcText: "aptitude",
+    trgText: "способность",
+    customId: "1",
+  },
+  {
+    srcLang: "English",
+    trgLang: "Russian",
+    srcText: "vortex",
+    trgText: "вихрь",
+    customId: "2",
+  },
+];
+
+export const reversoTestResponse: IReversoResponse = {
+  numTotalResults: 3,
+  numFilteredResults: 3,
+  results: [
+    {
+      id: 1,
+      srcLang: "English",
+      srcText: "Test",
+      trgLang: "Russian",
+      trgText: "Тест",
+    },
+    {
+      id: 2,
+      srcLang: "English",
+      srcText: "Book",
+      trgLang: "Russian",
+      trgText: "Книга",
+    },
+    {
+      id: 3,
+      srcLang: "English",
+      srcText: "Pencil",
+      trgLang: "Russian",
+      trgText: "Ручка",
+    },
+  ],
 };

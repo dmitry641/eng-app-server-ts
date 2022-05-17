@@ -31,7 +31,6 @@ const UserCardSchema: Schema = new Schema(
     userDeck: { type: Schema.Types.ObjectId, ref: "UserDeck", required: true },
     deleted: { type: Boolean, default: false, required: true },
     favorite: { type: Boolean, default: false, required: true },
-    // может иначе сделать, а не showAfter
     showAfter: { type: Number, default: () => Date.now(), required: true },
     history: [
       {

@@ -7,7 +7,7 @@ import { globalUserStore, User, UserDecksSettings } from "../../users/user";
 import { DynamicSyncType, UserDeckPositionEnum } from "../../users/user.util";
 import { globalDecksStore } from "../deck";
 import { UserDecksService } from "../services/userDecks.service";
-import { SyncClient } from "../sync";
+import { SyncClient, SYNC_TIMEOUT_LIMIT } from "../sync";
 import {
   ascSortByOrderFn,
   UserDeck,
@@ -28,6 +28,17 @@ jest.mock("../../schedule", () => {
   };
 });
 
+jest.mock("../sync", () => {
+  const originalModule = jest.requireActual("../sync");
+
+  return {
+    __esModule: true,
+    ...originalModule,
+    SYNC_TIMEOUT_LIMIT: 100,
+    SYNC_ATTEMPTS_COUNT_LIMIT: 2,
+  };
+});
+
 describe("UserDecksManager", () => {
   describe("getUserDecksClient", () => {
     it("...", () => {
@@ -35,9 +46,6 @@ describe("UserDecksManager", () => {
     });
   });
   describe("getUserDecks", () => {
-    // service get users (может быть пусто)
-    // create user
-    // getUserDecks
     it("...", () => {
       expect(1).toBe(1);
     });
@@ -649,7 +657,6 @@ describe("UserDecksClient: dynamic deck", () => {
       expect.stringContaining("Last sync at")
     );
 
-    await udclient.syncDynamicUserDeck();
     try {
       await udclient.syncDynamicUserDeck();
     } catch (error) {
@@ -657,6 +664,16 @@ describe("UserDecksClient: dynamic deck", () => {
         message: "Too many attempts. Try again later...",
       });
     }
+
+    // jest.useFakeTimers();
+    // jest.runAllTimers();
+    await new Promise((r) => setTimeout(r, SYNC_TIMEOUT_LIMIT));
+    await udclient.syncDynamicUserDeck();
+    expect(spySyncHandler).toBeCalled();
+    expect(spyDynSyncMsg).toBeCalledWith(
+      expect.stringContaining("Last sync at")
+    );
+
     await udclient.deleteDynamicUserDeck();
   });
   it("updateSyncDataType", async () => {
