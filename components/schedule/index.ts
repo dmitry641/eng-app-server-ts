@@ -36,7 +36,7 @@ export class UserJobsManager {
 
     // find notification(not implemented)
   }
-  createJob(
+  private createJob(
     user: User,
     type: UserJobTypesEnum,
     options?: UserJobCreationOptions
@@ -77,7 +77,7 @@ export class UserJobsManager {
 }
 class GlobalJobsManager {
   async init() {}
-  createJob() {}
+  private createJob() {}
   cancelJob() {}
   updateJob() {
     this.cancelJob();
@@ -134,7 +134,7 @@ type GetCallbackAttr = {
   options?: UserJobCreationOptions;
 };
 
-class UserDeckSyncJob implements IUserJob {
+export class UserDeckSyncJob implements IUserJob {
   job?: schedule.Job | undefined;
   constructor(readonly id: UserJobId) {}
   setJob(job: schedule.Job): void {
@@ -144,31 +144,14 @@ class UserDeckSyncJob implements IUserJob {
     this.job?.cancel();
   }
   getRule(): schedule.RecurrenceSpecDateRange {
-    // FIX ME, сделать тестируемым
-    let nextHour = 0;
-    let currHour = new Date().getHours();
-
-    for (let i = currHour; i <= 24; i++) {
-      if (i % 6 === 0) {
-        nextHour = i;
-        break;
-      }
-    }
-
-    const startTime = new Date().setHours(nextHour, 0, 0);
-    let rand = randomIntFromInterval(1, 59);
-
-    return { start: startTime, rule: `${rand} */1 * * *` }; // 1hr
-    // return { start: Date.now() + 100, rule: `*/3 * * * *` }; // 3min
+    const start = Date.now() + 100;
+    const rand = randomIntFromInterval(1, 59);
+    return { start, rule: `${rand} */3 * * *` };
+    // `N */3 * * *`(3hr); `*/3 * * * *`(3min)
   }
   getCallback(obj: GetCallbackAttr): schedule.JobCallback {
     return async () => {
       try {
-        // FIX ME, протестировать
-        // если this.cancel() не будет работать
-        // то тогда в init и в других местах нужно будет убирать
-        // globalJobStore.userJobs.updateJob
-        // и добавлять проверки + create/cancel, а не update
         const user = await globalUserStore.getUser(obj.userId);
         const autoSync = user.settings.userDecksSettings.dynamicAutoSync;
         if (!autoSync) throw new Error("DynamicAutoSync is false");
