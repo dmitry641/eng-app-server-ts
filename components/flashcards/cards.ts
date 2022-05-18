@@ -1,4 +1,4 @@
-import { Deck, DeckId } from "../decks/deck";
+import { DeckDTO, DeckId } from "../decks/deck";
 import { CardsService } from "./flashcards.service";
 import { CardInputOmit, ICard } from "./models/cards.model";
 
@@ -14,15 +14,26 @@ class CardsStore {
     }
     this.initialized = true;
   }
-  getCardByCardId(cardId: CardId): Card {
+  private cardToDTO(card: Card) {
+    return new CardDTO(card);
+  }
+  private getCard(cardId: CardId): Card {
     const card = this.cards.find((c) => c.id === cardId);
     if (!card) throw new Error("Card doesn't exist");
     return card;
   }
-  getCardsByDeckId(deckId: DeckId): Card[] {
-    return this.cards.filter((c) => c.deckId === deckId);
+  getCardByCardId(cardId: CardId): CardDTO {
+    const card = this.getCard(cardId);
+    return this.cardToDTO(card);
   }
-  async createCards(rawCards: CardInputOmit[], deck: Deck): Promise<Card[]> {
+  getCardsByDeckId(deckId: DeckId): CardDTO[] {
+    const filtered = this.cards.filter((c) => c.deckId === deckId);
+    return filtered.map(this.cardToDTO);
+  }
+  async createCards(
+    rawCards: CardInputOmit[],
+    deck: DeckDTO
+  ): Promise<CardDTO[]> {
     const newCards: Card[] = [];
     for (const rawCard of rawCards) {
       const reg3 = /((,.?)\s*$)|("|“|”|«|»|;)/g;
@@ -37,7 +48,7 @@ class CardsStore {
       newCards.push(newCard);
     }
     this.cards.push(...newCards); // спорный момент
-    return newCards;
+    return newCards.map(this.cardToDTO);
   }
 }
 
@@ -55,6 +66,24 @@ export class Card {
     this.id = card._id;
     this._card = card;
     this.deckId = card.deck;
+    this.customId = card.customId;
+    this.srcLang = card.srcLang;
+    this.trgLang = card.trgLang;
+    this.srcText = card.srcText;
+    this.trgText = card.trgText;
+  }
+}
+export class CardDTO {
+  readonly id: CardId;
+  readonly deckId: DeckId;
+  readonly customId?: string;
+  readonly srcLang: string;
+  readonly trgLang: string;
+  readonly srcText: string;
+  readonly trgText: string;
+  constructor(card: Card) {
+    this.id = card.id;
+    this.deckId = card.deckId;
     this.customId = card.customId;
     this.srcLang = card.srcLang;
     this.trgLang = card.trgLang;

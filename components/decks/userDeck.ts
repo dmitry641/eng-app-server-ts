@@ -274,6 +274,23 @@ export class UserDecksClient {
       this.settings.setDynamicSyncAttempts([]);
     }
   }
+  // --------Cards--------
+  async updateCardsLearned(
+    userDeckId: UserDeckId,
+    value: number
+  ): Promise<UserDeckDTO> {
+    const userDeck = this.getUserDeck(userDeckId);
+    await userDeck.setCardsLearned(value);
+    return this.userDeckToDTO(userDeck);
+  }
+  async updateCardsCount(
+    userDeckId: UserDeckId,
+    value: number
+  ): Promise<UserDeckDTO> {
+    const userDeck = this.getUserDeck(userDeckId);
+    await userDeck.setCardsCount(value);
+    return this.userDeckToDTO(userDeck);
+  }
 }
 
 export type UserDeckId = string;
