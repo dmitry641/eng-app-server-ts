@@ -1,5 +1,5 @@
 import { getCsvData } from "../../utils";
-import { ObjId, UploadedFile } from "../../utils/types";
+import { UploadedFile } from "../../utils/types";
 import { globalCardsStore } from "../flashcards/cards";
 import {
   cardsCsvHeaders,
@@ -8,7 +8,7 @@ import {
 import { User, UserId } from "../users/user";
 import { DeckInput, IDeck } from "./models/decks.model";
 import { DecksService } from "./services/decks.service";
-import { UserDeck } from "./userDeck";
+import { UserDeckDTO } from "./userDeck";
 
 class DecksStore {
   private initialized: boolean = false;
@@ -22,7 +22,10 @@ class DecksStore {
     }
     this.initialized = true;
   }
-  async createDeck(file: UploadedFile, user: User): Promise<Deck> {
+  private deckToDTO(deck: Deck): DeckDTO {
+    return new DeckDTO(deck);
+  }
+  async createDeck(file: UploadedFile, user: User): Promise<DeckDTO> {
     const filename = file.originalname.replace(".csv", "");
     const rawCards: CardsKeysType[] = await getCsvData<CardsKeysType>(
       file.buffer,
@@ -37,36 +40,42 @@ class DecksStore {
       canBePublic: true,
     });
 
-    await globalCardsStore.createCards(rawCards, deck);
+    const dto = this.deckToDTO(deck);
+    await globalCardsStore.createCards(rawCards, dto);
 
-    return deck;
+    return dto;
   }
-  async createDynamicDeck(user: User): Promise<Deck> {
+  async createDynamicDeck(user: User): Promise<DeckDTO> {
     const deck = await this.newDeck({
       createdBy: user.id,
       name: "Dynamic deck",
       totalCardsCount: 0, // спорный момент
       canBePublic: false,
     });
-    return deck;
+    return this.deckToDTO(deck);
   }
-  getDeckById(deckId: DeckId): Deck {
-    // if (!this.initialized) throw new Error("Not initialized")
+  private getDeck(deckId: DeckId): Deck {
     const deck = this.decks.find((d) => d.id === deckId);
     if (!deck) throw new Error("Deck doesn't exist");
     return deck;
   }
-  getPublicDecks(): Deck[] {
-    return this.decks.filter((d) => d.public);
+  getDeckById(deckId: DeckId): DeckDTO {
+    // if (!this.initialized) throw new Error("Not initialized")
+    const deck = this.getDeck(deckId);
+    return this.deckToDTO(deck);
   }
-  async toggleDeckPublic(userDeck: UserDeck): Promise<Deck> {
-    const deck = this.getDeckById(userDeck.deckId);
+  getPublicDecks(): DeckDTO[] {
+    const filtered = this.decks.filter((d) => d.public);
+    return filtered.map((d) => this.deckToDTO(d));
+  }
+  async toggleDeckPublic(userDeck: UserDeckDTO): Promise<DeckDTO> {
+    const deck = this.getDeck(userDeck.deckId);
     if (!deck.canBePublic) throw new Error("Deck cannot be public");
 
     if (deck.public) await deck.setPublic(false);
     else await deck.setPublic(true);
 
-    return deck;
+    return this.deckToDTO(deck);
   }
   private async newDeck(obj: DeckInput): Promise<Deck> {
     const dbDeck: IDeck = await DecksService.createDeck(obj);
@@ -76,7 +85,7 @@ class DecksStore {
   }
 }
 
-export type DeckId = ObjId;
+export type DeckId = string;
 export class Deck {
   readonly id: DeckId;
   private readonly _deck: IDeck;
@@ -119,6 +128,22 @@ export class Deck {
     this._deck.public = value;
     await this._deck.save();
     return this;
+  }
+}
+export class DeckDTO {
+  readonly id: string;
+  readonly name: string;
+  readonly canBePublic: boolean;
+  readonly createdBy: string;
+  readonly public: boolean;
+  readonly totalCardsCount: number;
+  constructor(deck: Deck) {
+    this.id = deck.id;
+    this.name = deck.name;
+    this.canBePublic = deck.canBePublic;
+    this.createdBy = deck.createdBy;
+    this.public = deck.public;
+    this.totalCardsCount = deck.totalCardsCount;
   }
 }
 

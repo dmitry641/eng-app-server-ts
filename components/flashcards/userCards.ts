@@ -1,5 +1,4 @@
 import { shuffle } from "../../utils";
-import { ObjId } from "../../utils/types";
 import {
   ascSortByOrderFn,
   UserDeck,
@@ -175,7 +174,7 @@ function slice<T>(array: T[]): T[] {
   return array.slice(0, CARDS_COUNT);
 }
 
-export type UserCardId = ObjId;
+export type UserCardId = string;
 export class UserCard {
   readonly id: UserCardId;
   private readonly _userCard: IUserCard;

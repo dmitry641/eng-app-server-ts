@@ -1,4 +1,3 @@
-import { ObjId } from "../../utils/types";
 import { Deck, DeckId } from "../decks/deck";
 import { CardsService } from "./flashcards.service";
 import { CardInputOmit, ICard } from "./models/cards.model";
@@ -42,7 +41,7 @@ class CardsStore {
   }
 }
 
-export type CardId = ObjId;
+export type CardId = string;
 export class Card {
   readonly id: CardId;
   private readonly _card: ICard;

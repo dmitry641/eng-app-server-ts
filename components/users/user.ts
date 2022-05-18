@@ -1,13 +1,12 @@
 import bcrypt from "bcrypt";
 import { StripeUtil } from "../../utils/stripe.util";
-import { ObjId } from "../../utils/types";
 import { IUserCardsSettings } from "./models/userCardsSettings.model";
 import { IUserDecksSettings } from "./models/userDecksSettings.model";
 import { IUserPhoneSettings } from "./models/userPhoneSettings.model";
 import { IUser } from "./models/users.model";
 import { IUserSettings, UserSettingsInput } from "./models/userSettings.model";
 import { DynamicSyncData, DynamicSyncType } from "./user.util";
-import { CreateUserDto } from "./users.dto";
+import { CreateUserDTO } from "./users.dto";
 import {
   UserCardsSettingsService,
   UserDecksSettingsService,
@@ -31,7 +30,7 @@ class UserStore {
     name,
     password,
     ...rest
-  }: CreateUserDto): Promise<User> {
+  }: CreateUserDTO): Promise<User> {
     const emailTaken = await this.isEmailTaken(email);
     if (emailTaken) throw new Error("This email address is already in use");
 
@@ -143,7 +142,7 @@ class UserStore {
   }
 }
 
-export type UserId = ObjId;
+export type UserId = string;
 export class User {
   readonly id: UserId;
   private _user: IUser;
@@ -253,6 +252,22 @@ export class UserDecksSettings {
     return this;
   }
 }
+export class UserDecksSettingsDTO {
+  readonly maxOrder: number;
+  readonly dynamicSyncType?: IUserDecksSettings["dynamicSyncType"];
+  readonly dynamicSyncData?: IUserDecksSettings["dynamicSyncData"];
+  readonly dynamicAutoSync: boolean;
+  readonly dynamicSyncMessage?: string;
+  readonly dynamicSyncAttempts: number[] = [];
+  constructor(settings: UserDecksSettings) {
+    this.maxOrder = settings.maxOrder;
+    this.dynamicSyncType = settings.dynamicSyncType;
+    this.dynamicSyncData = settings.dynamicSyncData;
+    this.dynamicAutoSync = settings.dynamicAutoSync;
+    this.dynamicSyncMessage = settings.dynamicSyncMessage;
+  }
+}
+
 export class UserCardsSettings {
   private _settings: IUserCardsSettings;
   private _dynamicHighPriority: boolean;

@@ -1,13 +1,18 @@
-import { ObjId, UploadedFile } from "../../utils/types";
+import { UploadedFile } from "../../utils/types";
 import { globalJobStore } from "../schedule";
 import { UserJobTypesEnum } from "../schedule/types";
-import { User, UserDecksSettings, UserId } from "../users/user";
+import {
+  User,
+  UserDecksSettings,
+  UserDecksSettingsDTO,
+  UserId,
+} from "../users/user";
 import {
   DynamicSyncData,
   DynamicSyncType,
   UserDeckPositionEnum,
 } from "../users/user.util";
-import { Deck, DeckId, globalDecksStore } from "./deck";
+import { DeckDTO, DeckId, globalDecksStore } from "./deck";
 import { IUserDeck } from "./models/userDecks.model";
 import { UserDecksService } from "./services/userDecks.service";
 import {
@@ -59,34 +64,44 @@ export class UserDecksClient {
   constructor(private userDecks: UserDeck[], private user: User) {
     this.settings = user.settings.userDecksSettings;
   }
-  getUserDeckSettings() {
-    return this.settings;
+  private settingsToDTO(): UserDecksSettingsDTO {
+    return new UserDecksSettingsDTO(this.settings);
   }
-  getUserDecks(): UserDeck[] {
-    return this.userDecks;
+  getUserDecksSettings(): UserDecksSettingsDTO {
+    return this.settingsToDTO();
   }
-  // 2methods: private; getUserDeckDTO()
-  getUserDeckById(userDeckId: UserDeckId): UserDeck {
-    const userDeck = this.userDecks.find((d) => d.id === userDeckId);
+  getUserDecks(): UserDeckDTO[] {
+    return this.userDecks.map((ud) => this.userDeckToDTO(ud));
+  }
+  getUserDeckById(userDeckId: UserDeckId): UserDeckDTO {
+    const userDeck = this.getUserDeck(userDeckId);
+    return this.userDeckToDTO(userDeck);
+  }
+  private userDeckToDTO(userDeck: UserDeck): UserDeckDTO {
+    return new UserDeckDTO(userDeck);
+  }
+  private getUserDeck(userDeckId: UserDeckId): UserDeck {
+    const userDeck = this.userDecks.find((ud) => ud.id === userDeckId);
     if (!userDeck) throw new Error("UserDeck doesn't exist");
     return userDeck;
   }
-  async enableUserDeck(userDeckId: UserDeckId): Promise<UserDeck> {
-    const userDeck = this.getUserDeckById(userDeckId);
-    return userDeck.enable();
+  async enableUserDeck(userDeckId: UserDeckId): Promise<UserDeckDTO> {
+    const userDeck = this.getUserDeck(userDeckId);
+    await userDeck.enable();
+    return this.userDeckToDTO(userDeck);
   }
-  async deleteUserDeck(userDeckId: UserDeckId): Promise<UserDeck> {
-    const userDeck = this.getUserDeckById(userDeckId);
+  async deleteUserDeck(userDeckId: UserDeckId): Promise<UserDeckDTO> {
+    const userDeck = this.getUserDeck(userDeckId);
     if (userDeck.dynamic) throw new Error("Dynamic deck is not allowed");
     await userDeck.delete();
     this.userDecks = this.userDecks.filter((d) => d.id != userDeck.id);
-    return userDeck;
+    return this.userDeckToDTO(userDeck);
   }
   async moveUserDeck(
     userDeckId: UserDeckId,
     position: UserDeckPositionEnum
-  ): Promise<UserDeck> {
-    const userDeckOne = this.getUserDeckById(userDeckId);
+  ): Promise<UserDeckDTO> {
+    const userDeckOne = this.getUserDeck(userDeckId);
 
     // спорный момент. Вероятно не нужно, так как они уже должны быть отсортированны
     this.userDecks.sort(ascSortByOrderFn);
@@ -103,7 +118,7 @@ export class UserDecksClient {
       default:
         throw new Error("not implemented");
     }
-    if (!userDeckTwo) return userDeckOne; // out of bounds
+    if (!userDeckTwo) return this.userDeckToDTO(userDeckOne); // out of bounds
 
     let orderOne = Number(userDeckOne.order);
     let orderTwo = Number(userDeckTwo.order);
@@ -111,40 +126,38 @@ export class UserDecksClient {
     await userDeckOne.setOrder(orderTwo);
 
     this.userDecks.sort(ascSortByOrderFn);
-    return userDeckOne;
+    return this.userDeckToDTO(userDeckOne);
   }
-  async toggleUserDeckPublic(userDeckId: UserDeckId): Promise<Deck> {
-    const userDeck = this.getUserDeckById(userDeckId);
+  async toggleUserDeckPublic(userDeckId: UserDeckId): Promise<DeckDTO> {
+    const userDeck = this.getUserDeck(userDeckId);
     if (userDeck.dynamic) throw new Error("Dynamic deck cannot be public");
-    return globalDecksStore.toggleDeckPublic(userDeck);
+    const dto = this.userDeckToDTO(userDeck);
+    return globalDecksStore.toggleDeckPublic(dto);
   }
-  async addPublicDeckToUserDecks(deckId: DeckId): Promise<UserDeck> {
+  async addPublicDeckToUserDecks(deckId: DeckId): Promise<UserDeckDTO> {
     const deck = globalDecksStore.getDeckById(deckId);
     const existed = this.userDecks.find((d) => d.deckId === deck.id);
     if (existed) throw new Error("Deck already exists in userDecks");
-    // Немного не правильная архитектура. Проблемы с инкапсуляцией.
-    // Я могу сделать deck.setPublic(true), хотя не должен мочь, ведь не я владелец этой колоды.
-    // Если передовать как ДТО, то можно этого избежать.
     if (!deck.public) throw new Error("Deck is not public");
     const userDeck: UserDeck = await this.newUserDeck(deck);
-    return userDeck;
+    return this.userDeckToDTO(userDeck);
   }
-  getPublicDecks(): Deck[] {
+  getPublicDecks(): DeckDTO[] {
     const decks = globalDecksStore.getPublicDecks();
     const existedIds = this.userDecks.map((d) => d.deckId);
     const filteredDecks = decks.filter((d) => !existedIds.includes(d.id));
     return filteredDecks;
   }
-  async createUserDeck(file: UploadedFile): Promise<UserDeck> {
-    const deck: Deck = await globalDecksStore.createDeck(file, this.user);
+  async createUserDeck(file: UploadedFile): Promise<UserDeckDTO> {
+    const deck = await globalDecksStore.createDeck(file, this.user);
     const userDeck: UserDeck = await this.newUserDeck(deck);
-    return userDeck;
+    return this.userDeckToDTO(userDeck);
   }
   createZipUserDeck() {
     throw new Error("not implemented");
   }
   private async newUserDeck(
-    deck: Deck,
+    deck: DeckDTO,
     dynamic: boolean = false
   ): Promise<UserDeck> {
     const order = this.settings.maxOrder + 1;
@@ -160,23 +173,29 @@ export class UserDecksClient {
     this.userDecks.push(userDeck); // спорный момент
     return userDeck;
   }
-  getDynamicUserDeck(): UserDeck | undefined {
-    return this.userDecks.find((d) => d.dynamic);
-  }
-  async createDynamicUserDeck(): Promise<UserDeck> {
+  // --------Dynamic--------
+  getDynamicUserDeckDTO(): UserDeckDTO {
     const dynUserDeck = this.getDynamicUserDeck();
+    return this.userDeckToDTO(dynUserDeck);
+  }
+  private getDynamicUserDeck(): UserDeck {
+    const dynUserDeck = this.userDecks.find((d) => d.dynamic);
+    if (!dynUserDeck) throw new Error("Dynamic userDeck doesn't exist");
+    return dynUserDeck;
+  }
+  async createDynamicUserDeck(): Promise<UserDeckDTO> {
+    const dynUserDeck = this.userDecks.find((d) => d.dynamic);
     if (dynUserDeck) throw new Error("Dynamic userDeck already exists");
-    const deck: Deck = await globalDecksStore.createDynamicDeck(this.user);
+    const deck = await globalDecksStore.createDynamicDeck(this.user);
     const userDeck = await this.newUserDeck(deck, true);
     await this.updateAutoSync(true); // спорный момент, нарушение принципов
-    return userDeck;
+    return this.userDeckToDTO(userDeck);
   }
   async syncDynamicUserDeck(): Promise<{
-    settings: UserDecksSettings;
-    deck: UserDeck;
+    settings: UserDecksSettingsDTO;
+    userDeck: UserDeckDTO;
   }> {
     const dynUserDeck = this.getDynamicUserDeck();
-    if (!dynUserDeck) throw new Error("Dynamic userDeck doesn't exist");
     const type = this.settings.dynamicSyncType;
     if (!type) throw new Error("DynamicSyncType is undefined");
     const data = this.settings.dynamicSyncData;
@@ -202,14 +221,15 @@ export class UserDecksClient {
       globalJobStore.userJobs.cancelJob(this.user, "deckSyncJob");
     }
 
-    return { settings: this.settings, deck: dynUserDeck };
+    return {
+      settings: this.settingsToDTO(),
+      userDeck: this.userDeckToDTO(dynUserDeck),
+    };
   }
-  async deleteDynamicUserDeck(): Promise<UserDecksSettings> {
+  async deleteDynamicUserDeck(): Promise<UserDecksSettingsDTO> {
     // спорный момент
     // в методе "удалить" мы не только удаляем, но еще и настройки изменяем...
     const dynUserDeck = this.getDynamicUserDeck();
-    if (!dynUserDeck) throw new Error("Dynamic userDeck doesn't exist");
-
     await dynUserDeck.delete();
     this.userDecks = this.userDecks.filter((d) => d.id != dynUserDeck.id);
 
@@ -221,12 +241,12 @@ export class UserDecksClient {
 
     globalJobStore.userJobs.cancelJob(this.user, "deckSyncJob");
 
-    return this.settings;
+    return this.settingsToDTO();
   }
   async updateSyncDataType(
     type: DynamicSyncType,
     data: DynamicSyncData
-  ): Promise<UserDecksSettings> {
+  ): Promise<UserDecksSettingsDTO> {
     await this.settings.setDynamicSyncType(type);
     await this.settings.setDynamicSyncData(data);
 
@@ -236,15 +256,16 @@ export class UserDecksClient {
       UserJobTypesEnum.deckSync
     );
 
-    return this.settings;
+    return this.settingsToDTO();
   }
-  async updateAutoSync(value: boolean): Promise<UserDecksSettings> {
+  async updateAutoSync(value: boolean): Promise<UserDecksSettingsDTO> {
     globalJobStore.userJobs.updateJob(
       this.user,
       "deckSyncJob",
       UserJobTypesEnum.deckSync
     );
-    return this.settings.setDynamicAutoSync(value);
+    await this.settings.setDynamicAutoSync(value);
+    return this.settingsToDTO();
   }
   private async tryToResetAttempts() {
     const lastAttempt = this.settings.getLastDynamicSyncAttempt();
@@ -255,7 +276,7 @@ export class UserDecksClient {
   }
 }
 
-export type UserDeckId = ObjId;
+export type UserDeckId = string;
 export class UserDeck {
   readonly id: UserDeckId;
   private readonly _userdeck: IUserDeck;
@@ -267,7 +288,7 @@ export class UserDeck {
   private _cardsCount: number;
   private _cardsLearned: number;
   private _deckName: string;
-  constructor(userdeck: IUserDeck, deck: Deck) {
+  constructor(userdeck: IUserDeck, deck: DeckDTO) {
     this.id = userdeck._id;
     this._userdeck = userdeck;
     this._deckId = userdeck.deck;
@@ -332,6 +353,28 @@ export class UserDeck {
     this._userdeck.cardsLearned = value;
     await this._userdeck.save();
     return this;
+  }
+}
+export class UserDeckDTO {
+  readonly id: string;
+  readonly deckId: string;
+  readonly dynamic: boolean;
+  readonly enabled: boolean;
+  readonly deleted: boolean;
+  readonly order: number;
+  readonly cardsCount: number;
+  readonly cardsLearned: number;
+  readonly deckName: string;
+  constructor(userDeck: UserDeck) {
+    this.id = userDeck.id;
+    this.deckId = userDeck.deckId;
+    this.dynamic = userDeck.dynamic;
+    this.enabled = userDeck.enabled;
+    this.deleted = userDeck.deleted;
+    this.order = userDeck.order;
+    this.cardsCount = userDeck.cardsCount;
+    this.cardsLearned = userDeck.cardsLearned;
+    this.deckName = userDeck.deckName;
   }
 }
 
