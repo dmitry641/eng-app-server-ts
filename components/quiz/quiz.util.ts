@@ -67,7 +67,7 @@ export class QuizUtil {
       let questions = data.filter((obj) => obj.topicName === topicName);
       for (let el of questions) {
         await QuestionService.createQuestion({
-          topic: topic._id,
+          topic: String(topic._id),
           text: el.text,
         });
       }

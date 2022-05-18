@@ -1,7 +1,8 @@
 import { Document, model, Schema } from "mongoose";
+import { TopicId } from "../quiz";
 
 export interface QuestionInput {
-  topic: Schema.Types.ObjectId;
+  topic: TopicId;
   text: string;
 }
 

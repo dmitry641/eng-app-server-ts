@@ -1,5 +1,7 @@
 import { model, Schema } from "mongoose";
 import { DocumentWithTimestamps } from "../../../utils/types";
+import { UserId } from "../../users/user";
+import { TopicId } from "../quiz";
 
 export enum UserTopicStatusEnum {
   current = "current",
@@ -10,8 +12,8 @@ export enum UserTopicStatusEnum {
 }
 
 export interface UserTopicInput {
-  user: Schema.Types.ObjectId;
-  topic: Schema.Types.ObjectId;
+  user: UserId;
+  topic: TopicId;
   totalQuestionCount: number;
   status: UserTopicStatusEnum;
 }

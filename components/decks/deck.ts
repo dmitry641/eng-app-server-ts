@@ -94,15 +94,12 @@ export class Deck {
   private _createdBy: UserId;
   private _public: boolean;
   private _totalCardsCount: number;
-  // private cardsStore:cardsStore;
-  // Тогда бы можно было бы обойтись без globalCardsStore
-  // Но при этом Deck стал слишком большим + нарушение Low Coupling/High Cohesion
   constructor(deck: IDeck) {
-    this.id = deck._id;
+    this.id = String(deck._id);
     this._deck = deck;
     this._name = deck.name;
     this._canBePublic = deck.canBePublic;
-    this._createdBy = deck.createdBy;
+    this._createdBy = String(deck.createdBy);
     this._public = deck.public;
     this._totalCardsCount = deck.totalCardsCount;
   }
@@ -131,10 +128,10 @@ export class Deck {
   }
 }
 export class DeckDTO {
-  readonly id: string;
+  readonly id: DeckId;
   readonly name: string;
   readonly canBePublic: boolean;
-  readonly createdBy: string;
+  readonly createdBy: UserId;
   readonly public: boolean;
   readonly totalCardsCount: number;
   constructor(deck: Deck) {

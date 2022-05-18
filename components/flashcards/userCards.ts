@@ -156,7 +156,6 @@ class UserCardsClient {
   private async getUserCardsFromUserDeck(
     userdeck: UserDeckDTO
   ): Promise<UserCard[]> {
-    // filtered + shuffled + sliced
     const processedUserCards: UserCard[] = [];
     const cards = globalCardsStore.getCardsByDeckId(userdeck.deckId);
     const filteredCards = this.filterCards(cards);
@@ -192,10 +191,10 @@ export class UserCard {
   private _favorite: boolean;
   private _card: CardDTO;
   constructor(userCard: IUserCard, card: CardDTO) {
-    this.id = userCard._id;
+    this.id = String(userCard._id);
     this._userCard = userCard;
-    this._cardId = userCard.card;
-    this._userDeckId = userCard.userDeck;
+    this._cardId = String(userCard.card);
+    this._userDeckId = String(userCard.userDeck);
     this._deleted = userCard.deleted;
     this._history = userCard.history;
     this._showAfter = userCard.showAfter;

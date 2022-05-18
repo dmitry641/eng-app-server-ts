@@ -1,5 +1,5 @@
 import axios, { AxiosRequestConfig } from "axios";
-import { Card, globalCardsStore } from "../flashcards/cards";
+import { CardDTO, globalCardsStore } from "../flashcards/cards";
 import { CardInputOmit, CardsKeysType } from "../flashcards/models/cards.model";
 import { DynamicSyncData, DynamicSyncType } from "../users/user.util";
 import { globalDecksStore } from "./deck";
@@ -44,7 +44,7 @@ export class SyncClient {
 
 export function filterByCustomId(
   rawCards: CardInputOmit[],
-  existedCards: Card[]
+  existedCards: CardDTO[]
 ): CardInputOmit[] {
   const customIds: string[] = [];
   existedCards.forEach((c) => c.customId && customIds.push(c.customId));

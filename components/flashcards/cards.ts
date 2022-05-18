@@ -63,9 +63,9 @@ export class Card {
   readonly srcText: string;
   readonly trgText: string;
   constructor(card: ICard) {
-    this.id = card._id;
+    this.id = String(card._id);
     this._card = card;
-    this.deckId = card.deck;
+    this.deckId = String(card.deck);
     this.customId = card.customId;
     this.srcLang = card.srcLang;
     this.trgLang = card.trgLang;

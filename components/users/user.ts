@@ -43,7 +43,7 @@ class UserStore {
       stripeCustomerId: stripeUser.id,
     });
     const userSettings: UserSettings = await this.createUserSettings({
-      user: dbUser._id,
+      user: String(dbUser._id),
     });
     const newUser = new User(dbUser, userSettings);
     this.addUserToStore(newUser);
@@ -149,7 +149,7 @@ export class User {
   readonly settings: UserSettings;
   // subscriprion
   constructor(user: IUser, settings: UserSettings) {
-    this.id = user._id;
+    this.id = String(user._id);
     this._user = user;
     this.settings = settings;
   }

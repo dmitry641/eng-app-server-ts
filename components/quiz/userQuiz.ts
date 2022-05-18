@@ -1,9 +1,14 @@
 import { randomIntFromInterval, shuffle } from "../../utils";
-import { ObjId } from "../../utils/types";
 import { User, UserId } from "../users/user";
 import { IUserQuestion } from "./models/userQuestions.model";
 import { IUserTopic, UserTopicStatusEnum } from "./models/userTopics.model";
-import { globalQuizStore, Question, QuestionId, Topic, TopicId } from "./quiz";
+import {
+  globalQuizStore,
+  QuestionDTO,
+  QuestionId,
+  TopicDTO,
+  TopicId,
+} from "./quiz";
 import {
   oneDay,
   questionsInRowLIMIT,
@@ -15,7 +20,6 @@ import {
 class UserQuizManager {
   private userQuizClients = new Map<UserId, UserQuizClient>();
   async getUserQuizClient(user: User): Promise<UserQuizClient> {
-    // Нарушение принципов. Гет и сет в одном месте.
     let userQuizClient;
     userQuizClient = this.userQuizClients.get(user.id);
     if (userQuizClient) return userQuizClient;
@@ -50,18 +54,24 @@ class UserQuizManager {
 
 class UserQuizClient {
   constructor(private userTopics: UserTopic[], private user: User) {}
-  getUserTopicById(userTopicId: UserTopicId) {
+  private getUserTopic(userTopicId: UserTopicId): UserTopic {
     const userTopic = this.userTopics.find((d) => d.id === userTopicId);
     if (!userTopic) throw new Error("UserTopic doesn't exist");
     return userTopic;
   }
-  // два запроса: init -> getQuestions
-  async initUserTopic(): Promise<UserTopic> {
+  private userTopicToDTO(userTopic: UserTopic): UserTopicDTO {
+    return new UserTopicDTO(userTopic);
+  }
+  getUserTopicById(userTopicId: UserTopicId): UserTopicDTO {
+    const userTopic = this.getUserTopic(userTopicId);
+    return this.userTopicToDTO(userTopic);
+  }
+  async initUserTopic(): Promise<UserTopicDTO> {
     let userTopic = await this.initCurrentUserTopic();
     if (!userTopic) {
       userTopic = await this.initRandomUserTopic();
     }
-    return userTopic;
+    return this.userTopicToDTO(userTopic);
   }
   private async initCurrentUserTopic(): Promise<UserTopic | null> {
     const currentUserTopic = this.userTopics.find(
@@ -90,7 +100,8 @@ class UserQuizClient {
     if (!topics.length) throw new Error("No topics found");
     const randomNumber = randomIntFromInterval(0, topics.length - 1);
     const randomTopic = topics[randomNumber];
-    const userTopic = await this.addTopicToUserTopics(randomTopic);
+    const userTopicDTO = await this.addTopicToUserTopics(randomTopic);
+    const userTopic = this.getUserTopic(userTopicDTO.id);
     return this.makeCurrent(userTopic);
   }
   private getCurrentUserTopic(): UserTopic {
@@ -100,7 +111,7 @@ class UserQuizClient {
     if (!userTopic) throw new Error("Current userTopic is not set");
     return userTopic;
   }
-  async getQuestions(): Promise<Question[]> {
+  getQuestions(): QuestionDTO[] {
     const currentUserTopic = this.getCurrentUserTopic();
     const topic = globalQuizStore.getTopicById(currentUserTopic.topicId);
     const filtered = this.filterQuestions(currentUserTopic, topic);
@@ -148,8 +159,7 @@ class UserQuizClient {
 
     return { changeTopic };
   }
-  getTopics(): Topic[] {
-    // filter shuffle slice
+  getTopics(): TopicDTO[] {
     const topics = globalQuizStore.getTopics();
     const userTopicsId = this.userTopics.map((t) => t.topicId);
     const filteredTopics = topics.filter((t) => !userTopicsId.includes(t.id));
@@ -157,10 +167,10 @@ class UserQuizClient {
     const slicedTopics = shuffledTopics.slice(0, 5);
     return slicedTopics;
   }
-  getUserTopics() {
-    return this.userTopics;
+  getUserTopics(): UserTopicDTO[] {
+    return this.userTopics.map(this.userTopicToDTO);
   }
-  async addTopicToUserTopics(topic: Topic): Promise<UserTopic> {
+  async addTopicToUserTopics(topic: TopicDTO): Promise<UserTopicDTO> {
     const dbUserTopic = await UserTopicService.createUserTopic({
       topic: topic.id,
       user: this.user.id,
@@ -169,11 +179,12 @@ class UserQuizClient {
     });
     const userTopic = new UserTopic(dbUserTopic, topic, []);
     this.userTopics.push(userTopic);
-    return userTopic;
+    return this.userTopicToDTO(userTopic);
   }
-  // три запроса: add -> change -> getQuestions
-  async changeCurrentUserTopic(userTopicId: UserTopicId): Promise<UserTopic> {
-    const userTopic = this.getUserTopicById(userTopicId);
+  async changeCurrentUserTopic(
+    userTopicId: UserTopicId
+  ): Promise<UserTopicDTO> {
+    const userTopic = this.getUserTopic(userTopicId);
     const currentUserTopic = this.userTopics.find(
       (t) => t.status === UserTopicStatusEnum.current
     );
@@ -188,10 +199,10 @@ class UserQuizClient {
       throw new Error("UserTopic is blocked");
     }
     await userTopic.setStatus(UserTopicStatusEnum.current);
-    return userTopic;
+    return this.userTopicToDTO(userTopic);
   }
-  async blockUserTopic(userTopicId: UserTopicId): Promise<UserTopic> {
-    const userTopic = this.getUserTopicById(userTopicId);
+  async blockUserTopic(userTopicId: UserTopicId): Promise<UserTopicDTO> {
+    const userTopic = this.getUserTopic(userTopicId);
     if (userTopic.status === UserTopicStatusEnum.current) {
       throw new Error("Current userTopic cannot be blocked");
     }
@@ -202,19 +213,23 @@ class UserQuizClient {
         : UserTopicStatusEnum.blocked;
 
     await userTopic.setStatus(newStatus);
-    return userTopic;
+    return this.userTopicToDTO(userTopic);
   }
   private async makeCurrent(userTopic: UserTopic) {
     return userTopic.setStatus(UserTopicStatusEnum.current);
   }
-  private filterQuestions(userTopic: UserTopic, topic: Topic): Question[] {
+  // FIX ME, протестировать
+  private filterQuestions(
+    userTopic: UserTopic,
+    topic: TopicDTO
+  ): QuestionDTO[] {
     const uqIds = userTopic.userQuestions.map((q) => q.questionId);
     const filtered = topic.questions.filter((q) => !uqIds.includes(q.id));
     return filtered;
   }
 }
 
-export type UserTopicId = ObjId;
+export type UserTopicId = string;
 export class UserTopic {
   readonly id: UserTopicId;
   private readonly _userTopic: IUserTopic;
@@ -227,14 +242,14 @@ export class UserTopic {
   private _questionsInRow: number;
   constructor(
     userTopic: IUserTopic,
-    topic: Topic,
+    topic: TopicDTO,
     userQuestions: UserQuestion[]
   ) {
-    this.id = userTopic._id;
+    this.id = String(userTopic._id);
     this._userTopic = userTopic;
     this._userQuestions = userQuestions;
     this.updatedAt = userTopic.updatedAt;
-    this.topicId = userTopic.topic;
+    this.topicId = String(userTopic.topic);
     this.totalQuestionCount = userTopic.totalQuestionCount;
     this.topicName = topic.topicName;
     this._status = userTopic.status;
@@ -265,15 +280,46 @@ export class UserTopic {
     return this;
   }
 }
-export type UserQuestionId = ObjId;
+export class UserTopicDTO {
+  readonly id: UserTopicId;
+  readonly userQuestions: ReadonlyArray<UserQuestionDTO>;
+  readonly updatedAt: Date;
+  readonly topicId: TopicId;
+  readonly totalQuestionCount: number;
+  readonly topicName: string;
+  readonly status: UserTopicStatusEnum;
+  readonly questionsInRow: number;
+  constructor(userTopic: UserTopic) {
+    this.id = userTopic.id;
+    this.userQuestions = userTopic.userQuestions.map(
+      (uq) => new UserQuestionDTO(uq)
+    );
+    this.updatedAt = userTopic.updatedAt;
+    this.topicId = userTopic.topicId;
+    this.totalQuestionCount = userTopic.totalQuestionCount;
+    this.topicName = userTopic.topicName;
+    this.status = userTopic.status;
+    this.questionsInRow = userTopic.questionsInRow;
+  }
+}
+
+export type UserQuestionId = string;
 export class UserQuestion {
   readonly id: UserQuestionId;
   private readonly _userQuestion: IUserQuestion;
   readonly questionId: QuestionId;
   constructor(userQuestion: IUserQuestion) {
-    this.id = userQuestion._id;
+    this.id = String(userQuestion._id);
     this._userQuestion = userQuestion;
-    this.questionId = userQuestion.question;
+    this.questionId = String(userQuestion.question);
+  }
+}
+export class UserQuestionDTO {
+  readonly id: UserQuestionId;
+  readonly questionId: QuestionId;
+  constructor(userQuestion: UserQuestion) {
+    this.id = userQuestion.id;
+    this.questionId = userQuestion.questionId;
   }
 }
 

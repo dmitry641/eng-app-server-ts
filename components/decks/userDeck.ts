@@ -174,17 +174,16 @@ export class UserDecksClient {
     return userDeck;
   }
   // --------Dynamic--------
-  getDynamicUserDeckDTO(): UserDeckDTO {
-    const dynUserDeck = this.getDynamicUserDeck();
+  getDynamicUserDeckDTO(): UserDeckDTO | undefined {
+    let dynUserDeck = this.getDynamicUserDeck();
+    if (!dynUserDeck) return undefined;
     return this.userDeckToDTO(dynUserDeck);
   }
-  private getDynamicUserDeck(): UserDeck {
-    const dynUserDeck = this.userDecks.find((d) => d.dynamic);
-    if (!dynUserDeck) throw new Error("Dynamic userDeck doesn't exist");
-    return dynUserDeck;
+  private getDynamicUserDeck(): UserDeck | undefined {
+    return this.userDecks.find((d) => d.dynamic);
   }
   async createDynamicUserDeck(): Promise<UserDeckDTO> {
-    const dynUserDeck = this.userDecks.find((d) => d.dynamic);
+    const dynUserDeck = this.getDynamicUserDeck();
     if (dynUserDeck) throw new Error("Dynamic userDeck already exists");
     const deck = await globalDecksStore.createDynamicDeck(this.user);
     const userDeck = await this.newUserDeck(deck, true);
@@ -196,6 +195,7 @@ export class UserDecksClient {
     userDeck: UserDeckDTO;
   }> {
     const dynUserDeck = this.getDynamicUserDeck();
+    if (!dynUserDeck) throw new Error("Dynamic userDeck doesn't exist");
     const type = this.settings.dynamicSyncType;
     if (!type) throw new Error("DynamicSyncType is undefined");
     const data = this.settings.dynamicSyncData;
@@ -230,6 +230,7 @@ export class UserDecksClient {
     // спорный момент
     // в методе "удалить" мы не только удаляем, но еще и настройки изменяем...
     const dynUserDeck = this.getDynamicUserDeck();
+    if (!dynUserDeck) throw new Error("Dynamic userDeck doesn't exist");
     await dynUserDeck.delete();
     this.userDecks = this.userDecks.filter((d) => d.id != dynUserDeck.id);
 
@@ -306,9 +307,9 @@ export class UserDeck {
   private _cardsLearned: number;
   private _deckName: string;
   constructor(userdeck: IUserDeck, deck: DeckDTO) {
-    this.id = userdeck._id;
+    this.id = String(userdeck._id);
     this._userdeck = userdeck;
-    this._deckId = userdeck.deck;
+    this._deckId = String(userdeck.deck);
     this._dynamic = userdeck.dynamic;
     this._enabled = userdeck.enabled;
     this._deleted = userdeck.deleted;

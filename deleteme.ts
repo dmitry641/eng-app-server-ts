@@ -20,12 +20,16 @@ class Test {
 
 export async function deleteMe() {
   console.log("delete me");
+  const br = "-".repeat(25);
 
   const user = await globalUserStore.createUser({
     email: String(Math.random()),
     name: "123",
     password: "123",
   });
+  console.log(user);
+  console.log(br);
+
   const udclient = await userDecksManager.getUserDecksClient(user);
   const result = getBuffer(decksTestCases.case1.pathToFile);
   const userDeck = await udclient.createUserDeck({
@@ -33,22 +37,32 @@ export async function deleteMe() {
     mimetype: "csv",
     originalname: String(Math.random()),
   });
+  console.log(userDeck);
+  console.log(br);
 
   const deck = globalDecksStore.getDeckById(userDeck.deckId);
+  console.log(deck);
+  console.log(br);
+
   const cards = globalCardsStore.getCardsByDeckId(deck.id);
   console.log(cards.length);
   console.log(cards[0]);
+  console.log(br);
 
   const ucclient = await userCardsManager.getUserCardsClient(user);
   const userCards = await ucclient.getUserCards();
   console.log(userCards.length);
   console.log(userCards[0]);
+  console.log(br);
 
   const uqclient = await userQuizManager.getUserQuizClient(user);
   const userTopic = await uqclient.initUserTopic();
   console.log(userTopic);
+  console.log(br);
+
   const questions = await uqclient.getQuestions();
   console.log(questions);
+  console.log(br);
 }
 
 class ClassA {

@@ -1,8 +1,10 @@
 import { Document, model, Schema } from "mongoose";
+import { UserId } from "../../users/user";
+import { QuestionId } from "../quiz";
 
 export interface UserQuestionInput {
-  user: Schema.Types.ObjectId;
-  question: Schema.Types.ObjectId;
+  user: UserId;
+  question: QuestionId;
 }
 
 export interface IUserQuestion extends UserQuestionInput, Document {}
