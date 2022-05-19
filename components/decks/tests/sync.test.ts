@@ -113,13 +113,14 @@ describe("Sync client: syncHandler", () => {
       password: "123",
     });
     udclient = await userDecksManager.getUserDecksClient(user);
-    userDeck = await udclient.createUserDeck({
+    userDeck = (await udclient.createUserDeck({
       buffer,
       mimetype: "csv",
       originalname: "deck",
-    });
+    })) as UserDeck;
 
-    dynUserDeck = await udclient.createDynamicUserDeck();
+    dynUserDeck = (await udclient.createDynamicUserDeck()) as UserDeck;
+    dynUserDeck.setCardsCount = async () => dynUserDeck;
   });
 
   it("not dynamic user deck", async () => {

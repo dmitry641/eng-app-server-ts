@@ -11,6 +11,8 @@ import { SyncClient, SYNC_TIMEOUT_LIMIT } from "../sync";
 import {
   ascSortByOrderFn,
   UserDeck,
+  UserDeckDTO,
+  UserDeckId,
   UserDecksClient,
   userDecksManager,
 } from "../userDeck";
@@ -45,6 +47,7 @@ describe("UserDecksManager", () => {
       expect(1).toBe(1);
     });
   });
+
   describe("getUserDecks", () => {
     it("...", () => {
       expect(1).toBe(1);
@@ -63,6 +66,7 @@ describe("ascSortByOrderFn", () => {
       { order: 25 },
     ]);
   });
+
   it("should be the same", () => {
     const arr = [{ order: 1 }, { order: 5 }, { order: 10 }];
     const arrCopy = [...arr];
@@ -84,6 +88,10 @@ describe("UserDecksClient", () => {
     });
     udclient = await userDecksManager.getUserDecksClient(user);
   });
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   describe("createUserDeck", () => {
     it("correct file", async () => {
       const tc = decksTestCases.case1;
@@ -122,8 +130,7 @@ describe("UserDecksClient", () => {
       expect(cards.length).toBe(tc.cardsCount);
 
       const userDecks = udclient.getUserDecks();
-      const includes = userDecks.includes(userDeck);
-      expect(includes).toBe(true);
+      expect(userDecks).toContainEqual(userDeck);
     });
     it("incorrect file", async () => {
       const tc = decksTestCases.case2;
@@ -142,11 +149,13 @@ describe("UserDecksClient", () => {
       expect(cards.length).toBe(tc.cardsCount);
     });
   });
+
   describe("createZipUserDeck", () => {
     it.todo("implement it");
   });
+
   describe("getUserDeckById", () => {
-    let userDeck: UserDeck;
+    let userDeck: UserDeckDTO;
     const tc = decksTestCases.case1;
     const buffer = getBuffer(tc.pathToFile);
     beforeAll(async () => {
@@ -158,15 +167,16 @@ describe("UserDecksClient", () => {
     });
     it("userdeck exists", () => {
       const result = udclient.getUserDeckById(userDeck.id);
-      expect(result).toBe(userDeck);
+      expect(result).toEqual(userDeck);
     });
     it("userdeck doesn't exist", () => {
       const fn = () => udclient.getUserDeckById(userDeck.deckId);
       expect(fn).toThrowError("UserDeck doesn't exist");
     });
   });
+
   describe("deleteUserDeck", () => {
-    let userDeck: UserDeck;
+    let userDeck: UserDeckDTO;
     const tc = decksTestCases.case1;
     const buffer = getBuffer(tc.pathToFile);
     beforeAll(async () => {
@@ -177,8 +187,8 @@ describe("UserDecksClient", () => {
       });
     });
     it("userdeck is deleted, userdecks are filtered", async () => {
-      const spyDelete = jest.spyOn(userDeck, "delete");
-      const spyEnable = jest.spyOn(userDeck, "enable");
+      const spyDelete = jest.spyOn(UserDeck.prototype, "delete");
+      const spyEnable = jest.spyOn(UserDeck.prototype, "enable");
       expect(userDeck.deleted).toBe(false);
       userDeck = await udclient.deleteUserDeck(userDeck.id);
       expect(userDeck.deleted).toBe(true);
@@ -188,8 +198,9 @@ describe("UserDecksClient", () => {
       expect(userDecks).not.toContain(userDeck);
     });
   });
+
   describe("enableUserDeck", () => {
-    let userDeck: UserDeck;
+    let userDeck: UserDeckDTO;
     const tc = decksTestCases.case1;
     const buffer = getBuffer(tc.pathToFile);
     beforeAll(async () => {
@@ -199,9 +210,10 @@ describe("UserDecksClient", () => {
         originalname: String(Math.random()),
       });
     });
+
     it("correct test", async () => {
-      const spyDelete = jest.spyOn(userDeck, "delete");
-      const spyEnable = jest.spyOn(userDeck, "enable");
+      const spyDelete = jest.spyOn(UserDeck.prototype, "delete");
+      const spyEnable = jest.spyOn(UserDeck.prototype, "enable");
       expect(userDeck.enabled).toBe(true);
       userDeck = await udclient.enableUserDeck(userDeck.id);
       expect(userDeck.enabled).toBe(false);
@@ -220,11 +232,11 @@ describe("UserDecksClient", () => {
 describe("UserDecksClient: moveUserDeck", () => {
   let user: User;
   let udclient: UserDecksClient;
-  let userDeck1: UserDeck;
-  let userDeck2: UserDeck;
-  let userDeck3: UserDeck;
-  let userDeck4: UserDeck;
-  let userDeck5: UserDeck;
+  let userDeck1_id: UserDeckId;
+  let userDeck2_id: UserDeckId;
+  let userDeck3_id: UserDeckId;
+  let userDeck4_id: UserDeckId;
+  let userDeck5_id: UserDeckId;
   const tc = decksTestCases.case1;
   const buffer = getBuffer(tc.pathToFile);
   beforeAll(async () => {
@@ -239,137 +251,157 @@ describe("UserDecksClient: moveUserDeck", () => {
       password: "123",
     });
     udclient = await userDecksManager.getUserDecksClient(user);
-    userDeck1 = await udclient.createUserDeck({
+    let userDeck1 = await udclient.createUserDeck({
       buffer,
       mimetype: "csv",
       originalname: String(Math.random()),
     });
-    userDeck2 = await udclient.createUserDeck({
+    userDeck1_id = userDeck1.id;
+    let userDeck2 = await udclient.createUserDeck({
       buffer,
       mimetype: "csv",
       originalname: String(Math.random()),
     });
-    userDeck3 = await udclient.createUserDeck({
+    userDeck2_id = userDeck2.id;
+    let userDeck3 = await udclient.createUserDeck({
       buffer,
       mimetype: "csv",
       originalname: String(Math.random()),
     });
-    userDeck4 = await udclient.createUserDeck({
+    userDeck3_id = userDeck3.id;
+    let userDeck4 = await udclient.createUserDeck({
       buffer,
       mimetype: "csv",
       originalname: String(Math.random()),
     });
-    userDeck5 = await udclient.createUserDeck({
+    userDeck4_id = userDeck4.id;
+    let userDeck5 = await udclient.createUserDeck({
       buffer,
       mimetype: "csv",
       originalname: String(Math.random()),
     });
+    userDeck5_id = userDeck5.id;
   });
 
+  const gUDbyId = (userDeckId: UserDeckId): UserDeckDTO =>
+    udclient.getUserDeckById(userDeckId);
+
   it("multiply deck creation -> correct order", () => {
-    expect(userDeck1.order).toBe(1);
-    const firstLessThanSecond = userDeck1.order < userDeck2.order;
+    const ud1 = udclient.getUserDeckById(userDeck1_id);
+    expect(ud1.order).toBe(1);
+    const ud2 = udclient.getUserDeckById(userDeck2_id);
+    const firstLessThanSecond = ud1.order < ud2.order;
     expect(firstLessThanSecond).toBe(true);
-    const secondLessThanThird = userDeck2.order < userDeck3.order;
+    const ud3 = udclient.getUserDeckById(userDeck3_id);
+    const secondLessThanThird = ud2.order < ud3.order;
     expect(secondLessThanThird).toBe(true);
     const userDecks = udclient.getUserDecks();
-    const secondIndex = userDecks.findIndex((d) => d.id == userDeck2.id);
-    const isFirst = userDecks[secondIndex - 1] === userDeck1;
+    const secondIndex = userDecks.findIndex((ud) => ud.id == userDeck2_id);
+    const isFirst = userDecks[secondIndex - 1].id === userDeck1_id;
     expect(isFirst).toBe(true);
-    const isThird = userDecks[secondIndex + 1] === userDeck3;
+    const isThird = userDecks[secondIndex + 1].id === userDeck3_id;
     expect(isThird).toBe(true);
-    expect(userDeck5.order).toBe(5);
+    const ud5 = udclient.getUserDeckById(userDeck5_id);
+    expect(ud5.order).toBe(5);
     const isSorted = isSortedByOrder(userDecks);
     expect(isSorted).toBe(true);
   });
+
   it("correct move: down", async () => {
     let userDecks = udclient.getUserDecks();
-    const prevSecondIndex = userDecks.findIndex((d) => d.id == userDeck2.id);
+    const prevSecondIndex = userDecks.findIndex((ud) => ud.id == userDeck2_id);
     expect(prevSecondIndex).toBe(1);
-    expect(userDeck1.order).toBe(1);
-    expect(userDeck2.order).toBe(2);
-    expect(userDeck3.order).toBe(3);
-    expect(userDeck4.order).toBe(4);
-    expect(userDeck5.order).toBe(5);
-    await udclient.moveUserDeck(userDeck2.id, UserDeckPositionEnum.down);
-    await udclient.moveUserDeck(userDeck2.id, UserDeckPositionEnum.down);
+    expect(gUDbyId(userDeck1_id).order).toBe(1);
+    expect(gUDbyId(userDeck2_id).order).toBe(2);
+    expect(gUDbyId(userDeck3_id).order).toBe(3);
+    expect(gUDbyId(userDeck4_id).order).toBe(4);
+    expect(gUDbyId(userDeck5_id).order).toBe(5);
+
+    await udclient.moveUserDeck(userDeck2_id, UserDeckPositionEnum.down);
+    await udclient.moveUserDeck(userDeck2_id, UserDeckPositionEnum.down);
+
     userDecks = udclient.getUserDecks();
-    const newSecondIndex = userDecks.findIndex((d) => d.id == userDeck2.id);
+    const newSecondIndex = userDecks.findIndex((ud) => ud.id == userDeck2_id);
     expect(newSecondIndex).toBe(3);
-    expect(userDeck1.order).toBe(1);
-    expect(userDeck3.order).toBe(2);
-    expect(userDeck4.order).toBe(3);
-    expect(userDeck2.order).toBe(4);
-    expect(userDeck5.order).toBe(5);
+    expect(gUDbyId(userDeck1_id).order).toBe(1);
+    expect(gUDbyId(userDeck3_id).order).toBe(2);
+    expect(gUDbyId(userDeck4_id).order).toBe(3);
+    expect(gUDbyId(userDeck2_id).order).toBe(4);
+    expect(gUDbyId(userDeck5_id).order).toBe(5);
     const isSorted = isSortedByOrder(userDecks);
     expect(isSorted).toBe(true);
   });
+
   it("correct move: up", async () => {
     let userDecks = udclient.getUserDecks();
-    const prevFourthIndex = userDecks.findIndex((d) => d.id == userDeck4.id);
+    const prevFourthIndex = userDecks.findIndex((ud) => ud.id == userDeck4_id);
     expect(prevFourthIndex).toBe(3);
-    expect(userDeck1.order).toBe(1);
-    expect(userDeck2.order).toBe(2);
-    expect(userDeck3.order).toBe(3);
-    expect(userDeck4.order).toBe(4);
-    expect(userDeck5.order).toBe(5);
-    await udclient.moveUserDeck(userDeck4.id, UserDeckPositionEnum.up);
-    await udclient.moveUserDeck(userDeck4.id, UserDeckPositionEnum.up);
-    await udclient.moveUserDeck(userDeck4.id, UserDeckPositionEnum.up);
+    expect(gUDbyId(userDeck1_id).order).toBe(1);
+    expect(gUDbyId(userDeck2_id).order).toBe(2);
+    expect(gUDbyId(userDeck3_id).order).toBe(3);
+    expect(gUDbyId(userDeck4_id).order).toBe(4);
+    expect(gUDbyId(userDeck5_id).order).toBe(5);
+    await udclient.moveUserDeck(userDeck4_id, UserDeckPositionEnum.up);
+    await udclient.moveUserDeck(userDeck4_id, UserDeckPositionEnum.up);
+    await udclient.moveUserDeck(userDeck4_id, UserDeckPositionEnum.up);
     userDecks = udclient.getUserDecks();
-    const newFourthIndex = userDecks.findIndex((d) => d.id == userDeck4.id);
+    const newFourthIndex = userDecks.findIndex((ud) => ud.id == userDeck4_id);
     expect(newFourthIndex).toBe(0);
-    expect(userDeck4.order).toBe(1);
-    expect(userDeck1.order).toBe(2);
-    expect(userDeck2.order).toBe(3);
-    expect(userDeck3.order).toBe(4);
-    expect(userDeck5.order).toBe(5);
+    expect(gUDbyId(userDeck4_id).order).toBe(1);
+    expect(gUDbyId(userDeck1_id).order).toBe(2);
+    expect(gUDbyId(userDeck2_id).order).toBe(3);
+    expect(gUDbyId(userDeck3_id).order).toBe(4);
+    expect(gUDbyId(userDeck5_id).order).toBe(5);
     const isSorted = isSortedByOrder(userDecks);
     expect(isSorted).toBe(true);
   });
+
   it("incorrect move: down", async () => {
     let userDecks = udclient.getUserDecks();
-    const prevFifthIndex = userDecks.findIndex((d) => d.id == userDeck5.id);
+    const prevFifthIndex = userDecks.findIndex((ud) => ud.id == userDeck5_id);
     expect(prevFifthIndex).toBe(4);
-    await udclient.moveUserDeck(userDeck5.id, UserDeckPositionEnum.down);
+    await udclient.moveUserDeck(userDeck5_id, UserDeckPositionEnum.down);
     userDecks = udclient.getUserDecks();
-    const newFifthIndex = userDecks.findIndex((d) => d.id == userDeck5.id);
+    const newFifthIndex = userDecks.findIndex((ud) => ud.id == userDeck5_id);
     expect(newFifthIndex).toBe(4);
     const isSorted = isSortedByOrder(userDecks);
     expect(isSorted).toBe(true);
   });
+
   it("incorrect move: up", async () => {
     let userDecks = udclient.getUserDecks();
-    const prevFirstIndex = userDecks.findIndex((d) => d.id == userDeck1.id);
+    const prevFirstIndex = userDecks.findIndex((ud) => ud.id == userDeck1_id);
     expect(prevFirstIndex).toBe(0);
-    await udclient.moveUserDeck(userDeck1.id, UserDeckPositionEnum.up);
+    await udclient.moveUserDeck(userDeck1_id, UserDeckPositionEnum.up);
     userDecks = udclient.getUserDecks();
-    const newFirstIndex = userDecks.findIndex((d) => d.id == userDeck1.id);
+    const newFirstIndex = userDecks.findIndex((d) => d.id == userDeck1_id);
     expect(newFirstIndex).toBe(0);
     const isSorted = isSortedByOrder(userDecks);
     expect(isSorted).toBe(true);
   });
+
   it("correct move + delete deck", async () => {
-    await udclient.deleteUserDeck(userDeck2.id);
-    await udclient.moveUserDeck(userDeck3.id, UserDeckPositionEnum.up);
+    await udclient.deleteUserDeck(userDeck2_id);
+    await udclient.moveUserDeck(userDeck3_id, UserDeckPositionEnum.up);
     let userDecks = udclient.getUserDecks();
-    expect(userDecks[0]).toBe(userDeck3);
-    expect(userDeck3.order).toBe(1);
-    expect(userDeck1.order).toBe(3);
-    expect(userDeck4.order).toBe(4);
-    expect(userDeck5.order).toBe(5);
-    await udclient.moveUserDeck(userDeck4.id, UserDeckPositionEnum.down);
-    await udclient.deleteUserDeck(userDeck5.id);
+    expect(userDecks[0].id).toBe(userDeck3_id);
+    expect(gUDbyId(userDeck3_id).order).toBe(1);
+    expect(gUDbyId(userDeck1_id).order).toBe(3);
+    expect(gUDbyId(userDeck4_id).order).toBe(4);
+    expect(gUDbyId(userDeck5_id).order).toBe(5);
+    await udclient.moveUserDeck(userDeck4_id, UserDeckPositionEnum.down);
+    await udclient.deleteUserDeck(userDeck5_id);
     userDecks = udclient.getUserDecks();
     expect(userDecks.length).toBe(3);
     const lastUserDeck = userDecks.at(-1);
-    expect(lastUserDeck).toBe(userDeck4);
-    expect(userDeck3.order).toBe(1);
-    expect(userDeck1.order).toBe(3);
-    expect(userDeck4.order).toBe(5);
+    expect(lastUserDeck?.id).toBe(userDeck4_id);
+    expect(gUDbyId(userDeck3_id).order).toBe(1);
+    expect(gUDbyId(userDeck1_id).order).toBe(3);
+    expect(gUDbyId(userDeck4_id).order).toBe(5);
     const isSorted = isSortedByOrder(userDecks);
     expect(isSorted).toBe(true);
   });
+
   afterAll(async () => {
     await disconnectFromDB();
   });
@@ -380,10 +412,10 @@ describe("UserDecksClient: public decks", () => {
   let user2: User;
   let user1dclient: UserDecksClient;
   let user2dclient: UserDecksClient;
-  let user1Deck1: UserDeck;
-  let user1Deck2: UserDeck;
-  let user2Deck1: UserDeck;
-  let user2Deck2: UserDeck;
+  let user1Deck1: UserDeckDTO;
+  let user1Deck2: UserDeckDTO;
+  let user2Deck1: UserDeckDTO;
+  let user2Deck2: UserDeckDTO;
 
   const tc = decksTestCases.case1;
   const buffer = getBuffer(tc.pathToFile);
@@ -435,7 +467,7 @@ describe("UserDecksClient: public decks", () => {
     expect(publicUser1Decks.length).toBe(0);
     publicUser2Decks = user2dclient.getPublicDecks();
     expect(publicUser2Decks.length).toBe(1);
-    expect(publicUser2Decks[0]).toBe(deck);
+    expect(publicUser2Decks[0]).toEqual(deck);
     expect(publicUser2Decks[0].createdBy).toBe(user1.id);
 
     const user1Decks = user1dclient.getUserDecks();
@@ -459,6 +491,7 @@ describe("UserDecksClient: public decks", () => {
     publicUser1Decks = user1dclient.getPublicDecks();
     expect(publicUser1Decks.length).toBe(0);
   });
+
   it("toggleUserDeckPublic: dynamic deck", async () => {
     const dynUserDeck = await user1dclient.createDynamicUserDeck();
     try {
@@ -491,6 +524,7 @@ describe("UserDecksClient: public decks", () => {
     user1Decks = user1dclient.getUserDecks();
     expect(user1Decks.length).toBe(3);
   });
+
   afterAll(async () => {
     await disconnectFromDB();
   });
@@ -499,8 +533,8 @@ describe("UserDecksClient: public decks", () => {
 describe("UserDecksClient: dynamic deck", () => {
   let user: User;
   let udclient: UserDecksClient;
-  let userDeck1: UserDeck;
-  let userDeck2: UserDeck;
+  let userDeck1: UserDeckDTO;
+  let userDeck2: UserDeckDTO;
   const tc = decksTestCases.case1;
   const buffer = getBuffer(tc.pathToFile);
   beforeAll(async () => {
@@ -528,7 +562,7 @@ describe("UserDecksClient: dynamic deck", () => {
   });
 
   it("createDynamicUserDeck", async () => {
-    let dynUserDeck = udclient.getDynamicUserDeck();
+    let dynUserDeck = udclient.getDynamicUserDeckDTO();
     expect(dynUserDeck).toBe(undefined);
 
     const spyCreateDeck = jest.spyOn(globalDecksStore, "createDynamicDeck");
@@ -540,7 +574,7 @@ describe("UserDecksClient: dynamic deck", () => {
     expect(spyServiceCreate).toBeCalled();
     expect(spyUpdateAutoSync).toBeCalled();
 
-    let settings = udclient.getUserDeckSettings();
+    let settings = udclient.getUserDecksSettings();
     expect(settings.dynamicAutoSync).toBe(true);
 
     expect(globalJobStore.userJobs.updateJob).toBeCalled();
@@ -567,10 +601,9 @@ describe("UserDecksClient: dynamic deck", () => {
     expect(cards.length).toBe(0);
 
     const userDecks = udclient.getUserDecks();
-    const includes = userDecks.includes(userDeck);
-    expect(includes).toBe(true);
+    expect(userDecks).toContainEqual(userDeck);
 
-    dynUserDeck = udclient.getDynamicUserDeck();
+    dynUserDeck = udclient.getDynamicUserDeckDTO();
     expect(dynUserDeck).toBeTruthy();
 
     try {
@@ -583,14 +616,15 @@ describe("UserDecksClient: dynamic deck", () => {
 
     await udclient.deleteDynamicUserDeck();
   });
+
   it("deleteDynamicUserDeck", async () => {
-    let dynUserDeck = udclient.getDynamicUserDeck();
+    let dynUserDeck = udclient.getDynamicUserDeckDTO();
     expect(dynUserDeck).toBe(undefined);
     await udclient.createDynamicUserDeck();
-    dynUserDeck = udclient.getDynamicUserDeck();
+    dynUserDeck = udclient.getDynamicUserDeckDTO();
     expect(dynUserDeck).toBeTruthy();
     let userDecks = udclient.getUserDecks();
-    expect(userDecks).toContain(dynUserDeck);
+    expect(userDecks).toContainEqual(dynUserDeck);
 
     const settings = await udclient.deleteDynamicUserDeck();
 
@@ -613,6 +647,7 @@ describe("UserDecksClient: dynamic deck", () => {
       });
     }
   });
+
   it("syncDynamicUserDeck", async () => {
     await udclient.createDynamicUserDeck();
 
@@ -676,6 +711,7 @@ describe("UserDecksClient: dynamic deck", () => {
 
     await udclient.deleteDynamicUserDeck();
   });
+
   it("updateSyncDataType", async () => {
     const accName = "test";
     const settings = await udclient.updateSyncDataType(
@@ -686,6 +722,7 @@ describe("UserDecksClient: dynamic deck", () => {
     expect(settings.dynamicSyncType).toBe(DynamicSyncType.reverso);
     expect(settings.dynamicSyncData).toMatchObject({ accountName: accName });
   });
+
   it("updateAutoSync", async () => {
     let settings = await udclient.updateAutoSync(false);
     expect(globalJobStore.userJobs.updateJob).toBeCalled();
@@ -712,6 +749,7 @@ describe("function: isSortedByOrder", () => {
     expect(result3).toBe(true);
     expect(result4).toBe(true);
   });
+
   it("should return false", () => {
     const arr1 = [{ order: 25 }, { order: 10 }];
     const arr2 = [{ order: 25 }, { order: 10 }, { order: 115 }];
@@ -724,6 +762,7 @@ describe("function: isSortedByOrder", () => {
     expect(result3).toBe(false);
   });
 });
+
 function isSortedByOrder<T extends { order: number }>(arr: T[]): boolean {
   let result = true;
   if (arr.length <= 1) return result;
