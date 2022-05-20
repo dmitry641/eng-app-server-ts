@@ -280,8 +280,28 @@ export class UserCardsSettings {
   get dynamicHighPriority() {
     return this._dynamicHighPriority;
   }
+  async setDynamicHighPriority(value: boolean) {
+    this._dynamicHighPriority = value;
+    this._settings.dynamicHighPriority = value;
+    await this._settings.save();
+    return this;
+  }
   get shuffleDecks() {
     return this._shuffleDecks;
+  }
+  async setShuffleDecks(value: boolean) {
+    this._shuffleDecks = value;
+    this._settings.shuffleDecks = value;
+    await this._settings.save();
+    return this;
+  }
+}
+export class UserCardsSettingsDTO {
+  readonly dynamicHighPriority: boolean;
+  readonly shuffleDecks: boolean;
+  constructor(settings: UserCardsSettings) {
+    this.dynamicHighPriority = settings.dynamicHighPriority;
+    this.shuffleDecks = settings.shuffleDecks;
   }
 }
 

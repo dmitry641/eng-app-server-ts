@@ -5,7 +5,12 @@ import {
   UserDeckId,
   userDecksManager,
 } from "../decks/userDeck";
-import { User, UserCardsSettings, UserId } from "../users/user";
+import {
+  User,
+  UserCardsSettings,
+  UserCardsSettingsDTO,
+  UserId,
+} from "../users/user";
 import { CardDTO, CardId, globalCardsStore } from "./cards";
 import { UserCardsService } from "./flashcards.service";
 import {
@@ -46,7 +51,7 @@ class UserCardsManager {
   }
 }
 
-class UserCardsClient {
+export class UserCardsClient {
   private settings: UserCardsSettings;
   constructor(private userCards: UserCard[], private user: User) {
     this.settings = user.settings.userCardsSettings;
@@ -116,15 +121,11 @@ class UserCardsClient {
     result = await this.getUserCardsFromSortedUserDecks(); // order/shuffle deck
     return result.map(this.userCardToDTO);
   }
-  private filterCards(cards: CardDTO[]): CardDTO[] {
-    const existedCardIds = this.userCards.map((c) => c.cardId);
-    const filtered = cards.filter((c) => !existedCardIds.includes(c.id));
-    return filtered; // FIX ME, протестировать(сделать не private?)
-  }
   private async getUserCardsFromSortedUserDecks(): Promise<UserCard[]> {
     let newUserCards: UserCard[] = [];
     const udclient = await userDecksManager.getUserDecksClient(this.user);
     let userDecks = udclient.getUserDecks().sort(ascSortByOrderFn);
+    userDecks = userDecks.filter((ud) => ud.enabled);
 
     const shuffleDecks = this.settings.shuffleDecks;
     if (shuffleDecks) userDecks = shuffle(userDecks);
@@ -158,7 +159,7 @@ class UserCardsClient {
   ): Promise<UserCard[]> {
     const processedUserCards: UserCard[] = [];
     const cards = globalCardsStore.getCardsByDeckId(userdeck.deckId);
-    const filteredCards = this.filterCards(cards);
+    const filteredCards = filterByCardId(cards, this.userCards);
     const shuffledCards = shuffle(filteredCards);
     const slicedCards = slice(shuffledCards);
     for (const card of slicedCards) {
@@ -173,10 +174,34 @@ class UserCardsClient {
     this.userCards.push(...processedUserCards); // спорный момент
     return processedUserCards;
   }
+  // settings
+  getUserCardsSettings(): UserCardsSettingsDTO {
+    return this.settingsToDTO();
+  }
+  private settingsToDTO(): UserCardsSettingsDTO {
+    return new UserCardsSettingsDTO(this.settings);
+  }
+  async updateHighPriority(value: boolean): Promise<UserCardsSettingsDTO> {
+    await this.settings.setDynamicHighPriority(value);
+    return this.settingsToDTO();
+  }
+  async updateShuffle(value: boolean): Promise<UserCardsSettingsDTO> {
+    await this.settings.setShuffleDecks(value);
+    return this.settingsToDTO();
+  }
 }
 
 function slice<T>(array: T[]): T[] {
   return array.slice(0, CARDS_COUNT);
+}
+
+export function filterByCardId<T extends UserCardDTO>(
+  cards: CardDTO[],
+  userCards: T[]
+): CardDTO[] {
+  const existedCardIds = userCards.map((uc) => uc.cardId);
+  const filtered = cards.filter((c) => !existedCardIds.includes(c.id));
+  return filtered; // FIX ME, протестировать(сделать не private?)
 }
 
 export type UserCardId = string;
@@ -274,7 +299,7 @@ export class UserCardDTO {
   }
 }
 
-function calcShowAfter(
+export function calcShowAfter(
   status: HistoryStatusEnum,
   history: HistoryType[]
 ): number {
@@ -289,7 +314,7 @@ function calcShowAfter(
   newShowAfter += intervalsArray[streak] || 0;
   return newShowAfter;
 }
-function getIntervalArray(
+export function getIntervalArray(
   status: HistoryStatusEnum,
   hour: number = 1000 * 60 * 60
 ) {
@@ -309,7 +334,7 @@ function getIntervalArray(
       throw new Error("Invalid status");
   }
 }
-function getStreak(status: HistoryStatusEnum, history: HistoryType[]) {
+export function getStreak(status: HistoryStatusEnum, history: HistoryType[]) {
   let result = 0;
   let tempHistory = Array.from(history);
   tempHistory.reverse();

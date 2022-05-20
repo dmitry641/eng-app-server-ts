@@ -2,7 +2,7 @@ import { DeckDTO, DeckId } from "../decks/deck";
 import { CardsService } from "./flashcards.service";
 import { CardInputOmit, ICard } from "./models/cards.model";
 
-class CardsStore {
+export class CardsStore {
   private initialized: boolean = false;
   private cards: Card[] = [];
   async init() {
