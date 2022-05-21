@@ -12,6 +12,7 @@ import {
   UserId,
 } from "../users/user";
 import { CardDTO, CardId, globalCardsStore } from "./cards";
+import { intervalArray } from "./const";
 import { UserCardsService } from "./flashcards.service";
 import {
   HistoryStatusEnum,
@@ -19,7 +20,7 @@ import {
   IUserCard,
 } from "./models/userCards.model";
 
-const CARDS_COUNT = 15;
+export const CARDS_COUNT = 15;
 
 class UserCardsManager {
   private userCardsClients = new Map<UserId, UserCardsClient>();
@@ -195,13 +196,13 @@ function slice<T>(array: T[]): T[] {
   return array.slice(0, CARDS_COUNT);
 }
 
-export function filterByCardId<T extends UserCardDTO>(
+export function filterByCardId(
   cards: CardDTO[],
-  userCards: T[]
+  userCards: UserCardDTO[]
 ): CardDTO[] {
   const existedCardIds = userCards.map((uc) => uc.cardId);
   const filtered = cards.filter((c) => !existedCardIds.includes(c.id));
-  return filtered; // FIX ME, протестировать(сделать не private?)
+  return filtered;
 }
 
 export type UserCardId = string;
@@ -314,22 +315,14 @@ export function calcShowAfter(
   newShowAfter += intervalsArray[streak] || 0;
   return newShowAfter;
 }
-export function getIntervalArray(
-  status: HistoryStatusEnum,
-  hour: number = 1000 * 60 * 60
-) {
-  const day = hour * 24;
-  const hardArray = [hour];
-  const mediumArray = [hour * 5, hour * 10];
-  const easyArray = [day, day * 3, day * 7, day * 20, day * 50];
-
+export function getIntervalArray(status: HistoryStatusEnum) {
   switch (status) {
     case HistoryStatusEnum.easy:
-      return easyArray;
+      return intervalArray.easyArray;
     case HistoryStatusEnum.medium:
-      return mediumArray;
+      return intervalArray.mediumArray;
     case HistoryStatusEnum.hard:
-      return hardArray;
+      return intervalArray.hardArray;
     default:
       throw new Error("Invalid status");
   }

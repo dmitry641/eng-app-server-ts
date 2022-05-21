@@ -115,6 +115,11 @@ export const decksTestCases = {
     description: "Incorrect file",
     cardsCount: 1,
   },
+  case3: {
+    pathToFile: resolve(__dirname, "file7.csv"),
+    description: "Correct file",
+    cardsCount: 30,
+  },
 };
 
 export const rawCardsTestData1 = [
@@ -161,3 +166,10 @@ export const reversoTestResponse: IReversoResponse = {
     },
   ],
 };
+
+const hour = 10;
+const day = hour * 15;
+const hardArray = [hour];
+const mediumArray = [hour * 5, hour * 10];
+const easyArray = [day, day * 3, day * 7, day * 10, day * 20];
+export const testIntervalArray = { hardArray, mediumArray, easyArray };

@@ -78,6 +78,17 @@ describe("Sync client:filterByCustomId ", () => {
     expect(filtered.length).toBe(1);
     expect(filtered).toContain(newRawCard);
   });
+  it("filterByCustomId, case 4", () => {
+    const newRawCard = {
+      srcLang: "English",
+      trgLang: "Russian",
+      srcText: "hello",
+      trgText: "привет",
+    }; // спорный момент, отсутствие customId
+    const filtered = filterByCustomId([newRawCard], []);
+    expect(filtered.length).toBe(0);
+    expect(filtered).not.toContain(newRawCard);
+  });
 
   afterAll(async () => {
     await disconnectFromDB();

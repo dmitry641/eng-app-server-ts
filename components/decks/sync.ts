@@ -51,7 +51,7 @@ export function filterByCustomId(
   const filtered: CardInputOmit[] = [];
   rawCards.forEach(
     (c) => c.customId && !customIds.includes(c.customId) && filtered.push(c)
-  );
+  ); // спорный момент
   return filtered;
 }
 

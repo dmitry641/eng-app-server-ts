@@ -1,11 +1,35 @@
 import { connectToTestDB, disconnectFromDB } from "../../db";
-import { decksTestCases } from "../../test/testcases";
+import { decksTestCases, testIntervalArray } from "../../test/testcases";
 import * as utils from "../../utils";
 import { getBuffer } from "../../utils";
+import { ReversoFetcher } from "../decks/sync";
 import { userDecksManager } from "../decks/userDeck";
+import { globalJobStore } from "../schedule";
 import { globalUserStore, User } from "../users/user";
-import { CardsStore, globalCardsStore } from "./cards";
-import { UserCardsClient, userCardsManager } from "./userCards";
+import { DynamicSyncType, UserDeckPositionEnum } from "../users/user.util";
+import { CardDTO, CardsStore, globalCardsStore } from "./cards";
+import { CardInputOmit } from "./models/cards.model";
+import { HistoryStatusEnum, HistoryType } from "./models/userCards.model";
+import {
+  calcShowAfter,
+  CARDS_COUNT,
+  filterByCardId,
+  getIntervalArray,
+  getStreak,
+  UserCardDTO,
+  UserCardsClient,
+  userCardsManager,
+} from "./userCards";
+
+jest.mock("./const", () => {
+  const originalModule = jest.requireActual("./const");
+
+  return {
+    __esModule: true,
+    ...originalModule,
+    intervalArray: testIntervalArray,
+  };
+});
 
 const spyShuffle = jest.spyOn(utils, "shuffle");
 
@@ -71,7 +95,7 @@ describe("UserCardsClient", () => {
       expect(spyGetUserCardsFromUserDeck).not.toBeCalled();
       expect(uc.length).toBe(0);
     });
-    it("getUserCardsFromSortedUserDecks + getEmptyUserCards", async () => {
+    it("getUserCardsFromSortedUserDecks, case 1", async () => {
       const udclient = await userDecksManager.getUserDecksClient(user);
       const tc = decksTestCases.case1;
       const file1 = {
@@ -135,6 +159,135 @@ describe("UserCardsClient", () => {
       expect(spyGetEmptyUserCards).toBeCalled();
       expect(spyGetUserCardsFromSortedUserDecks).not.toBeCalled();
     });
+    it("getUserCardsFromSortedUserDecks, case 2", async () => {
+      const udclient = await userDecksManager.getUserDecksClient(user);
+      const tc = decksTestCases.case3;
+      const file1 = {
+        buffer: getBuffer(tc.pathToFile),
+        mimetype: "csv",
+        originalname: "userdeck1",
+      };
+      const file2 = {
+        buffer: getBuffer(tc.pathToFile),
+        mimetype: "csv",
+        originalname: "userdeck2",
+      };
+      const userDeck1 = await udclient.createUserDeck(file1);
+      const cards1 = globalCardsStore.getCardsByDeckId(userDeck1.deckId);
+      const userDeck2 = await udclient.createUserDeck(file2);
+      const cards2 = globalCardsStore.getCardsByDeckId(userDeck2.deckId);
+      const cards1Ids = cards1.map((c) => c.id);
+      const cards2Ids = cards2.map((c) => c.id);
+      expect(cards1.length).toBe(tc.cardsCount);
+      expect(cards2.length).toBe(tc.cardsCount);
+
+      let userCards = await ucclient.getUserCards();
+      expect(userCards.length).toBe(CARDS_COUNT);
+      expect(spyGetUserCardsFromSortedUserDecks).toBeCalled();
+      expect(spyGetUserCardsFromUserDeck).toBeCalledWith(userDeck1);
+      expect(spyGetUserCardsFromUserDeck).not.toBeCalledWith(userDeck2);
+      let ucIds = userCards.map((uc) => uc.cardId);
+      for (const ucId of ucIds) {
+        expect(cards1Ids).toContainEqual(ucId);
+        expect(cards2Ids).not.toContainEqual(ucId);
+      }
+      jest.clearAllMocks();
+
+      // getEmptyUserCards
+      userCards = await ucclient.getUserCards();
+      expect(spyGetEmptyUserCards).toBeCalled();
+      expect(spyGetUserCardsFromSortedUserDecks).not.toBeCalled();
+      jest.clearAllMocks();
+
+      // delete user cards
+      for (const uc of userCards) {
+        await ucclient.deleteUserCard(uc.id);
+      }
+
+      // move user deck
+      await udclient.moveUserDeck(userDeck1.id, UserDeckPositionEnum.down);
+      const ud1 = udclient.getUserDeckById(userDeck1.id);
+      const ud2 = udclient.getUserDeckById(userDeck2.id);
+
+      userCards = await ucclient.getUserCards();
+      expect(spyGetUserCardsFromSortedUserDecks).toBeCalled();
+      expect(spyGetUserCardsFromUserDeck).not.toBeCalledWith(ud1);
+      expect(spyGetUserCardsFromUserDeck).toBeCalledWith(ud2);
+      ucIds = userCards.map((uc) => uc.cardId);
+      for (const ucId of ucIds) {
+        expect(cards1Ids).not.toContainEqual(ucId);
+        expect(cards2Ids).toContainEqual(ucId);
+      }
+      jest.clearAllMocks();
+
+      // getEmptyUserCards
+      userCards = await ucclient.getUserCards();
+      expect(spyGetEmptyUserCards).toBeCalled();
+      expect(spyGetUserCardsFromSortedUserDecks).not.toBeCalled();
+      jest.clearAllMocks();
+
+      // delete user cards
+      for (const uc of userCards) {
+        await ucclient.deleteUserCard(uc.id);
+      }
+
+      // delete user decks
+      await udclient.deleteUserDeck(ud1.id);
+      await udclient.deleteUserDeck(ud2.id);
+      userCards = await ucclient.getUserCards();
+      expect(spyGetUserCardsFromSortedUserDecks).toBeCalled();
+      expect(spyGetUserCardsFromUserDeck).not.toBeCalledWith(ud1);
+      expect(spyGetUserCardsFromUserDeck).not.toBeCalledWith(ud2);
+      expect(userCards.length).toBe(0);
+    });
+    it("getUserCardsFromDynamicUserDeck", async () => {
+      jest.spyOn(globalJobStore.userJobs, "updateJob").mockReturnValue();
+      const udclient = await userDecksManager.getUserDecksClient(user);
+      const dynUserDeck = await udclient.createDynamicUserDeck();
+      await udclient.updateSyncDataType(DynamicSyncType.reverso, {
+        accountName: "test",
+      });
+
+      // high priority false
+      await ucclient.updateHighPriority(false);
+      let userCards = await ucclient.getUserCards();
+      expect(spyGetUserCardsFromDynamicUserDeck).not.toBeCalled();
+      expect(spyGetLearnedUserCards).toBeCalled();
+
+      // high priority true
+      await ucclient.updateHighPriority(true);
+      userCards = await ucclient.getUserCards();
+      expect(spyGetUserCardsFromDynamicUserDeck).toBeCalled();
+      expect(spyGetLearnedUserCards).toBeCalled();
+      expect(userCards.length).toBe(0);
+      jest.clearAllMocks();
+
+      // sync dynamic user deck
+      const newCard: CardInputOmit = {
+        srcLang: "q",
+        srcText: "w",
+        trgLang: "e",
+        trgText: "r",
+        customId: "t",
+      };
+      jest
+        .spyOn(ReversoFetcher.prototype, "getRawCards")
+        .mockImplementation(async () => [newCard]);
+
+      await udclient.syncDynamicUserDeck();
+
+      userCards = await ucclient.getUserCards();
+      expect(spyGetUserCardsFromDynamicUserDeck).toBeCalled();
+      expect(spyGetLearnedUserCards).not.toBeCalled();
+      expect(userCards.length).toBe(1);
+      jest.clearAllMocks();
+
+      // getEmptyUserCards
+      userCards = await ucclient.getUserCards();
+      expect(spyGetEmptyUserCards).toBeCalled();
+      expect(spyGetUserCardsFromDynamicUserDeck).not.toBeCalled();
+      expect(spyGetUserCardsFromSortedUserDecks).not.toBeCalled();
+    });
   });
 
   describe("learnUserCard", () => {});
@@ -156,7 +309,224 @@ describe("UserCardsClient", () => {
   });
 });
 
-describe("filterByCardId", () => {});
-describe("calcShowAfter", () => {});
-describe("getIntervalArray", () => {});
-describe("getStreak", () => {});
+describe("filterByCardId", () => {
+  it("should be empty", () => {
+    const cards1 = [] as CardDTO[];
+    const userCards1 = [] as UserCardDTO[];
+    const filtered1 = filterByCardId(cards1, userCards1);
+    expect(filtered1.length).toBe(0);
+
+    const cards2 = [{ id: "1" }] as CardDTO[];
+    const userCards2 = [{ cardId: "1" }] as UserCardDTO[];
+    const filtered2 = filterByCardId(cards2, userCards2);
+    expect(filtered2.length).toBe(0);
+
+    const cards3 = [{ id: "1" }, { id: "3" }, { id: "2" }] as CardDTO[];
+    const userCards3 = [
+      { cardId: "3" },
+      { cardId: "1" },
+      { cardId: "2" },
+    ] as UserCardDTO[];
+    const filtered3 = filterByCardId(cards3, userCards3);
+    expect(filtered3.length).toBe(0);
+  });
+  it("should not be empty", () => {
+    const cards1 = [{ id: "1" }] as CardDTO[];
+    const userCards1 = [] as UserCardDTO[];
+    const filtered1 = filterByCardId(cards1, userCards1);
+    expect(filtered1.length).toBe(1);
+
+    const cards2 = [{ id: "1" }, { id: "2" }, { id: "3" }] as CardDTO[];
+    const userCards2 = [{ cardId: "1" }] as UserCardDTO[];
+    const filtered2 = filterByCardId(cards2, userCards2);
+    expect(filtered2.length).toBe(2);
+
+    const cards3 = [
+      { id: "1" },
+      { id: "2" },
+      { id: "3" },
+      { id: "4" },
+    ] as CardDTO[];
+    const userCards3 = [
+      { cardId: "4" },
+      { cardId: "5" },
+      { cardId: "6" },
+      { cardId: "7" },
+    ] as UserCardDTO[];
+    const filtered3 = filterByCardId(cards3, userCards3);
+    expect(filtered3.length).toBe(3);
+  });
+});
+
+describe("calcShowAfter", () => {
+  const precision = -1;
+  const TIA = testIntervalArray;
+  it("streak 0", () => {
+    const dateNow = Date.now();
+    const hardResult1 = calcShowAfter(HistoryStatusEnum.hard, []);
+    expect(hardResult1).toBeCloseTo(dateNow + TIA.hardArray[0], precision);
+    const hardResult2 = calcShowAfter(HistoryStatusEnum.hard, [
+      { date: 1, status: HistoryStatusEnum.easy },
+    ]);
+    expect(hardResult2).toBeCloseTo(dateNow + TIA.hardArray[0], precision);
+
+    const mediumResult1 = calcShowAfter(HistoryStatusEnum.medium, []);
+    expect(mediumResult1).toBeCloseTo(dateNow + TIA.mediumArray[0], precision);
+    const mediumResult2 = calcShowAfter(HistoryStatusEnum.medium, [
+      { date: 1, status: HistoryStatusEnum.medium },
+      { date: 2, status: HistoryStatusEnum.hard },
+    ]);
+    expect(mediumResult2).toBeCloseTo(dateNow + TIA.mediumArray[0], precision);
+
+    const easyResult1 = calcShowAfter(HistoryStatusEnum.easy, []);
+    expect(easyResult1).toBeCloseTo(dateNow + TIA.easyArray[0], precision);
+    const easyResult2 = calcShowAfter(HistoryStatusEnum.easy, [
+      { date: 1, status: HistoryStatusEnum.easy },
+      { date: 2, status: HistoryStatusEnum.easy },
+      { date: 3, status: HistoryStatusEnum.medium },
+    ]);
+    expect(easyResult2).toBeCloseTo(dateNow + TIA.easyArray[0], precision);
+  });
+  it("streak 1", () => {
+    const dateNow = Date.now();
+    const hardResult = calcShowAfter(HistoryStatusEnum.hard, [
+      { date: 1, status: HistoryStatusEnum.hard },
+    ]);
+    expect(hardResult).toBeCloseTo(dateNow + TIA.hardArray[0], precision); // out of bounds
+    // кривовато сделано, можно было лучше
+    // hardArray.at(-1) и тд
+
+    const mediumResult = calcShowAfter(HistoryStatusEnum.medium, [
+      { date: 1, status: HistoryStatusEnum.hard },
+      { date: 2, status: HistoryStatusEnum.medium },
+    ]);
+    expect(mediumResult).toBeCloseTo(dateNow + TIA.mediumArray[1], precision);
+
+    const easyResult = calcShowAfter(HistoryStatusEnum.easy, [
+      { date: 1, status: HistoryStatusEnum.easy },
+      { date: 2, status: HistoryStatusEnum.medium },
+      { date: 3, status: HistoryStatusEnum.easy },
+    ]);
+    expect(easyResult).toBeCloseTo(dateNow + TIA.easyArray[1], precision);
+  });
+  it("streak 2", () => {
+    const dateNow = Date.now();
+    const hardResult = calcShowAfter(HistoryStatusEnum.hard, [
+      { date: 1, status: HistoryStatusEnum.hard },
+      { date: 2, status: HistoryStatusEnum.hard },
+    ]);
+    expect(hardResult).toBeCloseTo(dateNow + TIA.hardArray[0], precision); // out of bounds
+
+    const mediumResult = calcShowAfter(HistoryStatusEnum.medium, [
+      { date: 1, status: HistoryStatusEnum.medium },
+      { date: 2, status: HistoryStatusEnum.medium },
+    ]);
+    expect(mediumResult).toBeCloseTo(dateNow + TIA.mediumArray[1], precision); // out of bounds
+
+    const easyResult = calcShowAfter(HistoryStatusEnum.easy, [
+      { date: 1, status: HistoryStatusEnum.medium },
+      { date: 2, status: HistoryStatusEnum.easy },
+      { date: 3, status: HistoryStatusEnum.easy },
+    ]);
+    expect(easyResult).toBeCloseTo(dateNow + TIA.easyArray[2], precision);
+  });
+  it("streak 3", () => {
+    const dateNow = Date.now();
+    const hardResult = calcShowAfter(HistoryStatusEnum.hard, [
+      { date: 1, status: HistoryStatusEnum.hard },
+      { date: 2, status: HistoryStatusEnum.hard },
+      { date: 3, status: HistoryStatusEnum.hard },
+    ]);
+    expect(hardResult).toBeCloseTo(dateNow + TIA.hardArray[0], precision); // out of bounds
+
+    const mediumResult = calcShowAfter(HistoryStatusEnum.medium, [
+      { date: 1, status: HistoryStatusEnum.medium },
+      { date: 2, status: HistoryStatusEnum.medium },
+      { date: 3, status: HistoryStatusEnum.medium },
+    ]);
+    expect(mediumResult).toBeCloseTo(dateNow + TIA.mediumArray[1], precision); // out of bounds
+
+    const easyResult = calcShowAfter(HistoryStatusEnum.easy, [
+      { date: 1, status: HistoryStatusEnum.easy },
+      { date: 2, status: HistoryStatusEnum.medium },
+      { date: 3, status: HistoryStatusEnum.easy },
+      { date: 4, status: HistoryStatusEnum.easy },
+      { date: 5, status: HistoryStatusEnum.easy },
+    ]);
+    expect(easyResult).toBeCloseTo(dateNow + TIA.easyArray[3], precision);
+  });
+});
+
+describe("getIntervalArray", () => {
+  it("hard", () => {
+    const arr = getIntervalArray(HistoryStatusEnum.hard);
+    expect(arr).toEqual(testIntervalArray.hardArray);
+  });
+  it("medium", () => {
+    const arr = getIntervalArray(HistoryStatusEnum.medium);
+    expect(arr).toEqual(testIntervalArray.mediumArray);
+  });
+  it("easy", () => {
+    const arr = getIntervalArray(HistoryStatusEnum.easy);
+    expect(arr).toEqual(testIntervalArray.easyArray);
+  });
+});
+
+describe("getStreak", () => {
+  const arr: HistoryType[] = [
+    { date: 1, status: HistoryStatusEnum.easy },
+    { date: 2, status: HistoryStatusEnum.easy },
+    { date: 3, status: HistoryStatusEnum.easy },
+    { date: 4, status: HistoryStatusEnum.easy },
+    { date: 5, status: HistoryStatusEnum.easy },
+    { date: 6, status: HistoryStatusEnum.medium },
+  ];
+  const arr0: HistoryType[] = [{ date: 1, status: HistoryStatusEnum.medium }];
+  const arr1: HistoryType[] = [
+    { date: 1, status: HistoryStatusEnum.easy },
+    { date: 2, status: HistoryStatusEnum.easy },
+    { date: 3, status: HistoryStatusEnum.easy },
+  ];
+  const arr2: HistoryType[] = [
+    { date: 1, status: HistoryStatusEnum.easy },
+    { date: 2, status: HistoryStatusEnum.medium },
+    { date: 3, status: HistoryStatusEnum.easy },
+    { date: 4, status: HistoryStatusEnum.easy },
+  ];
+  const arr3: HistoryType[] = [
+    { date: 1, status: HistoryStatusEnum.easy },
+    { date: 2, status: HistoryStatusEnum.easy },
+    { date: 3, status: HistoryStatusEnum.medium },
+    { date: 4, status: HistoryStatusEnum.hard },
+    { date: 5, status: HistoryStatusEnum.easy },
+  ];
+  const arr4: HistoryType[] = [{ date: 1, status: HistoryStatusEnum.easy }];
+  it("should not mutate array", () => {
+    const before = Array.from(arr1);
+    const streak = getStreak(HistoryStatusEnum.easy, arr1);
+    const after = Array.from(arr1);
+    expect(before).toEqual(after);
+  });
+  it("should return 0", () => {
+    const streak1 = getStreak(HistoryStatusEnum.easy, []);
+    expect(streak1).toBe(0);
+    const streak2 = getStreak(HistoryStatusEnum.easy, arr);
+    expect(streak2).toBe(0);
+    const streak3 = getStreak(HistoryStatusEnum.easy, arr0);
+    expect(streak3).toBe(0);
+  });
+  it("should return 3", () => {
+    const streak = getStreak(HistoryStatusEnum.easy, arr1);
+    expect(streak).toBe(3);
+  });
+  it("should return 2", () => {
+    const streak = getStreak(HistoryStatusEnum.easy, arr2);
+    expect(streak).toBe(2);
+  });
+  it("should return 1", () => {
+    const streak1 = getStreak(HistoryStatusEnum.easy, arr3);
+    expect(streak1).toBe(1);
+    const streak2 = getStreak(HistoryStatusEnum.easy, arr4);
+    expect(streak2).toBe(1);
+  });
+});
