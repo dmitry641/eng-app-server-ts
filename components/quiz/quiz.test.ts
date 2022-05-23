@@ -1,7 +1,10 @@
 import { connectToTestDB, disconnectFromDB } from "../../db";
 import { quizTestData1 } from "../../test/testcases";
+import { globalUserStore, User } from "../users/user";
+import { globalQuizStore } from "./quiz";
 import { QuestionService, TopicService } from "./quiz.service";
 import { QuizUtil } from "./quiz.util";
+import { UserQuizClient, userQuizManager } from "./userQuiz";
 
 async function dropTopicsAndQuestions() {
   const topics = await TopicService.findTopics();
@@ -109,15 +112,107 @@ describe("Quiz model service", () => {
   });
 });
 
-describe("Quiz functions", () => {
-  describe("getCurrentUserTopic", () => {
-    it("...", () => {
-      expect(1).toBe(1);
-    });
+jest.mock("./quiz.service", () => {
+  const originalModule = jest.requireActual("./quiz.service");
+
+  return {
+    __esModule: true,
+    ...originalModule,
+    topicSliceEnd: 3,
+    questionsInRowLIMIT: 2,
+    questionSliceEnd: 2,
+    oneDay: 200,
+  };
+});
+
+// --- quiz ---
+
+const spyGlobalGetTopics = jest.spyOn(globalQuizStore, "getTopics");
+
+// --- user quiz ---
+
+const spyInitCurrentUserTopic = jest.spyOn(
+  UserQuizClient.prototype, // @ts-ignore
+  "initCurrentUserTopic"
+);
+const spyInitRandomUserTopic = jest.spyOn(
+  UserQuizClient.prototype, // @ts-ignore
+  "initRandomUserTopic"
+);
+const spyGetTopics = jest.spyOn(
+  UserQuizClient.prototype, // @ts-ignore
+  "getTopics"
+);
+const spyAddTopicToUserTopics = jest.spyOn(
+  UserQuizClient.prototype, // @ts-ignore
+  "addTopicToUserTopics"
+);
+const spyGetUserTopic = jest.spyOn(
+  UserQuizClient.prototype, // @ts-ignore
+  "getUserTopic"
+);
+const spyMakeCurrent = jest.spyOn(
+  UserQuizClient.prototype, // @ts-ignore
+  "makeCurrent"
+);
+const spyUserTopicToDTO = jest.spyOn(
+  UserQuizClient.prototype, // @ts-ignore
+  "userTopicToDTO"
+);
+
+describe("UserQuizClient", () => {
+  let user: User;
+  let uqclient: UserQuizClient;
+  beforeAll(async () => {
+    await connectToTestDB();
   });
-  describe("getProcessedQuestions", () => {
-    it("...", () => {
-      expect(1).toBe(1);
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    user = await globalUserStore.createUser({
+      email: String(Math.random()) + "@email.com",
+      name: "123",
+      password: "123",
     });
+    uqclient = await userQuizManager.getUserQuizClient(user);
+  });
+
+  /**
+   * getCurrentUserTopic
+   */
+
+  it("initUserTopic", async () => {
+    const userTopic = await uqclient.initUserTopic();
+    expect(spyInitCurrentUserTopic).toBeCalled();
+    expect(spyInitRandomUserTopic).toBeCalled();
+    expect(spyGetTopics).toBeCalled();
+    expect(spyAddTopicToUserTopics).toBeCalled();
+    expect(spyGetUserTopic).toBeCalled();
+    expect(spyMakeCurrent).toBeCalled();
+    expect(spyUserTopicToDTO).toBeCalled();
+  });
+  it.todo("getQuestions");
+
+  it.todo("learnQuestion");
+
+  it("getTopics", async () => {
+    const topics = uqclient.getTopics();
+    expect(spyGetTopics).toBeCalled();
+  });
+  it.todo("getUserTopics");
+  it.todo("getUserTopicById");
+
+  it.todo("addTopicToUserTopics");
+  it.todo("changeCurrentUserTopic");
+
+  it.todo("blockUserTopic");
+
+  afterAll(async () => {
+    await disconnectFromDB();
+  });
+});
+
+describe("filterQuestions", () => {
+  it("...", () => {
+    expect(1).toBe(1);
   });
 });

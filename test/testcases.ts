@@ -1,5 +1,6 @@
 import { resolve } from "path";
 import { IReversoResponse } from "../components/decks/sync";
+import { TopicDTO } from "../components/quiz/quiz";
 import { QuizKeysType } from "../components/quiz/quiz.util";
 
 // { [K: string]: { pathToFile: string; csvHeaders: string[] } }
@@ -173,3 +174,5 @@ const hardArray = [hour];
 const mediumArray = [hour * 15, hour * 25];
 const easyArray = [day, day * 3, day * 7, day * 10, day * 20];
 export const testIntervalArray = { hardArray, mediumArray, easyArray };
+
+export const testTopics: TopicDTO[] = [];

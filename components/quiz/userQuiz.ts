@@ -13,6 +13,7 @@ import {
   oneDay,
   questionsInRowLIMIT,
   questionSliceEnd,
+  topicSliceEnd,
   UserQuestionService,
   UserTopicService,
 } from "./quiz.service";
@@ -52,7 +53,7 @@ class UserQuizManager {
   }
 }
 
-class UserQuizClient {
+export class UserQuizClient {
   constructor(private userTopics: UserTopic[], private user: User) {}
   private getUserTopic(userTopicId: UserTopicId): UserTopic {
     const userTopic = this.userTopics.find((d) => d.id === userTopicId);
@@ -114,7 +115,7 @@ class UserQuizClient {
   getQuestions(): QuestionDTO[] {
     const currentUserTopic = this.getCurrentUserTopic();
     const topic = globalQuizStore.getTopicById(currentUserTopic.topicId);
-    const filtered = this.filterQuestions(currentUserTopic, topic);
+    const filtered = filterQuestions(currentUserTopic, topic);
     const shuffled = shuffle(filtered);
     const sliced = shuffled.slice(0, questionSliceEnd);
     return sliced;
@@ -164,7 +165,7 @@ class UserQuizClient {
     const userTopicsId = this.userTopics.map((t) => t.topicId);
     const filteredTopics = topics.filter((t) => !userTopicsId.includes(t.id));
     const shuffledTopics = shuffle(filteredTopics);
-    const slicedTopics = shuffledTopics.slice(0, 5);
+    const slicedTopics = shuffledTopics.slice(0, topicSliceEnd);
     return slicedTopics;
   }
   getUserTopics(): UserTopicDTO[] {
@@ -218,15 +219,15 @@ class UserQuizClient {
   private async makeCurrent(userTopic: UserTopic) {
     return userTopic.setStatus(UserTopicStatusEnum.current);
   }
-  // FIX ME, протестировать
-  private filterQuestions(
-    userTopic: UserTopic,
-    topic: TopicDTO
-  ): QuestionDTO[] {
-    const uqIds = userTopic.userQuestions.map((q) => q.questionId);
-    const filtered = topic.questions.filter((q) => !uqIds.includes(q.id));
-    return filtered;
-  }
+}
+
+export function filterQuestions(
+  userTopic: UserTopic,
+  topic: TopicDTO
+): QuestionDTO[] {
+  const uqIds = userTopic.userQuestions.map((q) => q.questionId);
+  const filtered = topic.questions.filter((q) => !uqIds.includes(q.id));
+  return filtered;
 }
 
 export type UserTopicId = string;

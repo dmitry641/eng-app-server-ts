@@ -19,6 +19,7 @@ import {
 export const questionsInRowLIMIT = 7;
 export const questionSliceEnd = 7;
 export const oneDay = 1000 * 60 * 60 * 24;
+export const topicSliceEnd = 5;
 
 export class TopicService {
   static async createTopic(obj: TopicInput): Promise<ITopic> {
