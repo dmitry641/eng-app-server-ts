@@ -60,7 +60,7 @@ export async function deleteMe() {
   console.log(userTopic);
   console.log(br);
 
-  const questions = await uqclient.getQuestions();
+  const questions = uqclient.getQuestions();
   console.log(questions);
   console.log(br);
 }

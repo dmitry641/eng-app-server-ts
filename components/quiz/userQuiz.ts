@@ -115,7 +115,8 @@ export class UserQuizClient {
   getQuestions(): QuestionDTO[] {
     const currentUserTopic = this.getCurrentUserTopic();
     const topic = globalQuizStore.getTopicById(currentUserTopic.topicId);
-    const filtered = filterQuestions(currentUserTopic, topic);
+    const questions = globalQuizStore.getQuestionByTopicId(topic.id);
+    const filtered = filterQuestions(currentUserTopic, questions);
     const shuffled = shuffle(filtered);
     const sliced = shuffled.slice(0, questionSliceEnd);
     return sliced;
@@ -125,7 +126,8 @@ export class UserQuizClient {
   ): Promise<{ changeTopic: boolean }> {
     const currentUserTopic = this.getCurrentUserTopic();
     const topic = globalQuizStore.getTopicById(currentUserTopic.topicId);
-    const question = topic.questions.find((q) => q.id == questionId);
+    const questions = globalQuizStore.getQuestionByTopicId(topic.id);
+    const question = questions.find((q) => q.id == questionId);
     if (!question) throw new Error("Question not found");
     const learned = currentUserTopic.userQuestions.find(
       (q) => q.questionId == questionId
@@ -172,11 +174,12 @@ export class UserQuizClient {
     return this.userTopics.map(this.userTopicToDTO);
   }
   async addTopicToUserTopics(topic: TopicDTO): Promise<UserTopicDTO> {
+    const questions = globalQuizStore.getQuestionByTopicId(topic.id);
     const dbUserTopic = await UserTopicService.createUserTopic({
       topic: topic.id,
       user: this.user.id,
       status: UserTopicStatusEnum.started,
-      totalQuestionCount: topic.questions.length,
+      totalQuestionCount: questions.length,
     });
     const userTopic = new UserTopic(dbUserTopic, topic, []);
     this.userTopics.push(userTopic);
@@ -223,10 +226,10 @@ export class UserQuizClient {
 
 export function filterQuestions(
   userTopic: UserTopic,
-  topic: TopicDTO
+  questions: QuestionDTO[]
 ): QuestionDTO[] {
   const uqIds = userTopic.userQuestions.map((q) => q.questionId);
-  const filtered = topic.questions.filter((q) => !uqIds.includes(q.id));
+  const filtered = questions.filter((q) => !uqIds.includes(q.id));
   return filtered;
 }
 
@@ -283,7 +286,6 @@ export class UserTopic {
 }
 export class UserTopicDTO {
   readonly id: UserTopicId;
-  readonly userQuestions: ReadonlyArray<UserQuestionDTO>;
   readonly updatedAt: Date;
   readonly topicId: TopicId;
   readonly totalQuestionCount: number;
@@ -292,9 +294,6 @@ export class UserTopicDTO {
   readonly questionsInRow: number;
   constructor(userTopic: UserTopic) {
     this.id = userTopic.id;
-    this.userQuestions = userTopic.userQuestions.map(
-      (uq) => new UserQuestionDTO(uq)
-    );
     this.updatedAt = userTopic.updatedAt;
     this.topicId = userTopic.topicId;
     this.totalQuestionCount = userTopic.totalQuestionCount;

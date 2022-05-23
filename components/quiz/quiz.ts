@@ -5,16 +5,19 @@ import { QuestionService, TopicService } from "./quiz.service";
 class QuizStore {
   private initialized: boolean = false;
   private topics: Topic[] = [];
+  private questions: Question[] = [];
   async init() {
     if (this.initialized) throw new Error("QuizStore is already initialized");
     const dbTopics = await TopicService.findTopics({});
     for (const dbTopic of dbTopics) {
-      const dbQuestions = await QuestionService.findQuestions({
-        topic: String(dbTopic._id),
-      });
-      const questions: Question[] = dbQuestions.map((q) => new Question(q));
-      const topic: Topic = new Topic(dbTopic, questions);
+      const topic: Topic = new Topic(dbTopic);
       this.topics.push(topic);
+    }
+
+    const dbQuestions = await QuestionService.findQuestions();
+    for (const dbQuestion of dbQuestions) {
+      const question: Question = new Question(dbQuestion);
+      this.questions.push(question);
     }
     this.initialized = true;
   }
@@ -25,6 +28,10 @@ class QuizStore {
     const topic = this.getTopic(topicId);
     return this.topicToDTO(topic);
   }
+  getQuestionByTopicId(topicId: TopicId): QuestionDTO[] {
+    const questions = this.questions.filter((q) => q.topicId == topicId);
+    return questions.map(this.questionToDTO);
+  }
   private getTopic(topicId: TopicId): Topic {
     const topic = this.topics.find((t) => t.id === topicId);
     if (!topic) throw new Error("Topic doesn't exist");
@@ -33,31 +40,30 @@ class QuizStore {
   private topicToDTO(topic: Topic): TopicDTO {
     return new TopicDTO(topic);
   }
+  private questionToDTO(question: Question): QuestionDTO {
+    return new QuestionDTO(question);
+  }
 }
 
 export type TopicId = string;
 export class Topic {
   readonly id: TopicId;
   private readonly _topic: ITopic;
-  readonly questions: ReadonlyArray<Question>;
   readonly topicName: string;
   readonly source: string;
-  constructor(topic: ITopic, questions: Question[]) {
+  constructor(topic: ITopic) {
     this.id = String(topic._id);
     this._topic = topic;
-    this.questions = questions;
     this.topicName = topic.topicName;
     this.source = topic.source;
   }
 }
 export class TopicDTO {
   readonly id: TopicId;
-  readonly questions: ReadonlyArray<QuestionDTO>;
   readonly topicName: string;
   readonly source: string;
   constructor(topic: Topic) {
     this.id = topic.id;
-    this.questions = topic.questions.map((q) => new QuestionDTO(q));
     this.topicName = topic.topicName;
     this.source = topic.source;
   }
@@ -68,10 +74,12 @@ export class Question {
   readonly id: QuestionId;
   private readonly _question: IQuestion;
   readonly text: string;
+  readonly topicId: TopicId;
   constructor(question: IQuestion) {
     this.id = String(question._id);
     this._question = question;
     this.text = question.text;
+    this.topicId = String(question.topic);
   }
 }
 export class QuestionDTO {
