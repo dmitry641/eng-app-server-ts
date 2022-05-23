@@ -39,7 +39,6 @@ class UserCardsManager {
     let userCards: UserCard[] = [];
     const dbUserCards = await UserCardsService.findUserCards({
       user: user.id,
-      deleted: false,
     });
 
     for (let dbUserCard of dbUserCards) {
@@ -64,9 +63,7 @@ export class UserCardsClient {
     const userCard = this.getUserCard(userCardId);
     if (userCard.deleted) throw new Error("UserCard is already deleted");
     const result = await userCard.delete();
-    this.userCards = this.userCards.filter((c) => c.id !== userCardId);
-    // очень спорный момент...
-    // нарушение все возможных паттернов...
+    // очень спорный момент. Нарушение все возможных паттернов...
     const udclient = await userDecksManager.getUserDecksClient(this.user);
     const userDeck = udclient.getUserDeckById(userCard.userDeckId);
     await udclient.updateCardsCount(userDeck.id, userDeck.cardsCount - 1);
@@ -93,7 +90,8 @@ export class UserCardsClient {
     return this.userCardToDTO(userCard);
   }
   getFavorites(): UserCardDTO[] {
-    const favorites = this.userCards.filter((uc) => uc.favorite);
+    const notdeleted = this.userCards.filter((uc) => !uc.deleted);
+    const favorites = notdeleted.filter((uc) => uc.favorite);
     return favorites.map(this.userCardToDTO);
   }
   private getUserCard(userCardId: UserCardId): UserCard {
@@ -147,11 +145,13 @@ export class UserCardsClient {
     return newUserCards;
   }
   private getEmptyUserCards(): UserCard[] {
-    return this.userCards.filter((c) => c.history.length === 0);
+    const notdeleted = this.userCards.filter((uc) => !uc.deleted);
+    return notdeleted.filter((c) => c.history.length === 0);
   }
   private getLearnedUserCards(): UserCard[] {
     const dateNow = Date.now();
-    const filtered = this.userCards.filter((c) => dateNow > c.showAfter);
+    const notdeleted = this.userCards.filter((uc) => !uc.deleted);
+    const filtered = notdeleted.filter((c) => dateNow > c.showAfter);
     const sorted = filtered.sort((a, b) => a.showAfter - b.showAfter);
     return sorted;
   }
@@ -256,18 +256,20 @@ export class UserCard {
   }
   private async appendToHistory(elem: HistoryType) {
     this._history.push(elem);
-    this._userCard.history.push(elem);
     await this._userCard.save();
     return this;
   }
   async learn(status: HistoryStatusEnum): Promise<UserCard> {
-    if (Date.now() < this.showAfter) throw new Error("Too early...");
+    if (Date.now() < this.showAfter) {
+      throw new Error("This userCard cannot be learned now");
+    }
     const newShowAfter = calcShowAfter(status, this.history);
     await this.setShowAfter(newShowAfter);
     await this.appendToHistory({ status, date: Date.now() });
     return this;
   }
   async delete() {
+    this._deleted = true;
     this._userCard.deleted = true;
     await this._userCard.save();
     return true;

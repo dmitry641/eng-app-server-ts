@@ -168,8 +168,8 @@ export const reversoTestResponse: IReversoResponse = {
 };
 
 const hour = 10;
-const day = hour * 15;
+const day = hour * 100;
 const hardArray = [hour];
-const mediumArray = [hour * 5, hour * 10];
+const mediumArray = [hour * 15, hour * 25];
 const easyArray = [day, day * 3, day * 7, day * 10, day * 20];
 export const testIntervalArray = { hardArray, mediumArray, easyArray };

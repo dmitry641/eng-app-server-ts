@@ -1,7 +1,7 @@
 import { connectToTestDB, disconnectFromDB } from "../../db";
 import { decksTestCases, testIntervalArray } from "../../test/testcases";
 import * as utils from "../../utils";
-import { getBuffer } from "../../utils";
+import { getBuffer, sleep } from "../../utils";
 import { ReversoFetcher } from "../decks/sync";
 import { userDecksManager } from "../decks/userDeck";
 import { globalJobStore } from "../schedule";
@@ -122,6 +122,8 @@ describe("UserCardsClient", () => {
       const userDeck3 = await udclient.createUserDeck(file3);
       const cards3 = globalCardsStore.getCardsByDeckId(userDeck3.deckId);
       expect(cards3.length).toBe(tc.cardsCount);
+
+      expect(spyCardToDTO).toBeCalledTimes(tc.cardsCount * 2);
 
       // shuffle on
       await ucclient.updateShuffle(true);
@@ -290,18 +292,222 @@ describe("UserCardsClient", () => {
     });
   });
 
-  describe("learnUserCard", () => {});
-  describe("deleteUserCard", () => {});
+  it("learnUserCard + getLearnedUserCards", async () => {
+    const udclient = await userDecksManager.getUserDecksClient(user);
+    const tc = decksTestCases.case1;
+    const file = {
+      buffer: getBuffer(tc.pathToFile),
+      mimetype: "csv",
+      originalname: "userdeck1",
+    };
+    await udclient.createUserDeck(file);
 
-  describe("favorites", () => {
-    it("getFavorites", async () => {
-      const uc = ucclient.getFavorites();
-      expect(uc.length).toBe(0);
+    let userCards = await ucclient.getUserCards();
+    expect(userCards.length).toBe(tc.cardsCount);
+    jest.clearAllMocks();
+
+    const uc1 = Object.assign({}, userCards[0]);
+    let luc1 = await ucclient.learnUserCard(uc1.id, HistoryStatusEnum.medium);
+    expect(luc1.history.length).toBe(1);
+    expect(luc1.history[0].status).toBe(HistoryStatusEnum.medium);
+
+    userCards = await ucclient.getUserCards();
+    expect(userCards.length).toBe(tc.cardsCount - 1);
+    expect(userCards.map((uc) => uc.id)).not.toContain(uc1.id);
+    expect(spyGetLearnedUserCards).not.toBeCalled();
+
+    try {
+      await ucclient.learnUserCard(uc1.id, HistoryStatusEnum.medium);
+    } catch (error) {
+      const err = error as Error;
+      expect(err.message).toBe("This userCard cannot be learned now");
+    }
+
+    userCards = await ucclient.getUserCards();
+    expect(userCards.length).toBe(tc.cardsCount - 1);
+    expect(userCards.map((uc) => uc.id)).not.toContain(uc1.id);
+    expect(spyGetLearnedUserCards).not.toBeCalled();
+
+    for (const uc of userCards) {
+      await ucclient.learnUserCard(uc.id, HistoryStatusEnum.easy);
+    }
+
+    await sleep(testIntervalArray.mediumArray[0]);
+
+    userCards = await ucclient.getUserCards();
+    expect(userCards.length).toBe(1);
+    expect(userCards.map((uc) => uc.id)).toContain(uc1.id);
+    expect(spyGetLearnedUserCards).toBeCalled();
+
+    // learn the same user card again
+    luc1 = await ucclient.learnUserCard(uc1.id, HistoryStatusEnum.medium);
+    expect(luc1.history.length).toBe(2);
+
+    userCards = await ucclient.getUserCards();
+    expect(userCards.length).toBe(0);
+
+    await sleep(testIntervalArray.mediumArray[1]);
+    userCards = await ucclient.getUserCards();
+    expect(userCards.length).toBe(1);
+  });
+
+  it("deleteUserCard, case 1", async () => {
+    const udclient = await userDecksManager.getUserDecksClient(user);
+    const tc = decksTestCases.case1;
+    const file = {
+      buffer: getBuffer(tc.pathToFile),
+      mimetype: "csv",
+      originalname: "userdeck1",
+    };
+    const userDeck = await udclient.createUserDeck(file);
+    const cards = globalCardsStore.getCardsByDeckId(userDeck.deckId);
+    expect(cards.length).toBe(tc.cardsCount);
+    const cardIds = cards.map((c) => c.id);
+
+    let userCards = await ucclient.getUserCards();
+    expect(userCards.length).toBe(userDeck.cardsCount);
+
+    for (const _ of [1, 2, 3]) {
+      let userCards = await ucclient.getUserCards();
+      expect(userCards.length).toBe(cards.length);
+      const ucCardIds = userCards.map((uc) => uc.cardId);
+      for (const ucCardId of ucCardIds) {
+        expect(cardIds).toContain(ucCardId);
+      }
+    }
+
+    const uc1 = Object.assign({}, userCards[0]);
+    await ucclient.deleteUserCard(uc1.id);
+
+    const updatedUD = udclient.getUserDeckById(userDeck.id);
+    expect(updatedUD.cardsCount).toBe(userDeck.cardsCount - 1);
+
+    for (const _ of [1, 2, 3]) {
+      let userCards = await ucclient.getUserCards();
+      expect(userCards.length).toBe(cards.length - 1);
+      expect(userCards.map((uc) => uc.id)).not.toContain(uc1.id);
+    }
+
+    try {
+      await ucclient.deleteUserCard(uc1.id);
+    } catch (error) {
+      const err = error as Error;
+      expect(err.message).toBe("UserCard is already deleted");
+    }
+  });
+
+  it("deleteUserCard, case 2", async () => {
+    const user = await globalUserStore.createUser({
+      email: String(Math.random()) + "@email.com",
+      name: "123",
+      password: "123",
     });
-    it("favoriteUserCard", async () => {
-      expect(1).toBe(1);
-    });
+    const ucclient = await userCardsManager.getUserCardsClient(user);
+    const udclient = await userDecksManager.getUserDecksClient(user);
+    const tc = decksTestCases.case1;
+    const file = {
+      buffer: getBuffer(tc.pathToFile),
+      mimetype: "csv",
+      originalname: "userdeck1",
+    };
+    const userDeck = await udclient.createUserDeck(file);
+    const cards = globalCardsStore.getCardsByDeckId(userDeck.deckId);
+    expect(cards.length).toBe(10);
+
+    const userCards1 = await ucclient.getUserCards();
+    expect(userCards1.length).toBe(10);
+    const cardIds = cards.map((c) => c.id).sort();
+    const uCardIds1 = userCards1.map((uc) => uc.cardId).sort();
+    const uCardIds2 = userCards1.map((uc) => uc.card.id).sort();
+    expect(cardIds).toEqual(uCardIds1);
+    expect(cardIds).toEqual(uCardIds2);
+    expect(uCardIds1).toEqual(uCardIds2);
+
+    const IDS_1 = userCards1.map((uc) => uc.id).sort();
+    const half = Math.ceil(IDS_1.length / 2);
+    const firstHalf = IDS_1.splice(0, half);
+    const secondHalf = IDS_1.splice(-half);
+
+    for (const id of firstHalf) {
+      await ucclient.deleteUserCard(id);
+    }
+    const userCards2 = await ucclient.getUserCards();
+    expect(userCards2.length).toBe(5);
+    const IDS_2 = userCards2.map((uc) => uc.id).sort();
+    expect(IDS_2).toEqual(secondHalf);
+
+    const uc1 = String(userCards2[0].id);
+    await ucclient.learnUserCard(uc1, HistoryStatusEnum.medium);
+
+    const userCards3 = await ucclient.getUserCards();
+    expect(userCards3.length).toBe(4);
+    for (const uc of userCards3) {
+      await ucclient.learnUserCard(uc.id, HistoryStatusEnum.easy);
+    }
+
+    const userCards4 = await ucclient.getUserCards();
+    expect(userCards4.length).toBe(0);
+
+    await sleep(testIntervalArray.mediumArray[0]);
+
+    const userCards5 = await ucclient.getUserCards();
+    expect(userCards5.length).toBe(1);
+    expect(userCards5[0].id).toBe(uc1);
+
+    await ucclient.deleteUserCard(uc1);
+    const userCards6 = await ucclient.getUserCards();
+    expect(userCards6.length).toBe(0);
+
+    await sleep(testIntervalArray.easyArray[0]);
+    const userCards7 = await ucclient.getUserCards();
+    expect(userCards7.length).toBe(4);
+
+    for (const uc of userCards7) {
+      await ucclient.deleteUserCard(uc.id);
+    }
+
+    const userCards8 = await ucclient.getUserCards();
+    expect(userCards8.length).toBe(0);
+  });
+
+  it("favorites", async () => {
+    const udclient = await userDecksManager.getUserDecksClient(user);
+    const tc = decksTestCases.case1;
+    const file = {
+      buffer: getBuffer(tc.pathToFile),
+      mimetype: "csv",
+      originalname: "userdeck1",
+    };
+    await udclient.createUserDeck(file);
+
+    let favorites = ucclient.getFavorites();
+    expect(favorites.length).toBe(0);
+
+    let userCards = await ucclient.getUserCards();
+    expect(userCards.length).toBe(tc.cardsCount);
+
+    const uc1 = Object.assign({}, userCards[0]);
+
+    // favorite
+    await ucclient.favoriteUserCard(uc1.id);
+    favorites = ucclient.getFavorites();
+    expect(favorites.length).toBe(1);
+    expect(favorites.map((f) => f.id)).toContain(uc1.id);
+
+    // unfavorite
+    await ucclient.favoriteUserCard(uc1.id);
+    favorites = ucclient.getFavorites();
+    expect(favorites.length).toBe(0);
+    expect(favorites.map((f) => f.id)).not.toContain(uc1.id);
+
     // after deletion
+    await ucclient.favoriteUserCard(uc1.id);
+    favorites = ucclient.getFavorites();
+    expect(favorites.length).toBe(1);
+
+    await ucclient.deleteUserCard(uc1.id);
+    favorites = ucclient.getFavorites();
+    expect(favorites.length).toBe(0);
   });
 
   afterAll(async () => {
@@ -393,8 +599,7 @@ describe("calcShowAfter", () => {
       { date: 1, status: HistoryStatusEnum.hard },
     ]);
     expect(hardResult).toBeCloseTo(dateNow + TIA.hardArray[0], precision); // out of bounds
-    // кривовато сделано, можно было лучше
-    // hardArray.at(-1) и тд
+    // кривовато сделано, можно было лучше: в цикле, hardArray.at(-1) и тд
 
     const mediumResult = calcShowAfter(HistoryStatusEnum.medium, [
       { date: 1, status: HistoryStatusEnum.hard },

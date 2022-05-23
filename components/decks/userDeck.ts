@@ -227,8 +227,7 @@ export class UserDecksClient {
     };
   }
   async deleteDynamicUserDeck(): Promise<UserDecksSettingsDTO> {
-    // спорный момент
-    // в методе "удалить" мы не только удаляем, но еще и настройки изменяем...
+    // спорный момент. В методе "удалить" мы не только удаляем, но еще и настройки изменяем...
     const dynUserDeck = this.getDynamicUserDeck();
     if (!dynUserDeck) throw new Error("Dynamic userDeck doesn't exist");
     await dynUserDeck.delete();
