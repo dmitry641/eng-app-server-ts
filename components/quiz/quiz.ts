@@ -28,7 +28,7 @@ class QuizStore {
     const topic = this.getTopic(topicId);
     return this.topicToDTO(topic);
   }
-  getQuestionByTopicId(topicId: TopicId): QuestionDTO[] {
+  getQuestionsByTopicId(topicId: TopicId): QuestionDTO[] {
     const questions = this.questions.filter((q) => q.topicId == topicId);
     return questions.map(this.questionToDTO);
   }
@@ -85,9 +85,11 @@ export class Question {
 export class QuestionDTO {
   readonly id: QuestionId;
   readonly text: string;
+  readonly topicId: TopicId;
   constructor(question: Question) {
     this.id = question.id;
     this.text = question.text;
+    this.topicId = question.topicId;
   }
 }
 

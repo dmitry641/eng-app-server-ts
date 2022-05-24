@@ -1,10 +1,22 @@
 import { connectToTestDB, disconnectFromDB } from "../../db";
-import { quizTestData1 } from "../../test/testcases";
+import { quizTestData1, testQuestions, testTopics } from "../../test/testcases";
 import { globalUserStore, User } from "../users/user";
-import { globalQuizStore } from "./quiz";
-import { QuestionService, TopicService } from "./quiz.service";
+import { globalQuizStore, QuestionDTO, TopicDTO } from "./quiz";
+import {
+  QuestionService,
+  questionSliceEnd,
+  TopicService,
+  topicSliceEnd,
+} from "./quiz.service";
 import { QuizUtil } from "./quiz.util";
-import { UserQuizClient, userQuizManager } from "./userQuiz";
+import {
+  filterQuestions,
+  filterTopics,
+  UserQuestionDTO,
+  UserQuizClient,
+  userQuizManager,
+  UserTopic,
+} from "./userQuiz";
 
 async function dropTopicsAndQuestions() {
   const topics = await TopicService.findTopics();
@@ -126,11 +138,19 @@ jest.mock("./quiz.service", () => {
 });
 
 // --- quiz ---
+// @ts-ignore
+globalQuizStore.topics = testTopics;
+// @ts-ignore
+globalQuizStore.questions = testQuestions;
 
 const spyGlobalGetTopics = jest.spyOn(globalQuizStore, "getTopics");
+const spyGetQuestionsByTopicId = jest.spyOn(
+  globalQuizStore,
+  "getQuestionsByTopicId"
+);
+const spyGetTopicById = jest.spyOn(globalQuizStore, "getTopicById");
 
 // --- user quiz ---
-
 const spyInitCurrentUserTopic = jest.spyOn(
   UserQuizClient.prototype, // @ts-ignore
   "initCurrentUserTopic"
@@ -159,6 +179,10 @@ const spyUserTopicToDTO = jest.spyOn(
   UserQuizClient.prototype, // @ts-ignore
   "userTopicToDTO"
 );
+const spyGetCurrentUserTopic = jest.spyOn(
+  UserQuizClient.prototype, // @ts-ignore
+  "getCurrentUserTopic"
+);
 
 describe("UserQuizClient", () => {
   let user: User;
@@ -176,12 +200,8 @@ describe("UserQuizClient", () => {
     uqclient = await userQuizManager.getUserQuizClient(user);
   });
 
-  /**
-   * getCurrentUserTopic
-   */
-
   it("initUserTopic", async () => {
-    const userTopic = await uqclient.initUserTopic();
+    const userTopic1 = await uqclient.initUserTopic();
     expect(spyInitCurrentUserTopic).toBeCalled();
     expect(spyInitRandomUserTopic).toBeCalled();
     expect(spyGetTopics).toBeCalled();
@@ -189,17 +209,42 @@ describe("UserQuizClient", () => {
     expect(spyGetUserTopic).toBeCalled();
     expect(spyMakeCurrent).toBeCalled();
     expect(spyUserTopicToDTO).toBeCalled();
+    jest.clearAllMocks();
+
+    const userTopic2 = await uqclient.initUserTopic();
+    expect(spyInitRandomUserTopic).not.toBeCalled();
+    expect(userTopic1.id).toBe(userTopic2.id);
   });
-  it.todo("getQuestions");
+  it("getQuestions", async () => {
+    const fn = () => uqclient.getQuestions();
+    expect(fn).toThrowError("Current userTopic is not set");
+    expect(spyGetQuestionsByTopicId).not.toBeCalled();
+    expect(spyGlobalGetTopics).not.toBeCalled();
+    const userTopic = await uqclient.initUserTopic();
+
+    const questions = uqclient.getQuestions();
+    expect(spyGetCurrentUserTopic).toBeCalled();
+    expect(spyGetTopicById).toBeCalled();
+    expect(spyGetQuestionsByTopicId).toBeCalled();
+    expect(questions.length).toBe(questionSliceEnd);
+
+    // filter
+    // +learn
+    // and again
+  });
 
   it.todo("learnQuestion");
 
   it("getTopics", async () => {
     const topics = uqclient.getTopics();
     expect(spyGetTopics).toBeCalled();
+    expect(spyGlobalGetTopics).toBeCalled();
+    expect(topics.length).toBe(topicSliceEnd);
+    // // +filter test
+    // + add topic
+    // and again test
   });
   it.todo("getUserTopics");
-  it.todo("getUserTopicById");
 
   it.todo("addTopicToUserTopics");
   it.todo("changeCurrentUserTopic");
@@ -211,8 +256,100 @@ describe("UserQuizClient", () => {
   });
 });
 
+describe("filterTopics", () => {
+  it("should be empty", () => {
+    const userTopics1 = [] as UserTopic[];
+    const topics1 = [] as TopicDTO[];
+    const filtered1 = filterTopics(userTopics1, topics1);
+    expect(filtered1.length).toBe(0);
+
+    const userTopics2 = [{ topicId: "1" }] as UserTopic[];
+    const topics2 = [{ id: "1" }] as TopicDTO[];
+    const filtered2 = filterTopics(userTopics2, topics2);
+    expect(filtered2.length).toBe(0);
+
+    const userTopics3 = [
+      { topicId: "3" },
+      { topicId: "1" },
+      { topicId: "2" },
+    ] as UserTopic[];
+    const topics3 = [{ id: "1" }, { id: "3" }, { id: "2" }] as TopicDTO[];
+    const filtered3 = filterTopics(userTopics3, topics3);
+    expect(filtered3.length).toBe(0);
+  });
+  it("should not be empty", () => {
+    const userTopics1 = [] as UserTopic[];
+    const topics1 = [{ id: "1" }] as TopicDTO[];
+    const filtered1 = filterTopics(userTopics1, topics1);
+    expect(filtered1.length).toBe(1);
+
+    const userTopics2 = [{ topicId: "1" }] as UserTopic[];
+    const topics2 = [{ id: "1" }, { id: "2" }, { id: "3" }] as TopicDTO[];
+    const filtered2 = filterTopics(userTopics2, topics2);
+    expect(filtered2.length).toBe(2);
+
+    const userTopics3 = [
+      { topicId: "4" },
+      { topicId: "5" },
+      { topicId: "6" },
+      { topicId: "7" },
+    ] as UserTopic[];
+    const topics3 = [
+      { id: "1" },
+      { id: "2" },
+      { id: "3" },
+      { id: "4" },
+    ] as TopicDTO[];
+    const filtered3 = filterTopics(userTopics3, topics3);
+    expect(filtered3.length).toBe(3);
+  });
+});
+
 describe("filterQuestions", () => {
-  it("...", () => {
-    expect(1).toBe(1);
+  it("should be empty", () => {
+    const userQuestions1 = [] as UserQuestionDTO[];
+    const questions1 = [] as QuestionDTO[];
+    const filtered1 = filterQuestions(userQuestions1, questions1);
+    expect(filtered1.length).toBe(0);
+
+    const userQuestions2 = [{ questionId: "1" }] as UserQuestionDTO[];
+    const questions2 = [{ id: "1" }] as QuestionDTO[];
+    const filtered2 = filterQuestions(userQuestions2, questions2);
+    expect(filtered2.length).toBe(0);
+
+    const userQuestions3 = [
+      { questionId: "3" },
+      { questionId: "1" },
+      { questionId: "2" },
+    ] as UserQuestionDTO[];
+    const questions3 = [{ id: "1" }, { id: "3" }, { id: "2" }] as QuestionDTO[];
+    const filtered3 = filterQuestions(userQuestions3, questions3);
+    expect(filtered3.length).toBe(0);
+  });
+  it("should not be empty", () => {
+    const userQuestions1 = [] as UserQuestionDTO[];
+    const questions1 = [{ id: "1" }] as QuestionDTO[];
+    const filtered1 = filterQuestions(userQuestions1, questions1);
+    expect(filtered1.length).toBe(1);
+
+    const userQuestions2 = [{ questionId: "1" }] as UserQuestionDTO[];
+    const questions2 = [{ id: "1" }, { id: "2" }, { id: "3" }] as QuestionDTO[];
+    const filtered2 = filterQuestions(userQuestions2, questions2);
+    expect(filtered2.length).toBe(2);
+
+    const userQuestions3 = [
+      { questionId: "4" },
+      { questionId: "5" },
+      { questionId: "6" },
+      { questionId: "7" },
+    ] as UserQuestionDTO[];
+    const questions3 = [
+      { id: "1" },
+      { id: "2" },
+      { id: "3" },
+      { id: "4" },
+    ] as QuestionDTO[];
+    const filtered3 = filterQuestions(userQuestions3, questions3);
+    expect(filtered3.length).toBe(3);
   });
 });

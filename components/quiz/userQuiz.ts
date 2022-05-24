@@ -63,10 +63,6 @@ export class UserQuizClient {
   private userTopicToDTO(userTopic: UserTopic): UserTopicDTO {
     return new UserTopicDTO(userTopic);
   }
-  getUserTopicById(userTopicId: UserTopicId): UserTopicDTO {
-    const userTopic = this.getUserTopic(userTopicId);
-    return this.userTopicToDTO(userTopic);
-  }
   async initUserTopic(): Promise<UserTopicDTO> {
     let userTopic = await this.initCurrentUserTopic();
     if (!userTopic) {
@@ -80,7 +76,6 @@ export class UserQuizClient {
     );
     if (currentUserTopic) return currentUserTopic;
 
-    // FIX ME. отсортировать по updatedAt?
     const pausedUserTopic = this.userTopics.find(
       (t) => t.status == UserTopicStatusEnum.paused
     );
@@ -107,7 +102,7 @@ export class UserQuizClient {
   }
   private getCurrentUserTopic(): UserTopic {
     const userTopic = this.userTopics.find(
-      (t) => t.status === UserTopicStatusEnum.current
+      (ut) => ut.status === UserTopicStatusEnum.current
     );
     if (!userTopic) throw new Error("Current userTopic is not set");
     return userTopic;
@@ -115,8 +110,8 @@ export class UserQuizClient {
   getQuestions(): QuestionDTO[] {
     const currentUserTopic = this.getCurrentUserTopic();
     const topic = globalQuizStore.getTopicById(currentUserTopic.topicId);
-    const questions = globalQuizStore.getQuestionByTopicId(topic.id);
-    const filtered = filterQuestions(currentUserTopic, questions);
+    const questions = globalQuizStore.getQuestionsByTopicId(topic.id);
+    const filtered = filterQuestions(currentUserTopic.userQuestions, questions);
     const shuffled = shuffle(filtered);
     const sliced = shuffled.slice(0, questionSliceEnd);
     return sliced;
@@ -126,7 +121,7 @@ export class UserQuizClient {
   ): Promise<{ changeTopic: boolean }> {
     const currentUserTopic = this.getCurrentUserTopic();
     const topic = globalQuizStore.getTopicById(currentUserTopic.topicId);
-    const questions = globalQuizStore.getQuestionByTopicId(topic.id);
+    const questions = globalQuizStore.getQuestionsByTopicId(topic.id);
     const question = questions.find((q) => q.id == questionId);
     if (!question) throw new Error("Question not found");
     const learned = currentUserTopic.userQuestions.find(
@@ -164,8 +159,7 @@ export class UserQuizClient {
   }
   getTopics(): TopicDTO[] {
     const topics = globalQuizStore.getTopics();
-    const userTopicsId = this.userTopics.map((t) => t.topicId);
-    const filteredTopics = topics.filter((t) => !userTopicsId.includes(t.id));
+    const filteredTopics = filterTopics(this.userTopics, topics);
     const shuffledTopics = shuffle(filteredTopics);
     const slicedTopics = shuffledTopics.slice(0, topicSliceEnd);
     return slicedTopics;
@@ -174,7 +168,7 @@ export class UserQuizClient {
     return this.userTopics.map(this.userTopicToDTO);
   }
   async addTopicToUserTopics(topic: TopicDTO): Promise<UserTopicDTO> {
-    const questions = globalQuizStore.getQuestionByTopicId(topic.id);
+    const questions = globalQuizStore.getQuestionsByTopicId(topic.id);
     const dbUserTopic = await UserTopicService.createUserTopic({
       topic: topic.id,
       user: this.user.id,
@@ -224,11 +218,17 @@ export class UserQuizClient {
   }
 }
 
+export function filterTopics(userTopics: UserTopic[], topics: TopicDTO[]) {
+  const userTopicsId = userTopics.map((ut) => ut.topicId);
+  const filteredTopics = topics.filter((t) => !userTopicsId.includes(t.id));
+  return filteredTopics;
+}
+
 export function filterQuestions(
-  userTopic: UserTopic,
+  userQuestions: readonly UserQuestionDTO[],
   questions: QuestionDTO[]
 ): QuestionDTO[] {
-  const uqIds = userTopic.userQuestions.map((q) => q.questionId);
+  const uqIds = userQuestions.map((uq) => uq.questionId);
   const filtered = questions.filter((q) => !uqIds.includes(q.id));
   return filtered;
 }
