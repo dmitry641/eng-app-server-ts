@@ -96,7 +96,7 @@ export class UserQuizClient {
     if (!topics.length) throw new Error("No topics found");
     const randomNumber = randomIntFromInterval(0, topics.length - 1);
     const randomTopic = topics[randomNumber];
-    const userTopicDTO = await this.addTopicToUserTopics(randomTopic);
+    const userTopicDTO = await this.addTopicToUserTopics(randomTopic.id);
     const userTopic = this.getUserTopic(userTopicDTO.id);
     return this.makeCurrent(userTopic);
   }
@@ -167,8 +167,14 @@ export class UserQuizClient {
   getUserTopics(): UserTopicDTO[] {
     return this.userTopics.map(this.userTopicToDTO);
   }
-  async addTopicToUserTopics(topic: TopicDTO): Promise<UserTopicDTO> {
+  async addTopicToUserTopics(topicId: TopicId): Promise<UserTopicDTO> {
+    const topic = globalQuizStore.getTopicById(topicId);
     const questions = globalQuizStore.getQuestionsByTopicId(topic.id);
+
+    const existedIds = this.userTopics.map((ut) => ut.topicId);
+    const includes = existedIds.includes(topic.id);
+    if (includes) throw new Error("Topic is already added");
+
     const dbUserTopic = await UserTopicService.createUserTopic({
       topic: topic.id,
       user: this.user.id,
@@ -183,6 +189,10 @@ export class UserQuizClient {
     userTopicId: UserTopicId
   ): Promise<UserTopicDTO> {
     const userTopic = this.getUserTopic(userTopicId);
+    if (userTopic.status === UserTopicStatusEnum.blocked) {
+      throw new Error("UserTopic is blocked");
+    }
+
     const currentUserTopic = this.userTopics.find(
       (t) => t.status === UserTopicStatusEnum.current
     );
@@ -193,9 +203,7 @@ export class UserQuizClient {
       await currentUserTopic.setQuestionsInRow(0);
       await currentUserTopic.setStatus(UserTopicStatusEnum.started);
     }
-    if (userTopic.status === UserTopicStatusEnum.blocked) {
-      throw new Error("UserTopic is blocked");
-    }
+
     await userTopic.setStatus(UserTopicStatusEnum.current);
     return this.userTopicToDTO(userTopic);
   }

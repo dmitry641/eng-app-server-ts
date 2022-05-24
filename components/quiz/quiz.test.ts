@@ -1,6 +1,7 @@
 import { connectToTestDB, disconnectFromDB } from "../../db";
 import { quizTestData1, testQuestions, testTopics } from "../../test/testcases";
 import { globalUserStore, User } from "../users/user";
+import { UserTopicStatusEnum } from "./models/userTopics.model";
 import { globalQuizStore, QuestionDTO, TopicDTO } from "./quiz";
 import {
   QuestionService,
@@ -130,7 +131,7 @@ jest.mock("./quiz.service", () => {
   return {
     __esModule: true,
     ...originalModule,
-    topicSliceEnd: 3,
+    topicSliceEnd: 4,
     questionsInRowLIMIT: 2,
     questionSliceEnd: 2,
     oneDay: 200,
@@ -215,6 +216,7 @@ describe("UserQuizClient", () => {
     expect(spyInitRandomUserTopic).not.toBeCalled();
     expect(userTopic1.id).toBe(userTopic2.id);
   });
+
   it("getQuestions", async () => {
     const fn = () => uqclient.getQuestions();
     expect(fn).toThrowError("Current userTopic is not set");
@@ -244,12 +246,137 @@ describe("UserQuizClient", () => {
     // + add topic
     // and again test
   });
-  it.todo("getUserTopics");
 
-  it.todo("addTopicToUserTopics");
-  it.todo("changeCurrentUserTopic");
+  it("getUserTopics", async () => {
+    let userTopics = uqclient.getUserTopics();
+    expect(userTopics.length).toBe(0);
 
-  it.todo("blockUserTopic");
+    const userTopic = await uqclient.initUserTopic();
+    userTopics = uqclient.getUserTopics();
+    expect(userTopics.length).toBe(1);
+    expect(userTopics[0].id).toBe(userTopic.id);
+  });
+
+  it("addTopicToUserTopics", async () => {
+    try {
+      await uqclient.addTopicToUserTopics("");
+    } catch (error) {
+      const err = error as Error;
+      expect(spyGetTopicById).toBeCalled();
+      expect(err.message).toBe("Topic doesn't exist");
+    }
+    const topics = uqclient.getTopics();
+    const ut1 = await uqclient.addTopicToUserTopics(topics[0].id);
+    expect(ut1.topicId).toBe(topics[0].id);
+
+    const uts = uqclient.getUserTopics();
+    expect(uts.length).toBe(1);
+    expect(uts[0].id).toBe(ut1.id);
+    expect(uts[0].topicId).toBe(topics[0].id);
+
+    const init = await uqclient.initUserTopic();
+    expect(spyInitRandomUserTopic).not.toBeCalled();
+    expect(init.id).toBe(ut1.id);
+
+    try {
+      await uqclient.addTopicToUserTopics(topics[0].id);
+    } catch (error) {
+      const err = error as Error;
+      expect(err.message).toBe("Topic is already added");
+    }
+
+    const uts2 = uqclient.getUserTopics();
+    expect(uts2.length).toBe(1);
+  });
+
+  it("changeCurrentUserTopic", async () => {
+    try {
+      await uqclient.changeCurrentUserTopic("");
+    } catch (error) {
+      const err = error as Error;
+      expect(spyGetUserTopic).toBeCalled();
+      expect(err.message).toBe("UserTopic doesn't exist");
+    }
+
+    const initUT = await uqclient.initUserTopic();
+    expect(initUT.questionsInRow).toBe(0);
+    try {
+      await uqclient.changeCurrentUserTopic(initUT.id);
+    } catch (error) {
+      const err = error as Error;
+      expect(err.message).toBe("UserTopic is current already");
+    }
+
+    const questions = uqclient.getQuestions();
+    await uqclient.learnQuestion(questions[0].id);
+
+    let ut0 = uqclient.getUserTopics().find((ut) => ut.id == initUT.id)!;
+    expect(ut0.questionsInRow).toBe(1);
+    expect(ut0.status).toBe(UserTopicStatusEnum.current);
+
+    const topics1 = uqclient.getTopics();
+    let ut1 = await uqclient.addTopicToUserTopics(topics1[0].id);
+    await uqclient.changeCurrentUserTopic(ut1.id);
+
+    const uts1 = uqclient.getUserTopics();
+    expect(uts1.length).toBe(2);
+    ut0 = uts1.find((ut) => ut.id == initUT.id)!;
+    expect(ut0.questionsInRow).toBe(0);
+    expect(ut0.status).toBe(UserTopicStatusEnum.started);
+    ut1 = uts1.find((ut) => ut.id == ut1.id)!;
+    expect(ut1.status).toBe(UserTopicStatusEnum.current);
+
+    const topics2 = uqclient.getTopics();
+    const includes = topics2.map((t) => t.id).includes(topics1[0].id);
+    expect(includes).toBe(false);
+    let ut2 = await uqclient.addTopicToUserTopics(topics2[0].id);
+    await uqclient.changeCurrentUserTopic(ut2.id);
+
+    const topics3 = uqclient.getTopics();
+    expect(topics3.length).toBe(2);
+    const uts2 = uqclient.getUserTopics();
+    expect(uts2.length).toBe(3);
+
+    const filtered = uts2.filter(
+      (ut) => ut.status == UserTopicStatusEnum.current
+    );
+    expect(filtered.length).toBe(1);
+    expect(filtered[0].id).toBe(ut2.id);
+
+    await uqclient.blockUserTopic(ut1.id);
+    try {
+      await uqclient.changeCurrentUserTopic(ut1.id);
+    } catch (error) {
+      const err = error as Error;
+      expect(err.message).toBe("UserTopic is blocked");
+    }
+
+    const uts3 = uqclient.getUserTopics();
+    const filtered1 = uts3.filter(
+      (ut) => ut.status == UserTopicStatusEnum.current
+    );
+    expect(filtered1.length).toBe(1);
+    expect(filtered1[0].id).toBe(ut2.id);
+  });
+
+  it("blockUserTopic", async () => {
+    const ut1 = await uqclient.initUserTopic();
+    try {
+      await uqclient.blockUserTopic(ut1.id);
+    } catch (error) {
+      const err = error as Error;
+      expect(err.message).toBe("Current userTopic cannot be blocked");
+    }
+
+    const topics = uqclient.getTopics();
+    let ut2 = await uqclient.addTopicToUserTopics(topics[0].id);
+    expect(ut2.status).toBe(UserTopicStatusEnum.started);
+    ut2 = await uqclient.blockUserTopic(ut2.id);
+    expect(ut2.status).toBe(UserTopicStatusEnum.blocked);
+
+    ut2 = await uqclient.blockUserTopic(ut2.id);
+    expect(ut2.status).toBe(UserTopicStatusEnum.started);
+  });
 
   afterAll(async () => {
     await disconnectFromDB();
