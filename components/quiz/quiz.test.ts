@@ -1,9 +1,11 @@
 import { connectToTestDB, disconnectFromDB } from "../../db";
 import { quizTestData1, testQuestions, testTopics } from "../../test/testcases";
+import { sleep } from "../../utils";
 import { globalUserStore, User } from "../users/user";
 import { UserTopicStatusEnum } from "./models/userTopics.model";
 import { globalQuizStore, QuestionDTO, TopicDTO } from "./quiz";
 import {
+  oneDay,
   QuestionService,
   questionSliceEnd,
   TopicService,
@@ -215,6 +217,30 @@ describe("UserQuizClient", () => {
     const userTopic2 = await uqclient.initUserTopic();
     expect(spyInitRandomUserTopic).not.toBeCalled();
     expect(userTopic1.id).toBe(userTopic2.id);
+  });
+
+  it("initCurrentUserTopic", async () => {
+    const topic = uqclient.getTopics()[0];
+    const ut1 = await uqclient.addTopicToUserTopics(topic.id);
+    expect(ut1.status).toBe(UserTopicStatusEnum.started);
+
+    const init = await uqclient.initUserTopic();
+    expect(init.id).toBe(ut1.id);
+    expect(init.status).toBe(UserTopicStatusEnum.current);
+
+    for (let i = 0; i < 3; i++) {
+      const ut = await uqclient.initUserTopic();
+      let questions = uqclient.getQuestions();
+      for (const q of questions) {
+        await uqclient.learnQuestion(q.id);
+      }
+      await sleep(15);
+    }
+
+    await sleep(oneDay);
+
+    const ut2 = await uqclient.initUserTopic();
+    expect(ut2.id).toBe(ut1.id);
   });
 
   it("getQuestions", async () => {

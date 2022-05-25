@@ -71,6 +71,10 @@ export class UserQuizClient {
     return this.userTopicToDTO(userTopic);
   }
   private async initCurrentUserTopic(): Promise<UserTopic | null> {
+    this.userTopics.sort(
+      (a, b) => a.updatedAt.getTime() - b.updatedAt.getTime()
+    );
+
     const currentUserTopic = this.userTopics.find(
       (t) => t.status == UserTopicStatusEnum.current
     );
@@ -249,7 +253,7 @@ export class UserTopic {
   readonly id: UserTopicId;
   private readonly _userTopic: IUserTopic;
   private _userQuestions: ReadonlyArray<UserQuestion>;
-  readonly updatedAt: Date;
+  private _updatedAt: Date;
   readonly topicId: TopicId;
   readonly totalQuestionCount: number;
   readonly topicName: string;
@@ -263,7 +267,7 @@ export class UserTopic {
     this.id = String(userTopic._id);
     this._userTopic = userTopic;
     this._userQuestions = userQuestions;
-    this.updatedAt = userTopic.updatedAt;
+    this._updatedAt = userTopic.updatedAt;
     this.topicId = String(userTopic.topic);
     this.totalQuestionCount = userTopic.totalQuestionCount;
     this.topicName = topic.topicName;
@@ -276,10 +280,14 @@ export class UserTopic {
   appendToUserQuestions(q: UserQuestion) {
     this._userQuestions = [...this._userQuestions, q];
   }
+  get updatedAt() {
+    return this._updatedAt;
+  }
   get status() {
     return this._status;
   }
   async setStatus(status: UserTopicStatusEnum): Promise<UserTopic> {
+    this._updatedAt = new Date();
     this._status = status;
     this._userTopic.status = status;
     await this._userTopic.save();

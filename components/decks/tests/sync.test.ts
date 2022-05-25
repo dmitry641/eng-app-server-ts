@@ -117,6 +117,7 @@ describe("Sync client: syncHandler", () => {
   beforeAll(async () => {
     await connectToTestDB();
   });
+
   beforeEach(async () => {
     user = await globalUserStore.createUser({
       email: String(Math.random()) + "@email.com",
@@ -135,24 +136,14 @@ describe("Sync client: syncHandler", () => {
   });
 
   it("not dynamic user deck", async () => {
+    let errMsg;
     try {
       await syncClient.syncHandler(userDeck);
     } catch (error) {
-      expect(error).toMatchObject({
-        message: "Dynamic userDeck is required",
-      });
+      const err = error as Error;
+      errMsg = err.message;
     }
-  });
-
-  it("deck doesn't exist", async () => {
-    await udclient.deleteDynamicUserDeck();
-    try {
-      await syncClient.syncHandler(dynUserDeck);
-    } catch (error) {
-      expect(error).toMatchObject({
-        message: "Deck doesn't exist",
-      });
-    }
+    expect(errMsg).toBe("Dynamic userDeck is required");
   });
 
   it("should call these functions", async () => {
@@ -168,13 +159,16 @@ describe("Sync client: syncHandler", () => {
 
   it("ReversoFetcher: getRawCards", async () => {
     let reversoFetcher = new ReversoFetcher({});
+
+    spyGetRawCards.mockRestore();
+    let errMsg;
     try {
       await reversoFetcher.getRawCards();
     } catch (error) {
-      expect(error).toMatchObject({
-        message: "Account name is undefined",
-      });
+      const err = error as Error;
+      errMsg = err.message;
     }
+    expect(errMsg).toBe("Account name is undefined");
 
     reversoFetcher = new ReversoFetcher(data);
     spyGetRawCards.mockRestore();
@@ -183,20 +177,22 @@ describe("Sync client: syncHandler", () => {
     try {
       await reversoFetcher.getRawCards();
     } catch (error) {
-      expect(error).toMatchObject({
-        message: "Reverso fetch data error",
-      });
+      const err = error as Error;
+      errMsg = err.message;
     }
+    expect(errMsg).toBe("Reverso fetch data error");
 
     jest.spyOn(axios, "get").mockImplementation(async () => {
       return { data: { results: "something" } };
     });
+
     try {
       await reversoFetcher.getRawCards();
     } catch (error) {
-      let err = error as Error;
-      expect(err.message).toBe("Reverso results must be an array");
+      const err = error as Error;
+      errMsg = err.message;
     }
+    expect(errMsg).toBe("Reverso results must be an array");
 
     const spyAxiosGet = jest
       .spyOn(axios, "get")

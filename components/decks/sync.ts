@@ -14,21 +14,16 @@ export class SyncClient {
     this.fetcher = FetcherFactory.produce(type, data);
   }
   async syncHandler(dynUserDeck: UserDeck): Promise<boolean> {
+    // хотелось бы instance of UserDynamicDeck, но увы...
+    if (!dynUserDeck.dynamic) throw new Error("Dynamic userDeck is required");
+
+    const deck = globalDecksStore.getDeckById(dynUserDeck.deckId);
+
     try {
-      // хотелось бы instance of UserDynamicDeck, но увы...
-      if (!dynUserDeck.dynamic) throw new Error("Dynamic userDeck is required");
-
-      const deck = globalDecksStore.getDeckById(dynUserDeck.deckId);
-      if (!deck) throw new Error("Deck doesn't exist");
-
       const rawCards = await this.fetcher.getRawCards();
 
       const existedCards = globalCardsStore.getCardsByDeckId(deck.id);
       const filteredRawCards = filterByCustomId(rawCards, existedCards);
-
-      // повторный фильтр среди выученых по customId
-      // для избежания добавления уже однажды выученых(после случайного удаления колоды)
-      // FIX ME ???
 
       await globalCardsStore.createCards(filteredRawCards, deck);
       await dynUserDeck.setCardsCount(
@@ -92,8 +87,9 @@ export class ReversoFetcher implements IFetcher {
     const response = await axios.get<IReversoResponse>(url, options);
     const results = response?.data?.results;
     if (!results) throw new Error("Reverso fetch data error");
-    if (!Array.isArray(results))
+    if (!Array.isArray(results)) {
       throw new Error("Reverso results must be an array");
+    }
     const parsedWords = this.parseData(results);
     return parsedWords;
   }
