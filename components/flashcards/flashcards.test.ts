@@ -316,12 +316,14 @@ describe("UserCardsClient", () => {
     expect(userCards.map((uc) => uc.id)).not.toContain(uc1.id);
     expect(spyGetLearnedUserCards).not.toBeCalled();
 
+    let errMsg;
     try {
       await ucclient.learnUserCard(uc1.id, HistoryStatusEnum.medium);
     } catch (error) {
       const err = error as Error;
-      expect(err.message).toBe("This userCard cannot be learned now");
+      errMsg = err.message;
     }
+    expect(errMsg).toBe("This userCard cannot be learned now");
 
     userCards = await ucclient.getUserCards();
     expect(userCards.length).toBe(tc.cardsCount - 1);
@@ -388,12 +390,14 @@ describe("UserCardsClient", () => {
       expect(userCards.map((uc) => uc.id)).not.toContain(uc1.id);
     }
 
+    let errMsg;
     try {
       await ucclient.deleteUserCard(uc1.id);
     } catch (error) {
       const err = error as Error;
-      expect(err.message).toBe("UserCard is already deleted");
+      errMsg = err.message;
     }
+    expect(errMsg).toBe("UserCard is already deleted");
   });
 
   it("deleteUserCard, case 2", async () => {

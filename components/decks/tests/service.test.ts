@@ -40,14 +40,16 @@ describe("Decks service: createDeck", () => {
       createdBy: user.id,
     } as DeckInput;
 
+    let errMsg;
     try {
       await DecksService.createDeck(deckInput);
     } catch (error) {
       let err = error as mongoose.Error.ValidationError;
-      expect(err.message).toMatch(
-        "Deck validation failed: canBePublic: Cast to Boolean failed"
-      );
+      errMsg = err.message;
     }
+    expect(errMsg).toMatch(
+      "Deck validation failed: canBePublic: Cast to Boolean failed"
+    );
   });
 
   // ожидалось что будет ошибка, а не нет...

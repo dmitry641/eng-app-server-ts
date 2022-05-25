@@ -494,13 +494,14 @@ describe("UserDecksClient: public decks", () => {
 
   it("toggleUserDeckPublic: dynamic deck", async () => {
     const dynUserDeck = await user1dclient.createDynamicUserDeck();
+    let errMsg;
     try {
       await user1dclient.toggleUserDeckPublic(dynUserDeck.id);
     } catch (error) {
-      expect(error).toMatchObject({
-        message: "Dynamic deck cannot be public",
-      });
+      const err = error as Error;
+      errMsg = err.message;
     }
+    expect(errMsg).toBe("Dynamic deck cannot be public");
     await user1dclient.deleteDynamicUserDeck();
   });
 
@@ -606,13 +607,14 @@ describe("UserDecksClient: dynamic deck", () => {
     dynUserDeck = udclient.getDynamicUserDeckDTO();
     expect(dynUserDeck).toBeTruthy();
 
+    let errMsg;
     try {
       await udclient.createDynamicUserDeck();
     } catch (error) {
-      expect(error).toMatchObject({
-        message: "Dynamic userDeck already exists",
-      });
+      const err = error as Error;
+      errMsg = err.message;
     }
+    expect(errMsg).toBe("Dynamic userDeck already exists");
 
     await udclient.deleteDynamicUserDeck();
   });
@@ -639,25 +641,28 @@ describe("UserDecksClient: dynamic deck", () => {
 
     expect(globalJobStore.userJobs.cancelJob).toBeCalled();
 
+    let errMsg;
     try {
       await udclient.deleteDynamicUserDeck();
     } catch (error) {
-      expect(error).toMatchObject({
-        message: "Dynamic userDeck doesn't exist",
-      });
+      const err = error as Error;
+      errMsg = err.message;
     }
+    expect(errMsg).toBe("Dynamic userDeck doesn't exist");
   });
 
   it("syncDynamicUserDeck", async () => {
     await udclient.createDynamicUserDeck();
 
+    let errMsg;
     try {
       await udclient.syncDynamicUserDeck();
     } catch (error) {
-      expect(error).toMatchObject({
-        message: "DynamicSyncType is undefined",
-      });
+      const err = error as Error;
+      errMsg = err.message;
     }
+    expect(errMsg).toBe("DynamicSyncType is undefined");
+
     await udclient.updateSyncDataType(DynamicSyncType.reverso, {
       accountName: "test",
     });
@@ -695,10 +700,10 @@ describe("UserDecksClient: dynamic deck", () => {
     try {
       await udclient.syncDynamicUserDeck();
     } catch (error) {
-      expect(error).toMatchObject({
-        message: "Too many attempts. Try again later...",
-      });
+      const err = error as Error;
+      errMsg = err.message;
     }
+    expect(errMsg).toBe("Too many attempts. Try again later...");
 
     // jest.useFakeTimers();
     // jest.runAllTimers();

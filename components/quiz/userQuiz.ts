@@ -192,6 +192,9 @@ export class UserQuizClient {
     if (userTopic.status === UserTopicStatusEnum.blocked) {
       throw new Error("UserTopic is blocked");
     }
+    if (userTopic.status === UserTopicStatusEnum.finished) {
+      throw new Error("UserTopic is finished");
+    }
 
     const currentUserTopic = this.userTopics.find(
       (t) => t.status === UserTopicStatusEnum.current
