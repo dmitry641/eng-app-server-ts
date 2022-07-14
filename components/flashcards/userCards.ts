@@ -112,7 +112,6 @@ export class UserCardsClient {
       if (result.length !== 0) return result.map(this.userCardToDTO); // dynamic deck
     }
 
-    // FIXME: test it
     if (this.settings.showLearned) {
       result = this.getLearnedUserCards();
       if (result.length !== 0) {
@@ -191,6 +190,10 @@ export class UserCardsClient {
   }
   async updateShuffle(value: boolean): Promise<UserCardsSettingsDTO> {
     await this.settings.setShuffleDecks(value);
+    return this.settingsToDTO();
+  }
+  async updateShowLearned(value: boolean): Promise<UserCardsSettingsDTO> {
+    await this.settings.setShowLearned(value);
     return this.settingsToDTO();
   }
 }

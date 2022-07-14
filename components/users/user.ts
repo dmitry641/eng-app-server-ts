@@ -309,9 +309,11 @@ export class UserCardsSettings {
 }
 export class UserCardsSettingsDTO {
   readonly dynamicHighPriority: boolean;
+  readonly showLearned: boolean;
   readonly shuffleDecks: boolean;
   constructor(settings: UserCardsSettings) {
     this.dynamicHighPriority = settings.dynamicHighPriority;
+    this.showLearned = settings.showLearned;
     this.shuffleDecks = settings.shuffleDecks;
   }
 }

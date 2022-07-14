@@ -353,6 +353,72 @@ describe("UserCardsClient", () => {
     expect(userCards.length).toBe(1);
   });
 
+  it("getUserCards: showLearned", async () => {
+    const udclient = await userDecksManager.getUserDecksClient(user);
+    const tc4 = decksTestCases.case4;
+    const file1 = {
+      buffer: getBuffer(tc4.pathToFile),
+      mimetype: "csv",
+      originalname: "userdeck1",
+    };
+    const userDeck1 = await udclient.createUserDeck(file1);
+
+    let userCards = await ucclient.getUserCards();
+    expect(userCards.length).toBe(tc4.cardsCount);
+
+    let counter = 0;
+    for (const uc of userCards) {
+      await ucclient.learnUserCard(uc.id, HistoryStatusEnum.hard);
+      counter++;
+    }
+    await sleep(testIntervalArray.hardArray[0]);
+
+    let settings = ucclient.getUserCardsSettings();
+    expect(settings.showLearned).toBe(true);
+
+    jest.clearAllMocks();
+    userCards = await ucclient.getUserCards();
+    expect(userCards.length).toBe(counter);
+    expect(spyGetLearnedUserCards).toBeCalled();
+    expect(spyGetUserCardsFromSortedUserDecks).not.toBeCalled();
+
+    await ucclient.updateShowLearned(false);
+    settings = ucclient.getUserCardsSettings();
+    expect(settings.showLearned).toBe(false);
+
+    jest.clearAllMocks();
+    userCards = await ucclient.getUserCards();
+    expect(spyGetLearnedUserCards).not.toBeCalled();
+    expect(userCards.length).toBe(0);
+
+    const tc5 = decksTestCases.case5;
+    const file2 = {
+      buffer: getBuffer(tc5.pathToFile),
+      mimetype: "csv",
+      originalname: "userdeck2",
+    };
+    const userDeck2 = await udclient.createUserDeck(file2);
+    userCards = await ucclient.getUserCards();
+    expect(userCards.length).toBe(tc5.cardsCount);
+
+    for (const uc of userCards) {
+      await ucclient.deleteUserCard(uc.id);
+    }
+
+    userCards = await ucclient.getUserCards();
+    expect(userCards.length).toBe(0);
+
+    await ucclient.updateShowLearned(true);
+    settings = ucclient.getUserCardsSettings();
+    expect(settings.showLearned).toBe(true);
+
+    jest.clearAllMocks();
+    userCards = await ucclient.getUserCards();
+    expect(userCards.length).toBe(counter);
+    expect(spyGetLearnedUserCards).toBeCalled();
+    expect(spyGetUserCardsFromSortedUserDecks).not.toBeCalled();
+  });
+
   it("deleteUserCard, case 1", async () => {
     const udclient = await userDecksManager.getUserDecksClient(user);
     const tc = decksTestCases.case1;
