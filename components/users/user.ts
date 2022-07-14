@@ -271,11 +271,13 @@ export class UserDecksSettingsDTO {
 export class UserCardsSettings {
   private _settings: IUserCardsSettings;
   private _dynamicHighPriority: boolean;
+  private _showLearned: boolean;
   private _shuffleDecks: boolean;
   constructor(settings: IUserCardsSettings) {
     this._settings = settings;
     this._dynamicHighPriority = settings.dynamicHighPriority;
     this._shuffleDecks = settings.shuffleDecks;
+    this._showLearned = settings.showLearned;
   }
   get dynamicHighPriority() {
     return this._dynamicHighPriority;
@@ -283,6 +285,15 @@ export class UserCardsSettings {
   async setDynamicHighPriority(value: boolean) {
     this._dynamicHighPriority = value;
     this._settings.dynamicHighPriority = value;
+    await this._settings.save();
+    return this;
+  }
+  get showLearned() {
+    return this._showLearned;
+  }
+  async setShowLearned(value: boolean) {
+    this._showLearned = value;
+    this._settings.showLearned = value;
     await this._settings.save();
     return this;
   }

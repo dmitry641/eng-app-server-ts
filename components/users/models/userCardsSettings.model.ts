@@ -11,12 +11,14 @@ export interface IUserCardsSettings extends UserCardsSettingsInput, Document {
   showPictures: boolean;
   dynamicHighPriority: boolean;
   shuffleDecks: boolean;
+  showLearned: boolean;
 }
 
 const UserCardsSettingsSchema: Schema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     dynamicHighPriority: { type: Boolean, default: true, required: true },
+    showLearned: { type: Boolean, default: true, required: true },
     shuffleDecks: { type: Boolean, default: false, required: true },
     frontSideFirst: { type: Boolean, default: true, required: true },
     randomSideFirst: { type: Boolean, default: false, required: true },

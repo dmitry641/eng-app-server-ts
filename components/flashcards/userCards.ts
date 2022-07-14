@@ -112,9 +112,12 @@ export class UserCardsClient {
       if (result.length !== 0) return result.map(this.userCardToDTO); // dynamic deck
     }
 
-    result = this.getLearnedUserCards();
-    if (result.length !== 0) {
-      return slice(result).map(this.userCardToDTO); // repeated/learned
+    // FIXME: test it
+    if (this.settings.showLearned) {
+      result = this.getLearnedUserCards();
+      if (result.length !== 0) {
+        return slice(result).map(this.userCardToDTO); // learned cards
+      }
     }
 
     result = await this.getUserCardsFromSortedUserDecks(); // order/shuffle deck
