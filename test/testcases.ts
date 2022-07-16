@@ -135,17 +135,17 @@ export const decksTestCases = {
 
 export const rawCardsTestData1 = [
   {
-    srcLang: "English",
-    trgLang: "Russian",
-    srcText: "aptitude",
-    trgText: "способность",
+    frontPrimary: "aptitude",
+    frontSecondary: "",
+    backPrimary: "способность",
+    backSecondary: "",
     customId: "1",
   },
   {
-    srcLang: "English",
-    trgLang: "Russian",
-    srcText: "vortex",
-    trgText: "вихрь",
+    frontPrimary: "vortex",
+    frontSecondary: "",
+    backPrimary: "вихрь",
+    backSecondary: "",
     customId: "2",
   },
 ];

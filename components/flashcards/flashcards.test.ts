@@ -266,10 +266,10 @@ describe("UserCardsClient", () => {
 
       // sync dynamic user deck
       const newCard: CardInputOmit = {
-        srcLang: "q",
-        srcText: "w",
-        trgLang: "e",
-        trgText: "r",
+        frontPrimary: "q",
+        frontSecondary: "w",
+        backPrimary: "e",
+        backSecondary: "r",
         customId: "t",
       };
       jest

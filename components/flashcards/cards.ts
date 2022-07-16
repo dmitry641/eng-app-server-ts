@@ -37,8 +37,8 @@ export class CardsStore {
     const newCards: Card[] = [];
     for (const rawCard of rawCards) {
       const reg3 = /((,.?)\s*$)|("|“|”|«|»|;)/g;
-      rawCard.srcText = rawCard.srcText.replace(reg3, "");
-      rawCard.trgText = rawCard.trgText.replace(reg3, "");
+      rawCard.frontPrimary = rawCard.frontPrimary.replace(reg3, "");
+      rawCard.backPrimary = rawCard.backPrimary.replace(reg3, "");
 
       const dbCard = await CardsService.createCard({
         deck: deck.id,
@@ -58,37 +58,37 @@ export class Card {
   private readonly _card: ICard;
   readonly deckId: DeckId;
   readonly customId?: string;
-  readonly srcLang: string;
-  readonly trgLang: string;
-  readonly srcText: string;
-  readonly trgText: string;
+  readonly frontPrimary: string;
+  readonly frontSecondary: string;
+  readonly backPrimary: string;
+  readonly backSecondary: string;
   constructor(card: ICard) {
     this.id = String(card._id);
     this._card = card;
     this.deckId = String(card.deck);
     this.customId = card.customId;
-    this.srcLang = card.srcLang;
-    this.trgLang = card.trgLang;
-    this.srcText = card.srcText;
-    this.trgText = card.trgText;
+    this.frontPrimary = card.frontPrimary;
+    this.frontSecondary = card.frontSecondary;
+    this.backPrimary = card.backPrimary;
+    this.backSecondary = card.backSecondary;
   }
 }
 export class CardDTO {
   readonly id: CardId;
   readonly deckId: DeckId;
   readonly customId?: string;
-  readonly srcLang: string;
-  readonly trgLang: string;
-  readonly srcText: string;
-  readonly trgText: string;
+  readonly frontPrimary: string;
+  readonly frontSecondary: string;
+  readonly backPrimary: string;
+  readonly backSecondary: string;
   constructor(card: Card) {
     this.id = card.id;
     this.deckId = card.deckId;
     this.customId = card.customId;
-    this.srcLang = card.srcLang;
-    this.trgLang = card.trgLang;
-    this.srcText = card.srcText;
-    this.trgText = card.trgText;
+    this.frontPrimary = card.frontPrimary;
+    this.frontSecondary = card.frontSecondary;
+    this.backPrimary = card.backPrimary;
+    this.backSecondary = card.backSecondary;
   }
 }
 

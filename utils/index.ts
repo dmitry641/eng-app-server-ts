@@ -40,14 +40,8 @@ export async function getCsvData<T>(
     readStream
       .pipe(csvParser({ headers: csvHeaders as string[], separator }))
       .on("data", (data: T) => {
-        // возможно это лишнее
         if (JSON.stringify(Object.keys(data)) === strHeaders) {
-          let flag = true;
-          const values = Object.values(data);
-          values.forEach((el) => {
-            if (!Boolean(el)) flag = false; // костыль
-          });
-          flag && results.push(data);
+          results.push(data);
         }
       })
       .on("end", () => resolve(results))

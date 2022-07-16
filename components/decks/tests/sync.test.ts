@@ -26,6 +26,14 @@ describe("Sync client:filterByCustomId ", () => {
     });
   });
 
+  const newRawCard = {
+    frontPrimary: "hello",
+    frontSecondary: "",
+    backPrimary: "привет",
+    backSecondary: "",
+    customId: "3",
+  };
+
   it("filterByCustomId, case 1", async () => {
     const dbDeck = await DecksService.createDeck({
       createdBy: user.id,
@@ -40,13 +48,6 @@ describe("Sync client:filterByCustomId ", () => {
     const filtered1 = filterByCustomId(rawCardsTestData1, cards);
     expect(filtered1.length).toBe(0);
 
-    const newRawCard = {
-      srcLang: "English",
-      trgLang: "Russian",
-      srcText: "hello",
-      trgText: "привет",
-      customId: "3",
-    };
     const newRawCards = [...rawCardsTestData1, newRawCard];
     const filtered2 = filterByCustomId(newRawCards, cards);
     expect(filtered2.length).toBe(1);
@@ -54,36 +55,22 @@ describe("Sync client:filterByCustomId ", () => {
     expect(filtered2).not.toContain(rawCardsTestData1);
   });
   it("filterByCustomId, case 2", () => {
-    const newRawCard = {
-      srcLang: "English",
-      trgLang: "Russian",
-      srcText: "hello",
-      trgText: "привет",
-      customId: "3",
-    };
     const newRawCards = [...rawCardsTestData1, newRawCard];
     const filtered = filterByCustomId(newRawCards, []);
     expect(filtered.length).toBe(3);
     expect(filtered).toEqual(newRawCards);
   });
   it("filterByCustomId, case 3", () => {
-    const newRawCard = {
-      srcLang: "English",
-      trgLang: "Russian",
-      srcText: "hello",
-      trgText: "привет",
-      customId: "3",
-    };
     const filtered = filterByCustomId([newRawCard], []);
     expect(filtered.length).toBe(1);
     expect(filtered).toContain(newRawCard);
   });
   it("filterByCustomId, case 4", () => {
     const newRawCard = {
-      srcLang: "English",
-      trgLang: "Russian",
-      srcText: "hello",
-      trgText: "привет",
+      frontPrimary: "hello",
+      frontSecondary: "",
+      backPrimary: "привет",
+      backSecondary: "",
     }; // спорный момент, отсутствие customId
     const filtered = filterByCustomId([newRawCard], []);
     expect(filtered.length).toBe(0);

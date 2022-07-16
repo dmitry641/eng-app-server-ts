@@ -1,6 +1,6 @@
 import axios, { AxiosRequestConfig } from "axios";
 import { CardDTO, globalCardsStore } from "../flashcards/cards";
-import { CardInputOmit, CardsKeysType } from "../flashcards/models/cards.model";
+import { CardInputOmit } from "../flashcards/models/cards.model";
 import { DynamicSyncData, DynamicSyncType } from "../users/user.util";
 import { globalDecksStore } from "./deck";
 import { UserDeck } from "./userDeck";
@@ -98,10 +98,10 @@ export class ReversoFetcher implements IFetcher {
 
     for (let elem of array) {
       let obj = {
-        srcLang: elem.srcLang,
-        trgLang: elem.trgLang,
-        srcText: elem.srcText,
-        trgText: elem.trgText,
+        frontPrimary: elem.srcText,
+        frontSecondary: "",
+        backPrimary: elem.trgText,
+        backSecondary: "",
         customId: String(elem.id),
       };
       newArray.push(obj);
@@ -127,4 +127,8 @@ export interface IReversoResponse {
 }
 export type IReversoResult = {
   id: number;
-} & CardsKeysType;
+  srcLang: string;
+  srcText: string;
+  trgLang: string;
+  trgText: string;
+};
