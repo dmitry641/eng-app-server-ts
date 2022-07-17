@@ -6,68 +6,127 @@ import { QuizKeysType } from "../components/quiz/quiz.util";
 // { [K: string]: { pathToFile: string; csvHeaders: string[] } }
 // export const quizTestCases = new Map<number, T>()
 
-export const quizTestCases = {
+export const file1 = {
+  pathToFile: resolve(__dirname, "testcases.ts"),
+  description: "Text-based format",
+};
+export const file2 = {
+  pathToFile: resolve(__dirname, "image.png"),
+  description: "Non text-based format",
+};
+export const file3 = {
+  pathToFile: "qwerty",
+  description: "Wrong path to file",
+};
+
+export const utilTestCases = {
   case1: {
-    pathToFile: "qwerty",
+    pathToFile: resolve(__dirname, "utils", "file1.csv"),
     csvHeaders: [],
-    description: "Wrong path to file; empty headers",
+    description: "File 1, empty",
   },
   case2: {
-    pathToFile: resolve(__dirname, "file1.csv"),
-    csvHeaders: [],
-    description: "Correct path to file; empty headers",
+    pathToFile: resolve(__dirname, "utils", "file2.csv"),
+    csvHeaders: ["test"],
+    requiredProps: [true],
+    description: "File 2, correct case 1",
+    result: [{ test: "good" }],
   },
   case3: {
-    pathToFile: resolve(__dirname, "file1.csv"),
-    csvHeaders: ["header1", "header2"],
-    separator: "|",
-    description: "Correct path to file, headers amount",
+    pathToFile: resolve(__dirname, "utils", "file3.csv"),
+    csvHeaders: ["test"],
+    requiredProps: [false],
+    description: "File 3, correct case 2",
+    result: [
+      { test: "" },
+      { test: "good" },
+      { test: "" },
+      { test: "" },
+      { test: "good" },
+    ],
   },
   case4: {
-    pathToFile: resolve(__dirname, "testcases.ts"),
-    csvHeaders: [],
-    description: "Text-based format",
+    pathToFile: resolve(__dirname, "utils", "file4.csv"),
+    csvHeaders: ["test1", "test2"],
+    requiredProps: [true, false],
+    description: "File 4, correct case 3",
+    result: [
+      { test1: "good", test2: "" },
+      { test1: "good", test2: "good" },
+    ],
   },
   case5: {
-    pathToFile: resolve(__dirname, "image.png"),
-    csvHeaders: [],
-    description: "Non text-based format",
+    pathToFile: resolve(__dirname, "utils", "file5.csv"),
+    csvHeaders: ["test"],
+    requiredProps: [true],
+    description: "File 5, overflow",
+    result: [{ test: "good" }, { test: "good" }],
   },
   case6: {
-    pathToFile: resolve(__dirname, "file1.csv"),
-    csvHeaders: ["1", "2", "3", "4", "5"],
-    separator: "|",
-    description: "Correct path; excess headers amount",
+    pathToFile: resolve(__dirname, "utils", "file6.csv"),
+    csvHeaders: ["test1", "test2", "test3"],
+    requiredProps: [true, true, true],
+    description: "File 6, lack of headers",
+    result: [],
   },
   case7: {
-    pathToFile: resolve(__dirname, "file1.csv"),
-    csvHeaders: ["1"],
-    separator: "|",
-    description: "Correct path; lack of headers",
+    pathToFile: resolve(__dirname, "utils", "file7.csv"),
+    csvHeaders: ["test1", "test2"],
+    requiredProps1: [false, false],
+    requiredProps2: [false, true],
+    separator: "^",
+    description: "File 7, wrong separator(not existing)",
+    result1: [
+      {
+        test1: "good,good,good",
+      },
+      {
+        test1: ",,,",
+      },
+      {
+        test1: "bad,bad",
+      },
+    ],
+    result2: [],
   },
   case8: {
-    pathToFile: resolve(__dirname, "file1.csv"),
-    csvHeaders: ["header1", "header2"],
-    separator: "^",
-    description: "Correct path, headers; wrong separator(not existing)",
+    pathToFile: resolve(__dirname, "utils", "file8.csv"),
+    csvHeaders: ["test1", "test2"],
+    requiredProps1: [false, false],
+    requiredProps2: [false, true],
+    separator: "#",
+    description: "File 8, wrong separator(existing)",
+    result1: [
+      {
+        test1: "good",
+        test2: "good,good",
+      },
+      {
+        test1: ",",
+        test2: ",",
+      },
+      {
+        test1: "bad,bad",
+        test2: "",
+      },
+    ],
+    result2: [
+      {
+        test1: "good",
+        test2: "good,good",
+      },
+      {
+        test1: ",",
+        test2: ",",
+      },
+    ],
   },
   case9: {
-    pathToFile: resolve(__dirname, "file2.csv"),
-    csvHeaders: ["header1", "header2"],
-    separator: "#",
-    description: "Correct path, headers; wrong separator(existing)",
-  },
-  case10: {
-    pathToFile: resolve(__dirname, "file3.csv"),
-
-    separator: "|",
-    description: "File3",
-  },
-  case11: {
-    pathToFile: resolve(__dirname, "file4.csv"),
-
-    separator: "|",
-    description: "File4",
+    pathToFile: resolve(__dirname, "utils", "file9.csv"),
+    csvHeaders: ["test1", "test2"],
+    requiredProps: [true, true],
+    description: "File 9, incorrect case",
+    result: [{}, {}, {}, {}, {}, {}, {}, {}],
   },
 };
 
@@ -107,27 +166,27 @@ export const quizTestData1: QuizKeysType[] = [
 
 export const decksTestCases = {
   case1: {
-    pathToFile: resolve(__dirname, "file5.csv"),
+    pathToFile: resolve(__dirname, "decks", "file1.csv"),
     description: "Correct file",
     cardsCount: 10,
   },
   case2: {
-    pathToFile: resolve(__dirname, "file6.csv"),
+    pathToFile: resolve(__dirname, "decks", "file2.csv"),
     description: "Incorrect file",
-    cardsCount: 1,
+    cardsCount: 7,
   },
   case3: {
-    pathToFile: resolve(__dirname, "file7.csv"),
+    pathToFile: resolve(__dirname, "decks", "file3.csv"),
     description: "Correct file",
     cardsCount: 30,
   },
   case4: {
-    pathToFile: resolve(__dirname, "file8.csv"),
+    pathToFile: resolve(__dirname, "decks", "file4.csv"),
     description: "Correct file",
     cardsCount: 10,
   },
   case5: {
-    pathToFile: resolve(__dirname, "file9.csv"),
+    pathToFile: resolve(__dirname, "decks", "file5.csv"),
     description: "Correct file",
     cardsCount: 5,
   },

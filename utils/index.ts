@@ -27,22 +27,44 @@ export function shuffle<T>(array: T[]): T[] {
 
 // Был вариант передавать параметром ReadStream
 // Но я решил сделать через buffer
-export async function getCsvData<T>(
+export async function getCsvData<T extends { [key: string]: string }>(
   buffer: Buffer,
   csvHeaders: (keyof T)[] | readonly (keyof T)[],
+  requiredProps: boolean[],
   separator: string = ","
 ): Promise<T[]> {
   return new Promise((resolve, reject) => {
-    if (!csvHeaders.length) return reject("csvHeaders is empty"); // возможно это лишнее
+    if (!csvHeaders.length) {
+      return reject(new Error("CsvHeaders is empty")); // спорный момент
+    }
+    if (!requiredProps.length) {
+      return reject(new Error("RequiredProps is empty")); // спорный момент
+    }
+    if (requiredProps.length !== csvHeaders.length) {
+      return reject(
+        new Error("Headers and requiredProps should be the same length")
+      ); // спорный момент
+    }
     const readStream = Readable.from(buffer.toString());
     const results: T[] = [];
-    const strHeaders = JSON.stringify(csvHeaders);
+
     readStream
       .pipe(csvParser({ headers: csvHeaders as string[], separator }))
       .on("data", (data: T) => {
-        if (JSON.stringify(Object.keys(data)) === strHeaders) {
-          results.push(data);
+        const entries = Object.entries(data).slice(0, requiredProps.length);
+        if (entries.length === 0) return;
+        const values: boolean[] = entries.map((el) => Boolean(el[1]));
+
+        for (let i = 0; i < requiredProps.length; i++) {
+          const left: boolean = requiredProps[i];
+          const right: boolean = values[i];
+          if (left) {
+            if (left !== right) return;
+          }
         }
+
+        let result: T = Object.fromEntries(entries) as T; // спорный момент
+        results.push(result);
       })
       .on("end", () => resolve(results))
       .on("error", (err) => reject(err));

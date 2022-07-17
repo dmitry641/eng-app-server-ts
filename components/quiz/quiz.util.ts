@@ -46,7 +46,12 @@ export class QuizUtil {
     for (let fileName of csvFileNames) {
       const pathToFile = path.resolve(pathToDir, fileName + ".csv");
       const buffer = getBuffer(pathToFile);
-      const data = await getCsvData<QuizKeysType>(buffer, csvHeaders, "|");
+      const data = await getCsvData<QuizKeysType>(
+        buffer,
+        csvHeaders,
+        [true, true],
+        "|"
+      );
       parsedData.push({ source: fileName, data });
     }
 

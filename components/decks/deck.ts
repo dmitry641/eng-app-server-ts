@@ -30,6 +30,7 @@ class DecksStore {
     const rawCards: CardsKeysType[] = await getCsvData<CardsKeysType>(
       file.buffer,
       cardsCsvHeaders,
+      [true, false, true, false],
       ","
     );
 
