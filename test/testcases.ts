@@ -79,12 +79,15 @@ export const utilTestCases = {
     result1: [
       {
         test1: "good,good,good",
+        test2: "",
       },
       {
         test1: ",,,",
+        test2: "",
       },
       {
         test1: "bad,bad",
+        test2: "",
       },
     ],
     result2: [],
@@ -127,6 +130,27 @@ export const utilTestCases = {
     requiredProps: [true, true],
     description: "File 9, incorrect case",
     result: [{}, {}, {}, {}, {}, {}, {}, {}],
+  },
+  case10: {
+    pathToFile: resolve(__dirname, "utils", "file10.csv"),
+    csvHeaders: ["h1", "h2", "h3", "h4"],
+    requiredProps: [true, false, true, false],
+    description: "File 10, lack of csv data, case 1",
+    result: [
+      { h1: "good", h2: "", h3: "good", h4: "" },
+      { h1: "good", h2: "", h3: "good", h4: "" },
+    ],
+  },
+  case11: {
+    pathToFile: resolve(__dirname, "utils", "file11.csv"),
+    csvHeaders: ["h1", "h2", "h3"],
+    requiredProps: [false, false, false],
+    description: "File 10, lack of csv data, case 2",
+    result: [
+      { h1: "", h2: "good", h3: "" },
+      { h1: "", h2: "", h3: "" },
+      { h1: "good", h2: "", h3: "good" },
+    ],
   },
 };
 

@@ -27,7 +27,8 @@ export function shuffle<T>(array: T[]): T[] {
 
 // Был вариант передавать параметром ReadStream
 // Но я решил сделать через buffer
-export async function getCsvData<T extends { [key: string]: string }>(
+type MyType = { [key: string]: string };
+export async function getCsvData<T extends MyType>(
   buffer: Buffer,
   csvHeaders: (keyof T)[] | readonly (keyof T)[],
   requiredProps: boolean[],
@@ -45,12 +46,17 @@ export async function getCsvData<T extends { [key: string]: string }>(
         new Error("Headers and requiredProps should be the same length")
       ); // спорный момент
     }
+    const headers = csvHeaders as string[];
     const readStream = Readable.from(buffer.toString());
     const results: T[] = [];
 
     readStream
-      .pipe(csvParser({ headers: csvHeaders as string[], separator }))
+      .pipe(csvParser({ headers, separator }))
       .on("data", (data: T) => {
+        let obj: MyType = {};
+        headers.forEach((el) => {
+          obj[el] = "";
+        });
         const entries = Object.entries(data).slice(0, requiredProps.length);
         if (entries.length === 0) return;
         const values: boolean[] = entries.map((el) => Boolean(el[1]));
@@ -63,7 +69,7 @@ export async function getCsvData<T extends { [key: string]: string }>(
           }
         }
 
-        let result: T = Object.fromEntries(entries) as T; // спорный момент
+        let result: T = { ...obj, ...Object.fromEntries(entries) } as T; // спорный момент
         results.push(result);
       })
       .on("end", () => resolve(results))

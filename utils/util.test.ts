@@ -134,7 +134,7 @@ describe("Util: getCsvData function", () => {
     expect(result).toEqual(tc.result);
   });
 
-  it("Headers overflow in the file -> result with correct length", async () => {
+  it("Headers overflow in the file", async () => {
     const tc = utilTestCases.case5;
     const buffer = getBuffer(tc.pathToFile);
     type CsvKeys = { [K in typeof tc.csvHeaders[number]]: string }; // близко, но не совсем то что нужно
@@ -158,7 +158,7 @@ describe("Util: getCsvData function", () => {
     expect(result).toEqual(tc.result);
   });
 
-  it("Wrong separator(not existing) -> []", async () => {
+  it("Wrong separator(not existing)", async () => {
     const tc = utilTestCases.case7;
     const buffer = getBuffer(tc.pathToFile);
     const result1 = await getCsvData(
@@ -176,7 +176,7 @@ describe("Util: getCsvData function", () => {
     );
     expect(result2).toEqual(tc.result2);
   });
-  it("Wrong separator(existing) -> []", async () => {
+  it("Wrong separator(existing)", async () => {
     const tc = utilTestCases.case8;
     const buffer = getBuffer(tc.pathToFile);
     const result1 = await getCsvData(
@@ -200,5 +200,28 @@ describe("Util: getCsvData function", () => {
     const buffer = getBuffer(tc.pathToFile);
     const result = await getCsvData(buffer, tc.csvHeaders, tc.requiredProps);
     expect(result.length).toBe(tc.result.length);
+  });
+
+  it("Lack of csv data, case 1", async () => {
+    const tc = utilTestCases.case10;
+    const buffer = getBuffer(tc.pathToFile);
+    type CsvKeys = { [K in typeof tc.csvHeaders[number]]: string }; // близко, но не совсем то что нужно
+    const result = await getCsvData<CsvKeys>(
+      buffer,
+      tc.csvHeaders,
+      tc.requiredProps
+    );
+    expect(result).toEqual(tc.result);
+  });
+  it("Lack of csv data, case 2", async () => {
+    const tc = utilTestCases.case11;
+    const buffer = getBuffer(tc.pathToFile);
+    type CsvKeys = { [K in typeof tc.csvHeaders[number]]: string }; // близко, но не совсем то что нужно
+    const result = await getCsvData<CsvKeys>(
+      buffer,
+      tc.csvHeaders,
+      tc.requiredProps
+    );
+    expect(result).toEqual(tc.result);
   });
 });
