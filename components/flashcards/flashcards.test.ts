@@ -1,5 +1,9 @@
 import { connectToTestDB, disconnectFromDB } from "../../db";
-import { decksTestCases, testIntervalArray } from "../../test/testcases";
+import {
+  decksTestCases,
+  reversoTestLink,
+  testIntervalArray,
+} from "../../test/testcases";
 import * as utils from "../../utils";
 import { getBuffer, sleep } from "../../utils";
 import { ReversoFetcher } from "../decks/sync";
@@ -246,9 +250,7 @@ describe("UserCardsClient", () => {
       jest.spyOn(globalJobStore.userJobs, "updateJob").mockReturnValue();
       const udclient = await userDecksManager.getUserDecksClient(user);
       const dynUserDeck = await udclient.createDynamicUserDeck();
-      await udclient.updateSyncDataType(DynamicSyncType.reverso, {
-        accountName: "test",
-      });
+      await udclient.updateSyncData(DynamicSyncType.reverso, reversoTestLink);
 
       // high priority false
       await ucclient.updateHighPriority(false);

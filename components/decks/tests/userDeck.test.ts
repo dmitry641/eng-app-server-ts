@@ -1,5 +1,5 @@
 import { connectToTestDB, disconnectFromDB } from "../../../db";
-import { decksTestCases } from "../../../test/testcases";
+import { decksTestCases, reversoTestLink } from "../../../test/testcases";
 import { getBuffer } from "../../../utils";
 import { globalCardsStore } from "../../flashcards/cards";
 import { globalJobStore } from "../../schedule";
@@ -635,7 +635,7 @@ describe("UserDecksClient: dynamic deck", () => {
 
     expect(settings.dynamicAutoSync).toBe(false);
     expect(settings.dynamicSyncType).toBe(undefined);
-    expect(settings.dynamicSyncData).toBe(undefined);
+    expect(settings.dynamicSyncLink).toBe(undefined);
     expect(settings.dynamicSyncMessage).toBe(undefined);
     expect(settings.dynamicSyncAttempts.length).toBe(0);
 
@@ -663,9 +663,7 @@ describe("UserDecksClient: dynamic deck", () => {
     }
     expect(errMsg).toBe("DynamicSyncType is undefined");
 
-    await udclient.updateSyncDataType(DynamicSyncType.reverso, {
-      accountName: "test",
-    });
+    await udclient.updateSyncData(DynamicSyncType.reverso, reversoTestLink);
 
     // syncHandler -> false
     SyncClient.prototype.syncHandler = jest.fn(async () => false);
@@ -718,14 +716,13 @@ describe("UserDecksClient: dynamic deck", () => {
   });
 
   it("updateSyncDataType", async () => {
-    const accName = "test";
-    const settings = await udclient.updateSyncDataType(
+    const settings = await udclient.updateSyncData(
       DynamicSyncType.reverso,
-      { accountName: accName }
+      reversoTestLink
     );
     expect(globalJobStore.userJobs.updateJob).toBeCalled();
     expect(settings.dynamicSyncType).toBe(DynamicSyncType.reverso);
-    expect(settings.dynamicSyncData).toMatchObject({ accountName: accName });
+    expect(settings.dynamicSyncLink).toBe(reversoTestLink);
   });
 
   it("updateAutoSync", async () => {

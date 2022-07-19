@@ -5,7 +5,7 @@ import { IUserDecksSettings } from "./models/userDecksSettings.model";
 import { IUserPhoneSettings } from "./models/userPhoneSettings.model";
 import { IUser } from "./models/users.model";
 import { IUserSettings, UserSettingsInput } from "./models/userSettings.model";
-import { DynamicSyncData, DynamicSyncType } from "./user.util";
+import { DynamicSyncType } from "./user.util";
 import { CreateUserDTO } from "./users.dto";
 import {
   UserCardsSettingsService,
@@ -174,7 +174,7 @@ export class UserDecksSettings {
   private _settings: IUserDecksSettings;
   private _maxOrder: number;
   private _dynamicSyncType?: IUserDecksSettings["dynamicSyncType"];
-  private _dynamicSyncData?: IUserDecksSettings["dynamicSyncData"];
+  private _dynamicSyncLink?: IUserDecksSettings["dynamicSyncLink"];
   private _dynamicAutoSync: boolean;
   private _dynamicSyncMessage?: IUserDecksSettings["dynamicSyncMessage"];
   private _dynamicSyncAttempts: number[] = [];
@@ -182,7 +182,7 @@ export class UserDecksSettings {
     this._settings = settings;
     this._maxOrder = settings.maxOrder;
     this._dynamicSyncType = settings.dynamicSyncType;
-    this._dynamicSyncData = settings.dynamicSyncData;
+    this._dynamicSyncLink = settings.dynamicSyncLink;
     this._dynamicAutoSync = settings.dynamicAutoSync;
     this._dynamicSyncMessage = settings.dynamicSyncMessage;
   }
@@ -206,14 +206,14 @@ export class UserDecksSettings {
     await this._settings.save();
     return this;
   }
-  get dynamicSyncData() {
-    return this._dynamicSyncData;
+  get dynamicSyncLink() {
+    return this._dynamicSyncLink;
   }
-  async setDynamicSyncData(
-    data: DynamicSyncData | undefined
+  async setDynamicSyncLink(
+    link: string | undefined
   ): Promise<UserDecksSettings> {
-    this._dynamicSyncData = data;
-    this._settings.dynamicSyncData = data;
+    this._dynamicSyncLink = link;
+    this._settings.dynamicSyncLink = link;
     await this._settings.save();
     return this;
   }
@@ -255,14 +255,14 @@ export class UserDecksSettings {
 export class UserDecksSettingsDTO {
   readonly maxOrder: number;
   readonly dynamicSyncType?: IUserDecksSettings["dynamicSyncType"];
-  readonly dynamicSyncData?: IUserDecksSettings["dynamicSyncData"];
+  readonly dynamicSyncLink?: IUserDecksSettings["dynamicSyncLink"];
   readonly dynamicAutoSync: boolean;
   readonly dynamicSyncMessage?: string;
   readonly dynamicSyncAttempts: number[] = [];
   constructor(settings: UserDecksSettings) {
     this.maxOrder = settings.maxOrder;
     this.dynamicSyncType = settings.dynamicSyncType;
-    this.dynamicSyncData = settings.dynamicSyncData;
+    this.dynamicSyncLink = settings.dynamicSyncLink;
     this.dynamicAutoSync = settings.dynamicAutoSync;
     this.dynamicSyncMessage = settings.dynamicSyncMessage;
   }

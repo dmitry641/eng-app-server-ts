@@ -3,16 +3,24 @@ import { connectToTestDB, disconnectFromDB } from "../../../db";
 import {
   decksTestCases,
   rawCardsTestData1,
+  reversoTestLink,
   reversoTestResponse,
+  yandexTestLink,
+  yandexTestResponse,
 } from "../../../test/testcases";
 import { getBuffer } from "../../../utils";
 import { globalCardsStore } from "../../flashcards/cards";
 import { UserJobsManager } from "../../schedule";
 import { globalUserStore, User } from "../../users/user";
-import { DynamicSyncData, DynamicSyncType } from "../../users/user.util";
+import { DynamicSyncType } from "../../users/user.util";
 import { Deck } from "../deck";
 import { DecksService } from "../services/decks.service";
-import { filterByCustomId, ReversoFetcher, SyncClient } from "../sync";
+import {
+  filterByCustomId,
+  ReversoFetcher,
+  SyncClient,
+  YandexFetcher,
+} from "../sync";
 import { UserDeck, UserDecksClient, userDecksManager } from "../userDeck";
 
 describe("Sync client:filterByCustomId ", () => {
@@ -98,8 +106,8 @@ describe("Sync client: syncHandler", () => {
   const tc = decksTestCases.case1;
   const buffer = getBuffer(tc.pathToFile);
   const type: DynamicSyncType = DynamicSyncType.reverso;
-  const data: DynamicSyncData = { accountName: "test" };
-  const syncClient = new SyncClient(type, data);
+  const link = reversoTestLink;
+  const syncClient = new SyncClient(type, link);
 
   beforeAll(async () => {
     await connectToTestDB();
@@ -145,7 +153,7 @@ describe("Sync client: syncHandler", () => {
   });
 
   it("ReversoFetcher: getRawCards", async () => {
-    let reversoFetcher = new ReversoFetcher({});
+    let reversoFetcher = new ReversoFetcher("");
 
     spyGetRawCards.mockRestore();
     let errMsg;
@@ -155,9 +163,9 @@ describe("Sync client: syncHandler", () => {
       const err = error as Error;
       errMsg = err.message;
     }
-    expect(errMsg).toBe("Account name is undefined");
+    expect(errMsg).toBe("Link error");
 
-    reversoFetcher = new ReversoFetcher(data);
+    reversoFetcher = new ReversoFetcher(link);
     spyGetRawCards.mockRestore();
 
     jest.spyOn(axios, "get").mockImplementation(async () => null);
@@ -189,6 +197,61 @@ describe("Sync client: syncHandler", () => {
     const result = await reversoFetcher.getRawCards();
     expect(spyAxiosGet).toBeCalled();
     expect(result[0].customId).toBe(String(reversoTestResponse.results[0].id));
+  });
+
+  it("YandexFetcher: getRawCards", async () => {
+    let yandexFetcher = new YandexFetcher("");
+
+    spyGetRawCards.mockRestore();
+    let errMsg;
+    try {
+      await yandexFetcher.getRawCards();
+    } catch (error) {
+      const err = error as Error;
+      errMsg = err.message;
+    }
+    expect(errMsg).toBe("Link error");
+
+    yandexFetcher = new YandexFetcher(yandexTestLink);
+    spyGetRawCards.mockRestore();
+
+    jest.spyOn(axios, "get").mockImplementation(async () => null);
+    try {
+      await yandexFetcher.getRawCards();
+    } catch (error) {
+      const err = error as Error;
+      errMsg = err.message;
+    }
+    expect(errMsg).toBe("Sync error");
+
+    jest.spyOn(axios, "get").mockImplementation(async () => {
+      return {
+        headers: { "set-cookie": ["test"] },
+        data: { collection: { records: "something" } },
+      };
+    });
+
+    try {
+      await yandexFetcher.getRawCards();
+    } catch (error) {
+      const err = error as Error;
+      errMsg = err.message;
+    }
+    expect(errMsg).toBe("Fetch error");
+
+    const spyAxiosGet = jest
+      .spyOn(axios, "get")
+      .mockImplementation(async () => {
+        return {
+          headers: { "set-cookie": ["test"] },
+          data: yandexTestResponse,
+        };
+      });
+    const result = await yandexFetcher.getRawCards();
+    expect(spyAxiosGet).toBeCalled();
+    expect(result[0].customId).toBe(
+      yandexTestResponse.collection.records[0].id
+    );
   });
 
   afterAll(async () => {

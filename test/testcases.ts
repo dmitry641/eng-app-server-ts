@@ -1,5 +1,5 @@
 import { resolve } from "path";
-import { IReversoResponse } from "../components/decks/sync";
+import { IReversoResponse, IYandexResponse } from "../components/decks/sync";
 import { QuestionDTO, TopicDTO } from "../components/quiz/quiz";
 import { QuizKeysType } from "../components/quiz/quiz.util";
 
@@ -233,6 +233,10 @@ export const rawCardsTestData1 = [
   },
 ];
 
+export const reversoTestLink = "https://context.reverso.net/favourites/test";
+export const yandexTestLink =
+  "https://translate.yandex.ru/subscribe?collection_id=5b84234c898789001f7fea81";
+
 export const reversoTestResponse: IReversoResponse = {
   numTotalResults: 3,
   numFilteredResults: 3,
@@ -259,6 +263,29 @@ export const reversoTestResponse: IReversoResponse = {
       trgText: "Ручка",
     },
   ],
+};
+export const yandexTestResponse: IYandexResponse = {
+  collection: {
+    count: 3,
+    public: true,
+    records: [
+      {
+        id: "1",
+        text: "Test",
+        translation: "Тест",
+      },
+      {
+        id: "2",
+        text: "Book",
+        translation: "Книга",
+      },
+      {
+        id: "3",
+        text: "Pencil",
+        translation: "Ручка",
+      },
+    ],
+  },
 };
 
 const hour = 10;

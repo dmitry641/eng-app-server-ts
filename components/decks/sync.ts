@@ -1,7 +1,8 @@
 import axios, { AxiosRequestConfig } from "axios";
+import URLParse, { qs } from "url-parse";
 import { CardDTO, globalCardsStore } from "../flashcards/cards";
 import { CardInputOmit } from "../flashcards/models/cards.model";
-import { DynamicSyncData, DynamicSyncType } from "../users/user.util";
+import { DynamicSyncType } from "../users/user.util";
 import { globalDecksStore } from "./deck";
 import { UserDeck } from "./userDeck";
 
@@ -10,8 +11,8 @@ export const SYNC_ATTEMPTS_COUNT_LIMIT = 3;
 
 export class SyncClient {
   private fetcher: IFetcher;
-  constructor(type: DynamicSyncType, data: DynamicSyncData) {
-    this.fetcher = FetcherFactory.produce(type, data);
+  constructor(type: DynamicSyncType, link: string) {
+    this.fetcher = FetcherFactory.produce(type, link);
   }
   async syncHandler(dynUserDeck: UserDeck): Promise<boolean> {
     // хотелось бы instance of UserDynamicDeck, но увы...
@@ -51,12 +52,12 @@ export function filterByCustomId(
 }
 
 class FetcherFactory {
-  static produce(type: DynamicSyncType, data: DynamicSyncData): IFetcher {
+  static produce(type: DynamicSyncType, link: string): IFetcher {
     switch (type) {
       case DynamicSyncType.reverso:
-        return new ReversoFetcher(data);
-      case DynamicSyncType.google:
-        return new GoogleFetcher(data);
+        return new ReversoFetcher(link);
+      case DynamicSyncType.reverso:
+        return new YandexFetcher(link);
       default:
         throw new Error("not implemented");
     }
@@ -64,18 +65,17 @@ class FetcherFactory {
 }
 
 interface IFetcher {
-  readonly data: DynamicSyncData;
+  readonly link: string;
   getRawCards(): Promise<CardInputOmit[]>;
 }
 
 export class ReversoFetcher implements IFetcher {
-  readonly data: DynamicSyncData;
-  constructor(syncData: DynamicSyncData) {
-    this.data = syncData;
-  }
+  constructor(readonly link: string) {}
   async getRawCards(): Promise<CardInputOmit[]> {
-    const accName = this.data.accountName;
-    if (!accName) throw new Error("Account name is undefined");
+    const [_, accName] = this.link.split(
+      "https://context.reverso.net/favourites/"
+    );
+    if (!accName) throw new Error("Link error");
     const options: AxiosRequestConfig = {
       headers: {
         "User-Agent":
@@ -110,13 +110,47 @@ export class ReversoFetcher implements IFetcher {
     return newArray;
   }
 }
-class GoogleFetcher implements IFetcher {
-  readonly data: DynamicSyncData;
-  constructor(syncData: DynamicSyncData) {
-    this.data = syncData;
-  }
+export class YandexFetcher implements IFetcher {
+  constructor(readonly link: string) {}
   async getRawCards(): Promise<CardInputOmit[]> {
-    throw new Error("Method not implemented.");
+    const query = qs.parse(URLParse(this.link).query);
+    const colId = query?.collection_id;
+    if (!colId) throw new Error("Link error");
+
+    const firstReq = await axios.get(
+      "https://translate.yandex.ru/subscribe?collection_id=5b84234c898789001f7fea81"
+    );
+    let cookieArr = firstReq?.headers?.["set-cookie"] || [];
+    cookieArr = cookieArr.map((el) => {
+      const split = el.split(" ")[0] || "1=1";
+      return split;
+    });
+    if (cookieArr.length == 0) throw new Error("Sync error");
+
+    const res = await axios.get<IYandexResponse>(
+      `https://translate.yandex.ru/props/api/collections/${colId}?srv=tr-text`,
+      { headers: { Cookie: cookieArr.join(" ") } }
+    );
+    const records = res?.data?.collection?.records;
+    if (!records || !Array.isArray(records)) throw new Error("Fetch error");
+
+    const results: Array<CardInputOmit> = this.parseData(records);
+    return results;
+  }
+  private parseData(array: IYandexResult[]): CardInputOmit[] {
+    let newArray = [];
+    for (let elem of array) {
+      let obj = {
+        frontPrimary: elem.text,
+        frontSecondary: "",
+        backPrimary: elem.translation,
+        backSecondary: "",
+        customId: elem.id,
+      };
+      newArray.push(obj);
+    }
+
+    return newArray;
   }
 }
 
@@ -131,4 +165,17 @@ export type IReversoResult = {
   srcText: string;
   trgLang: string;
   trgText: string;
+};
+
+export interface IYandexResponse {
+  collection: {
+    count: number;
+    public: boolean;
+    records: IYandexResult[];
+  };
+}
+export type IYandexResult = {
+  id: string;
+  text: string;
+  translation: string;
 };

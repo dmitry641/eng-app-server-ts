@@ -7,11 +7,7 @@ import {
   UserDecksSettingsDTO,
   UserId,
 } from "../users/user";
-import {
-  DynamicSyncData,
-  DynamicSyncType,
-  UserDeckPositionEnum,
-} from "../users/user.util";
+import { DynamicSyncType, UserDeckPositionEnum } from "../users/user.util";
 import { DeckDTO, DeckId, globalDecksStore } from "./deck";
 import { IUserDeck } from "./models/userDecks.model";
 import { UserDecksService } from "./services/userDecks.service";
@@ -198,8 +194,8 @@ export class UserDecksClient {
     if (!dynUserDeck) throw new Error("Dynamic userDeck doesn't exist");
     const type = this.settings.dynamicSyncType;
     if (!type) throw new Error("DynamicSyncType is undefined");
-    const data = this.settings.dynamicSyncData;
-    if (!data) throw new Error("DynamicSyncData is undefined");
+    const link = this.settings.dynamicSyncLink;
+    if (!link) throw new Error("DynamicSyncLink is undefined");
 
     await this.tryToResetAttempts();
 
@@ -209,7 +205,7 @@ export class UserDecksClient {
     }
 
     this.settings.appendDynamicSyncAttempt(Date.now());
-    const syncClient = new SyncClient(type, data);
+    const syncClient = new SyncClient(type, link);
     const synced = await syncClient.syncHandler(dynUserDeck);
     if (synced) {
       await this.settings.setDynamicSyncMessage(
@@ -235,7 +231,7 @@ export class UserDecksClient {
 
     await this.settings.setDynamicAutoSync(false);
     await this.settings.setDynamicSyncType(undefined);
-    await this.settings.setDynamicSyncData(undefined);
+    await this.settings.setDynamicSyncLink(undefined);
     await this.settings.setDynamicSyncMessage(undefined);
     this.settings.setDynamicSyncAttempts([]);
 
@@ -243,12 +239,12 @@ export class UserDecksClient {
 
     return this.settingsToDTO();
   }
-  async updateSyncDataType(
+  async updateSyncData(
     type: DynamicSyncType,
-    data: DynamicSyncData
+    link: string
   ): Promise<UserDecksSettingsDTO> {
     await this.settings.setDynamicSyncType(type);
-    await this.settings.setDynamicSyncData(data);
+    await this.settings.setDynamicSyncLink(link);
 
     globalJobStore.userJobs.updateJob(
       this.user,
