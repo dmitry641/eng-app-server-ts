@@ -5,8 +5,7 @@ import { IUserDecksSettings } from "./models/userDecksSettings.model";
 import { IUserPhoneSettings } from "./models/userPhoneSettings.model";
 import { IUser } from "./models/users.model";
 import { IUserSettings, UserSettingsInput } from "./models/userSettings.model";
-import { DynamicSyncType } from "./user.util";
-import { CreateUserDTO } from "./users.dto";
+import { CreateUserDTO, LogInDTO } from "./users.dto";
 import {
   UserCardsSettingsService,
   UserDecksSettingsService,
@@ -14,17 +13,10 @@ import {
   UserService,
   UserSettingsService,
 } from "./users.service";
+import { DynamicSyncType } from "./users.util";
 
 class UserStore {
   private users: User[] = [];
-  async getUser(userId: UserId): Promise<User> {
-    let user: User | undefined;
-    user = this.getUserFromStore(userId);
-    if (user) return user;
-    user = await this.initUser(userId);
-    if (user) return user;
-    throw new Error("User doesn't exist");
-  }
   async createUser({
     email,
     name,
@@ -48,6 +40,23 @@ class UserStore {
     const newUser = new User(dbUser, userSettings);
     this.addUserToStore(newUser);
     return newUser;
+  }
+  async validateUser({ email, password }: LogInDTO): Promise<User> {
+    const dbUser = await UserService.findOneUser({ email });
+    if (!dbUser) throw new Error("Invalid email");
+    const isValid = await bcrypt.compare(password, dbUser.password);
+    if (!isValid) throw new Error("Invalid password");
+
+    const user = await this.getUser(String(dbUser._id));
+    return user;
+  }
+  async getUser(userId: UserId): Promise<User> {
+    let user: User | undefined;
+    user = this.getUserFromStore(userId);
+    if (user) return user;
+    user = await this.initUser(userId);
+    if (user) return user;
+    throw new Error("User doesn't exist");
   }
   private async initUser(userId: UserId): Promise<User | undefined> {
     const dbUser = await UserService.findOneUser({ _id: userId });
@@ -147,11 +156,17 @@ export class User {
   readonly id: UserId;
   private _user: IUser;
   readonly settings: UserSettings;
+  readonly name: string;
+  readonly email: string;
+  readonly stripeCustomerId: string;
   // subscriprion
   constructor(user: IUser, settings: UserSettings) {
     this.id = String(user._id);
     this._user = user;
     this.settings = settings;
+    this.name = user.name;
+    this.email = user.email;
+    this.stripeCustomerId = user.stripeCustomerId;
   }
 }
 

@@ -2,7 +2,7 @@ import axios, { AxiosRequestConfig } from "axios";
 import URLParse, { qs } from "url-parse";
 import { CardDTO, globalCardsStore } from "../flashcards/cards";
 import { CardInputOmit } from "../flashcards/models/cards.model";
-import { DynamicSyncType } from "../users/user.util";
+import { DynamicSyncType } from "../users/users.util";
 import { globalDecksStore } from "./deck";
 import { UserDeck } from "./userDeck";
 

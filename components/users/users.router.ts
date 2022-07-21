@@ -1,22 +1,23 @@
 import { Router } from "express";
+import auth from "../../middleware/auth";
+import captcha from "../../middleware/captcha";
+import validate from "../../middleware/validate";
+import {
+  getSessions,
+  logout,
+  resetSessions,
+  singIn,
+  singUp,
+} from "./users.controller";
+import { singInSchema, singUpSchema } from "./users.schema";
 const usersRouter = Router();
-/*
-// /users/
+
+usersRouter.post("/singup", validate(singUpSchema), captcha, singUp);
+usersRouter.post("/singin", validate(singInSchema), captcha, singIn);
+usersRouter.delete("/logout", auth, logout);
+usersRouter.get("/sessions", auth, getSessions);
+usersRouter.delete("/sessions", auth, resetSessions);
 // /users/settings/phone/
 // /users/statistics
-usersRouter.post(
-  "/",
-  validateRequest(usersSchema),
-  validateCaptcha,
-  usersController.registration
-);
-usersRouter.put(
-  "/phone",
-  auth,
-  validateRequest(phoneSchema),
-  usersController.changePhone
-);
-usersRouter.get("/phone/verif/", auth, usersController.verifPhoneInit);
-usersRouter.post("/phone/verif/", auth, usersController.verifPhoneCheck);
-*/
+
 export default usersRouter;

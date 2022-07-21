@@ -1,6 +1,6 @@
 import { Document, model, Schema } from "mongoose";
 import { UserId } from "../user";
-import { DynamicSyncType } from "../user.util";
+import { DynamicSyncType } from "../users.util";
 
 export interface UserDecksSettingsInput {
   user: UserId;

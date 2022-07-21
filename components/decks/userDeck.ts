@@ -7,7 +7,7 @@ import {
   UserDecksSettingsDTO,
   UserId,
 } from "../users/user";
-import { DynamicSyncType, UserDeckPositionEnum } from "../users/user.util";
+import { DynamicSyncType, UserDeckPositionEnum } from "../users/users.util";
 import { DeckDTO, DeckId, globalDecksStore } from "./deck";
 import { IUserDeck } from "./models/userDecks.model";
 import { UserDecksService } from "./services/userDecks.service";

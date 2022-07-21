@@ -10,7 +10,7 @@ import { ReversoFetcher } from "../decks/sync";
 import { userDecksManager } from "../decks/userDeck";
 import { globalJobStore } from "../schedule";
 import { globalUserStore, User } from "../users/user";
-import { DynamicSyncType, UserDeckPositionEnum } from "../users/user.util";
+import { DynamicSyncType, UserDeckPositionEnum } from "../users/users.util";
 import { CardDTO, CardsStore, globalCardsStore } from "./cards";
 import { CardInputOmit } from "./models/cards.model";
 import { HistoryStatusEnum, HistoryType } from "./models/userCards.model";

@@ -1,10 +1,8 @@
 import { Router } from "express";
-import sessionsRouter from "../components/sessions/sessions.router";
 import usersRouter from "../components/users/users.router";
-
 const apiRouter = Router();
+
 apiRouter.use("/users", usersRouter);
-apiRouter.use("/sessions", sessionsRouter);
 
 /*
 apiRouter.use("/decks", auth, decksRouter);

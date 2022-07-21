@@ -1,3 +1,4 @@
+import Cryptr from "cryptr";
 import csvParser from "csv-parser";
 import { existsSync, readFileSync } from "fs";
 import { Readable } from "stream";
@@ -83,3 +84,5 @@ export function getBuffer(pathToFile: string): Buffer {
   const buffer = readFileSync(pathToFile);
   return buffer;
 }
+
+export const cryptr = new Cryptr(process.env.SECRET || "secret");

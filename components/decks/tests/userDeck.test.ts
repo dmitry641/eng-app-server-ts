@@ -4,7 +4,7 @@ import { getBuffer } from "../../../utils";
 import { globalCardsStore } from "../../flashcards/cards";
 import { globalJobStore } from "../../schedule";
 import { globalUserStore, User, UserDecksSettings } from "../../users/user";
-import { DynamicSyncType, UserDeckPositionEnum } from "../../users/user.util";
+import { DynamicSyncType, UserDeckPositionEnum } from "../../users/users.util";
 import { globalDecksStore } from "../deck";
 import { UserDecksService } from "../services/userDecks.service";
 import { SyncClient, SYNC_TIMEOUT_LIMIT } from "../sync";

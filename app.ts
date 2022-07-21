@@ -1,4 +1,5 @@
 import compression from "compression";
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import dotenv from "dotenv";
 import express, { NextFunction } from "express";
@@ -16,6 +17,7 @@ app.use(helmet());
 app.use(compression());
 app.use(morgan(process.env.NODE_ENV === "development" ? "dev" : "common"));
 app.use(express.json());
+app.use(cookieParser());
 app.use(
   cors({
     credentials: true,

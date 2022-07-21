@@ -12,7 +12,7 @@ import { getBuffer } from "../../../utils";
 import { globalCardsStore } from "../../flashcards/cards";
 import { UserJobsManager } from "../../schedule";
 import { globalUserStore, User } from "../../users/user";
-import { DynamicSyncType } from "../../users/user.util";
+import { DynamicSyncType } from "../../users/users.util";
 import { Deck } from "../deck";
 import { DecksService } from "../services/decks.service";
 import {
