@@ -1,4 +1,4 @@
-import yup from "yup";
+import yup from "../../utils/yup.util";
 
 export const singUpSchema = yup.object({
   name: yup.string().required("Name is required"),

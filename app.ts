@@ -5,6 +5,8 @@ import dotenv from "dotenv";
 import express, { NextFunction } from "express";
 import helmet from "helmet";
 import morgan from "morgan";
+import { globalDecksStore } from "./components/decks/deck";
+import { globalCardsStore } from "./components/flashcards/cards";
 import { connectToDB } from "./db";
 import NotFound from "./exceptions/NotFound";
 import errorMiddleware from "./middleware/error";
@@ -40,8 +42,8 @@ async function start() {
     // await QuizUtil.quizDBInitialize();
     // await globalQuizStore.init();
     // await globalJobStore.init();
-    // await globalDecksStore.init();
-    // await globalCardsStore.init();
+    await globalDecksStore.init();
+    await globalCardsStore.init();
 
     // await deleteMe();
     app.listen(PORT, () =>

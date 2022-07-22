@@ -44,7 +44,7 @@ class UserQuizManager {
       const userQuestions: UserQuestion[] = dbUserQuestions.map(
         (q) => new UserQuestion(q)
       );
-      const topic = globalQuizStore.getTopicById(dbUserTopic.topic);
+      const topic = globalQuizStore.getTopicById(String(dbUserTopic.topic));
       const userTopic = new UserTopic(dbUserTopic, topic, userQuestions);
       userTopics.push(userTopic);
     }

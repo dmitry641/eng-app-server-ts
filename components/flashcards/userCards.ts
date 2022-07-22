@@ -42,7 +42,7 @@ class UserCardsManager {
     });
 
     for (let dbUserCard of dbUserCards) {
-      const card = globalCardsStore.getCardByCardId(dbUserCard.card);
+      const card = globalCardsStore.getCardByCardId(String(dbUserCard.card));
       const userCard = new UserCard(dbUserCard, card);
       userCards.push(userCard);
     }

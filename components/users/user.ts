@@ -15,6 +15,15 @@ import {
 } from "./users.service";
 import { DynamicSyncType } from "./users.util";
 
+declare global {
+  namespace Express {
+    interface Request {
+      user?: User;
+      sessionId?: string;
+    }
+  }
+}
+
 class UserStore {
   private users: User[] = [];
   async createUser({

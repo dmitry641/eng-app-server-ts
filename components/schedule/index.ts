@@ -30,7 +30,7 @@ export class UserJobsManager {
       dynamic: true,
     });
     for (const dbDeck of dbDynUserDeck) {
-      const user = await globalUserStore.getUser(dbDeck.user);
+      const user = await globalUserStore.getUser(String(dbDeck.user));
       this.createJob(user, UserJobTypesEnum.deckSync);
     }
 

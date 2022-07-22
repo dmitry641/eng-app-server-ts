@@ -46,7 +46,7 @@ class UserDecksManager {
         if (dynamicExist) throw new Error("Multiple dynamic decks");
         dynamicExist = true;
       }
-      const deck = globalDecksStore.getDeckById(dbUserDeck.deck);
+      const deck = globalDecksStore.getDeckById(String(dbUserDeck.deck));
       const userDeck = new UserDeck(dbUserDeck, deck);
       userDecks.push(userDeck);
     }

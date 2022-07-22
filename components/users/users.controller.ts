@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
+import Unauthorized from "../../exceptions/Unauthorized";
 import { cryptr } from "../../utils";
-import { RequestWithUser } from "../../utils/interfaces";
 import { SessionModel } from "./models/sessions.model";
 import { globalUserStore } from "./user";
 import { CreateUserDTO, LogInDTO, UserDTO } from "./users.dto";
@@ -42,13 +42,9 @@ export async function singIn(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-export async function logout(
-  req: RequestWithUser,
-  res: Response,
-  next: NextFunction
-) {
+export async function logout(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.sessionId) throw new Error();
+    if (!req.sessionId) throw new Unauthorized();
     const sessionId = req.sessionId;
     await SessionModel.updateOne({ _id: sessionId }, { valid: false });
     res.clearCookie(COOKIE_NAME);
@@ -59,12 +55,12 @@ export async function logout(
 }
 
 export async function getSessions(
-  req: RequestWithUser,
+  req: Request,
   res: Response,
   next: NextFunction
 ) {
   try {
-    if (!req.user) throw new Error();
+    if (!req.user) throw new Unauthorized();
     const userId = req.user.id;
     const sessions = await SessionModel.find({
       user: userId,
@@ -77,12 +73,12 @@ export async function getSessions(
 }
 
 export async function resetSessions(
-  req: RequestWithUser,
+  req: Request,
   res: Response,
   next: NextFunction
 ) {
   try {
-    if (!req.user) throw new Error();
+    if (!req.user) throw new Unauthorized();
     const userId = req.user.id;
     await SessionModel.updateMany({ user: userId }, { valid: false });
     res.clearCookie(COOKIE_NAME);
