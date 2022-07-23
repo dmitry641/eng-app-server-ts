@@ -1,3 +1,6 @@
+import { HistoryStatusEnum } from "./models/userCards.model";
+import { UserCardId } from "./userCards";
+
 const hour = 1000 * 60 * 60;
 const day = hour * 24;
 const hardArray = [hour];
@@ -9,3 +12,7 @@ export const intervalArray = {
   mediumArray,
   easyArray,
 };
+
+export type UCType = { userCardId: UserCardId };
+export type UCStatusType = UCType & { status: HistoryStatusEnum };
+export type updateType = { value: boolean };
