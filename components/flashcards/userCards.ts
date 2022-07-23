@@ -314,7 +314,7 @@ export function calcShowAfter(
 ): number {
   let newShowAfter = Date.now();
   const intervalsArray = getIntervalArray(status);
-  if (intervalsArray.length == 0) throw new Error("Array cannot be empty"); // ???
+  if (intervalsArray.length == 0) throw new Error("Array cannot be empty"); // FIXME ???
 
   let streak = getStreak(status, history);
   if (streak >= intervalsArray.length) {
