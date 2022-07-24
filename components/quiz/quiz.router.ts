@@ -9,6 +9,8 @@ import {
   getUserTopics,
   initUserTopic,
   learnQuestion,
+  randomImage,
+  searchImage,
 } from "./quiz.controller";
 import { QSchema, TSchema, UTSchema } from "./quiz.schema";
 const quizRouter = Router();
@@ -23,5 +25,8 @@ quizRouter.post("/topics", validate(TSchema), addTopicToUserTopics);
 
 quizRouter.get("/questions", getQuestions);
 quizRouter.post("/questions", validate(QSchema), learnQuestion);
+
+quizRouter.get("/images/", searchImage);
+quizRouter.get("/images/random", randomImage);
 
 export default quizRouter;

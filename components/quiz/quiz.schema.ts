@@ -11,3 +11,12 @@ export const TSchema = yup.object({
 export const QSchema = yup.object({
   questionId: yup.string().isObjectId("QuestionId is required"),
 });
+
+export const WSchema = yup.object({
+  width: yup.number(),
+});
+
+export const SWSchema = yup.object({
+  search: yup.string().required("Search is required"),
+  width: yup.number(),
+});
