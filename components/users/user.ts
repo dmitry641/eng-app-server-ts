@@ -24,6 +24,10 @@ declare global {
   }
 }
 
+// FIXME Тут всё не правильно.
+// Нужно было делать через сервисы, а не через "Store".
+// Настройки сделанны просто ужасно.
+// Они не должны храниться внутри юзера.
 class UserStore {
   private users: User[] = [];
   async createUser({
@@ -45,6 +49,7 @@ class UserStore {
     });
     const userSettings: UserSettings = await this.createUserSettings({
       user: String(dbUser._id),
+      darkTheme: true, // FIXME
     });
     const newUser = new User(dbUser, userSettings);
     this.addUserToStore(newUser);
@@ -89,9 +94,10 @@ class UserStore {
   }
   private async createUserSettings({
     user,
+    darkTheme,
   }: UserSettingsInput): Promise<UserSettings> {
     const dbSettings: IUserSettings =
-      await UserSettingsService.createUserSettings({ user });
+      await UserSettingsService.createUserSettings({ user, darkTheme });
     const dbPhoneSettings: IUserPhoneSettings =
       await UserPhoneSettingsService.createUserPhoneSettings({ user });
     const phoneSettings: UserPhoneSettings = new UserPhoneSettings(
@@ -180,12 +186,24 @@ export class User {
 }
 
 export class UserSettings {
+  private _darkTheme: boolean;
   constructor(
     private _settings: IUserSettings,
     public readonly phoneSettings: UserPhoneSettings,
     public readonly userDecksSettings: UserDecksSettings,
     public readonly userCardsSettings: UserCardsSettings
-  ) {}
+  ) {
+    this._darkTheme = _settings.darkTheme;
+  }
+  get darkTheme() {
+    return this._darkTheme;
+  }
+  async setDarkTheme(value: boolean): Promise<UserSettings> {
+    this._darkTheme = value;
+    this._settings.darkTheme = value;
+    await this._settings.save(); // спорный момент
+    return this;
+  }
 }
 
 export class UserPhoneSettings {

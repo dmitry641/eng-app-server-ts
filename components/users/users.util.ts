@@ -15,5 +15,5 @@ export const COOKIE_OPTIONS: CookieOptions = {
   maxAge: 30 * 24 * 60 * 60 * 1000,
   httpOnly: true,
   secure: Boolean(process.env.COOKIE_SECURE),
-  sameSite: "none", // FIXME: разобраться
+  sameSite: "lax", // FIXME: разобраться
 };

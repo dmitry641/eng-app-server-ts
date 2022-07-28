@@ -15,4 +15,13 @@ export const intervalArray = {
 
 export type UCType = { userCardId: UserCardId };
 export type UCStatusType = UCType & { status: HistoryStatusEnum };
-export type updateType = { value: boolean };
+
+export enum UpdateTypeEnum {
+  highpriority = "highpriority",
+  shuffle = "shuffle",
+  showlearned = "showlearned",
+}
+export type UpdateType = {
+  type: UpdateTypeEnum;
+  value: boolean;
+};

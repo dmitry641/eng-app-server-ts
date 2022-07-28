@@ -7,35 +7,19 @@ import {
   getUserCards,
   getUserCardsSettings,
   learnUserCard,
-  updateHighPriority,
-  updateShowLearned,
-  updateShuffle,
+  updateSettings,
 } from "./flashcards.controller";
 import { UCSchema, UCStatusSchema, updateSchema } from "./flashcards.schema";
 const flashcardsRouter = Router();
 
 flashcardsRouter.get("/", getUserCards);
-flashcardsRouter.get("/favorites", getFavorites);
-flashcardsRouter.get("/settings", getUserCardsSettings);
-
 flashcardsRouter.post("/", validate(UCStatusSchema), learnUserCard);
-flashcardsRouter.delete("/", validate(UCSchema), deleteUserCard);
+flashcardsRouter.delete("/:userCardId", deleteUserCard);
+
+flashcardsRouter.get("/favorites", getFavorites);
 flashcardsRouter.post("/favorites", validate(UCSchema), favoriteUserCard);
 
-flashcardsRouter.post(
-  "/settings/highpriority",
-  validate(updateSchema),
-  updateHighPriority
-);
-flashcardsRouter.post(
-  "/settings/shuffle",
-  validate(updateSchema),
-  updateShuffle
-);
-flashcardsRouter.post(
-  "/settings/showlearned",
-  validate(updateSchema),
-  updateShowLearned
-);
+flashcardsRouter.get("/settings", getUserCardsSettings);
+flashcardsRouter.post("/settings", validate(updateSchema), updateSettings);
 
 export default flashcardsRouter;

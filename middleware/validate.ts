@@ -11,7 +11,7 @@ function validate(schema: AnySchema) {
     } catch (error) {
       if (error instanceof ValidationError) {
         const msg = error.errors.join(", ");
-        next(new BadRequest(`Validation error: ${msg}`));
+        next(new BadRequest(msg));
       } else {
         next(new BadRequest("Unexpected error"));
       }

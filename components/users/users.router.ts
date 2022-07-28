@@ -4,16 +4,19 @@ import captcha from "../../middleware/captcha";
 import validate from "../../middleware/validate";
 import {
   getSessions,
+  getUser,
   logout,
   resetSessions,
-  singIn,
-  singUp,
+  signIn,
+  signUp,
 } from "./users.controller";
-import { singInSchema, singUpSchema } from "./users.schema";
+import { signInSchema, signUpSchema } from "./users.schema";
 const usersRouter = Router();
 
-usersRouter.post("/singup", validate(singUpSchema), captcha, singUp);
-usersRouter.post("/singin", validate(singInSchema), captcha, singIn);
+usersRouter.post("/signup", validate(signUpSchema), captcha, signUp);
+usersRouter.post("/signin", validate(signInSchema), captcha, signIn);
+
+usersRouter.get("/", auth, getUser);
 usersRouter.delete("/logout", auth, logout);
 usersRouter.get("/sessions", auth, getSessions);
 usersRouter.delete("/sessions", auth, resetSessions);

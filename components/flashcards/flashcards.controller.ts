@@ -1,6 +1,8 @@
 import { NextFunction, Request, Response } from "express";
+import BadRequest from "../../exceptions/BadRequest";
 import Unauthorized from "../../exceptions/Unauthorized";
-import { UCStatusType, UCType, updateType } from "./const";
+import { UserCardsSettingsDTO } from "../users/user";
+import { UCStatusType, UCType, UpdateType, UpdateTypeEnum } from "./const";
 import { userCardsManager } from "./userCards";
 
 export async function getUserCards(
@@ -53,7 +55,8 @@ export async function deleteUserCard(
 ) {
   try {
     if (!req.user) throw new Unauthorized();
-    const { userCardId }: UCType = req.body;
+    const { userCardId } = req.params;
+    if (!userCardId) throw new BadRequest();
     const ucclient = await userCardsManager.getUserCardsClient(req.user);
     const result = await ucclient.deleteUserCard(userCardId);
     return res.send(result);
@@ -92,46 +95,31 @@ export async function learnUserCard(
   }
 }
 
-export async function updateHighPriority(
+export async function updateSettings(
   req: Request,
   res: Response,
   next: NextFunction
 ) {
   try {
     if (!req.user) throw new Unauthorized();
-    const { value }: updateType = req.body;
+    const { type, value }: UpdateType = req.body;
     const ucclient = await userCardsManager.getUserCardsClient(req.user);
-    const settings = await ucclient.updateHighPriority(value);
-    return res.send(settings);
-  } catch (error) {
-    next(error);
-  }
-}
-export async function updateShuffle(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
-  try {
-    if (!req.user) throw new Unauthorized();
-    const { value }: updateType = req.body;
-    const ucclient = await userCardsManager.getUserCardsClient(req.user);
-    const settings = await ucclient.updateShuffle(value);
-    return res.send(settings);
-  } catch (error) {
-    next(error);
-  }
-}
-export async function updateShowLearned(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
-  try {
-    if (!req.user) throw new Unauthorized();
-    const { value }: updateType = req.body;
-    const ucclient = await userCardsManager.getUserCardsClient(req.user);
-    const settings = await ucclient.updateShowLearned(value);
+    let settings: UserCardsSettingsDTO;
+
+    switch (type) {
+      case UpdateTypeEnum.highpriority:
+        settings = await ucclient.updateHighPriority(value);
+        break;
+      case UpdateTypeEnum.showlearned:
+        settings = await ucclient.updateShowLearned(value);
+        break;
+      case UpdateTypeEnum.shuffle:
+        settings = await ucclient.updateShuffle(value);
+        break;
+      default:
+        throw new BadRequest();
+    }
+
     return res.send(settings);
   } catch (error) {
     next(error);
