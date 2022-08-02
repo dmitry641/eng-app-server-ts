@@ -11,10 +11,6 @@ apiRouter.use("/decks", auth, decksRouter);
 apiRouter.use("/flashcards", auth, flashcardsRouter);
 apiRouter.use("/quiz", auth, quizRouter);
 
-/*
-apiRouter.use("/images", auth, imagesRouter);
-*/
-
 // FIXME
 // apiRouter.use("/shop", auth, shopRouter);
 

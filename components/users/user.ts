@@ -220,6 +220,7 @@ export class UserDecksSettings {
   private _dynamicAutoSync: boolean;
   private _dynamicSyncMessage?: IUserDecksSettings["dynamicSyncMessage"];
   private _dynamicSyncAttempts: number[] = [];
+  private _dynamicCreated: boolean;
   constructor(settings: IUserDecksSettings) {
     this._settings = settings;
     this._maxOrder = settings.maxOrder;
@@ -227,6 +228,7 @@ export class UserDecksSettings {
     this._dynamicSyncLink = settings.dynamicSyncLink;
     this._dynamicAutoSync = settings.dynamicAutoSync;
     this._dynamicSyncMessage = settings.dynamicSyncMessage;
+    this._dynamicCreated = settings.dynamicCreated;
   }
   get maxOrder() {
     return this._maxOrder;
@@ -293,6 +295,15 @@ export class UserDecksSettings {
     this._dynamicSyncAttempts.push(value);
     return this;
   }
+  get dynamicCreated() {
+    return this._dynamicCreated;
+  }
+  async setDynamicCreated(value: boolean): Promise<UserDecksSettings> {
+    this._dynamicCreated = value;
+    this._settings.dynamicCreated = value;
+    await this._settings.save();
+    return this;
+  }
 }
 export class UserDecksSettingsDTO {
   readonly maxOrder: number;
@@ -301,12 +312,14 @@ export class UserDecksSettingsDTO {
   readonly dynamicAutoSync: boolean;
   readonly dynamicSyncMessage?: string;
   readonly dynamicSyncAttempts: number[] = [];
+  readonly dynamicCreated: boolean;
   constructor(settings: UserDecksSettings) {
     this.maxOrder = settings.maxOrder;
     this.dynamicSyncType = settings.dynamicSyncType;
     this.dynamicSyncLink = settings.dynamicSyncLink;
     this.dynamicAutoSync = settings.dynamicAutoSync;
     this.dynamicSyncMessage = settings.dynamicSyncMessage;
+    this.dynamicCreated = settings.dynamicCreated;
   }
 }
 

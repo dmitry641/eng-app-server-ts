@@ -12,6 +12,7 @@ export interface IUserDecksSettings extends UserDecksSettingsInput, Document {
   dynamicSyncType?: DynamicSyncType;
   dynamicSyncLink?: string;
   dynamicSyncMessage?: string;
+  dynamicCreated: boolean;
 }
 
 const UserDecksSettingsSchema: Schema = new Schema(
@@ -22,6 +23,7 @@ const UserDecksSettingsSchema: Schema = new Schema(
     dynamicSyncType: { type: String, enum: DynamicSyncType },
     dynamicSyncLink: { type: String },
     dynamicSyncMessage: { type: String },
+    dynamicCreated: { type: Boolean, default: false, required: true },
   },
   { timestamps: true }
 );

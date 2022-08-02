@@ -407,6 +407,7 @@ describe("UserDecksClient: moveUserDeck", () => {
   });
 });
 
+// FIXME, многое не оттестированно
 describe("UserDecksClient: public decks", () => {
   let user1: User;
   let user2: User;
@@ -467,7 +468,7 @@ describe("UserDecksClient: public decks", () => {
     expect(publicUser1Decks.length).toBe(0);
     publicUser2Decks = user2dclient.getPublicDecks();
     expect(publicUser2Decks.length).toBe(1);
-    expect(publicUser2Decks[0]).toEqual(deck);
+    expect(publicUser2Decks[0].id).toEqual(deck.deckId);
     expect(publicUser2Decks[0].createdBy).toBe(user1.id);
 
     const user1Decks = user1dclient.getUserDecks();
@@ -666,7 +667,9 @@ describe("UserDecksClient: dynamic deck", () => {
     await udclient.updateSyncData(DynamicSyncType.reverso, reversoTestLink);
 
     // syncHandler -> false
-    SyncClient.prototype.syncHandler = jest.fn(async () => false);
+    SyncClient.prototype.syncHandler = jest.fn(async () =>
+      Promise.resolve([false])
+    );
     let spySyncHandler = jest.spyOn(SyncClient.prototype, "syncHandler");
     let spyDynSyncMsg = jest.spyOn(
       UserDecksSettings.prototype,
@@ -683,7 +686,9 @@ describe("UserDecksClient: dynamic deck", () => {
     expect(globalJobStore.userJobs.cancelJob).toBeCalled();
 
     // syncHandler -> true
-    SyncClient.prototype.syncHandler = jest.fn(async () => true);
+    SyncClient.prototype.syncHandler = jest.fn(async () =>
+      Promise.resolve([true])
+    );
     spySyncHandler = jest.spyOn(SyncClient.prototype, "syncHandler");
     spyDynSyncMsg = jest.spyOn(
       UserDecksSettings.prototype,

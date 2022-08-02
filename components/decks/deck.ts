@@ -36,6 +36,7 @@ class DecksStore {
 
     const deck: Deck = await this.newDeck({
       createdBy: user.id,
+      author: user.name,
       name: filename,
       totalCardsCount: rawCards.length,
       canBePublic: true,
@@ -49,6 +50,7 @@ class DecksStore {
   async createDynamicDeck(user: User): Promise<DeckDTO> {
     const deck = await this.newDeck({
       createdBy: user.id,
+      author: user.name,
       name: "Dynamic deck",
       totalCardsCount: 0, // спорный момент
       canBePublic: false,
@@ -71,6 +73,8 @@ class DecksStore {
   }
   async toggleDeckPublic(userDeck: UserDeckDTO): Promise<DeckDTO> {
     const deck = this.getDeck(userDeck.deckId);
+    if (userDeck.ownedBy !== deck.createdBy)
+      throw new Error("Only the owner can make changes");
     if (!deck.canBePublic) throw new Error("Deck cannot be public");
 
     if (deck.public) await deck.setPublic(false);
@@ -90,34 +94,24 @@ export type DeckId = string;
 export class Deck {
   readonly id: DeckId;
   private readonly _deck: IDeck;
-  private _name: string;
-  private _canBePublic: boolean;
-  private _createdBy: UserId;
+  readonly name: string;
+  readonly canBePublic: boolean;
+  readonly author: string;
+  readonly createdBy: UserId;
+  readonly totalCardsCount: number;
   private _public: boolean;
-  private _totalCardsCount: number;
   constructor(deck: IDeck) {
     this.id = String(deck._id);
     this._deck = deck;
-    this._name = deck.name;
-    this._canBePublic = deck.canBePublic;
-    this._createdBy = String(deck.createdBy);
+    this.name = deck.name;
+    this.canBePublic = deck.canBePublic;
+    this.createdBy = String(deck.createdBy);
+    this.totalCardsCount = deck.totalCardsCount;
+    this.author = deck.author;
     this._public = deck.public;
-    this._totalCardsCount = deck.totalCardsCount;
-  }
-  get name() {
-    return this._name;
-  }
-  get canBePublic() {
-    return this._canBePublic;
-  }
-  get createdBy() {
-    return this._createdBy;
   }
   get public() {
     return this._public;
-  }
-  get totalCardsCount() {
-    return this._totalCardsCount;
   }
   async setPublic(value: boolean): Promise<Deck> {
     if (value && !this.canBePublic)
@@ -135,6 +129,7 @@ export class DeckDTO {
   readonly createdBy: UserId;
   readonly public: boolean;
   readonly totalCardsCount: number;
+  readonly author: string;
   constructor(deck: Deck) {
     this.id = deck.id;
     this.name = deck.name;
@@ -142,6 +137,7 @@ export class DeckDTO {
     this.createdBy = deck.createdBy;
     this.public = deck.public;
     this.totalCardsCount = deck.totalCardsCount;
+    this.author = deck.author;
   }
 }
 

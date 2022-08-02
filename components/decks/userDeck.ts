@@ -124,11 +124,14 @@ export class UserDecksClient {
     this.userDecks.sort(ascSortByOrderFn);
     return this.userDeckToDTO(userDeckOne);
   }
-  async toggleUserDeckPublic(userDeckId: UserDeckId): Promise<DeckDTO> {
-    const userDeck = this.getUserDeck(userDeckId);
+  async toggleUserDeckPublic(userDeckId: UserDeckId): Promise<UserDeckDTO> {
+    let userDeck = this.getUserDeck(userDeckId);
     if (userDeck.dynamic) throw new Error("Dynamic deck cannot be public");
-    const dto = this.userDeckToDTO(userDeck);
-    return globalDecksStore.toggleDeckPublic(dto);
+    let dto = this.userDeckToDTO(userDeck);
+    const deckDTO = await globalDecksStore.toggleDeckPublic(dto);
+    userDeck = await userDeck.setPublished(deckDTO.public);
+    dto = this.userDeckToDTO(userDeck);
+    return dto;
   }
   async addPublicDeckToUserDecks(deckId: DeckId): Promise<UserDeckDTO> {
     const deck = globalDecksStore.getDeckById(deckId);
@@ -184,6 +187,7 @@ export class UserDecksClient {
     const deck = await globalDecksStore.createDynamicDeck(this.user);
     const userDeck = await this.newUserDeck(deck, true);
     await this.updateAutoSync(true); // спорный момент, нарушение принципов
+    await this.settings.setDynamicCreated(true);
     return this.userDeckToDTO(userDeck);
   }
   async syncDynamicUserDeck(): Promise<{
@@ -206,13 +210,13 @@ export class UserDecksClient {
 
     this.settings.appendDynamicSyncAttempt(Date.now());
     const syncClient = new SyncClient(type, link);
-    const synced = await syncClient.syncHandler(dynUserDeck);
+    const [synced, msg] = await syncClient.syncHandler(dynUserDeck);
     if (synced) {
       await this.settings.setDynamicSyncMessage(
         `Last sync at ${new Date().toLocaleTimeString()}`
       );
     } else {
-      await this.settings.setDynamicSyncMessage("Sync error");
+      await this.settings.setDynamicSyncMessage(msg || "Sync error");
       await this.updateAutoSync(false);
       globalJobStore.userJobs.cancelJob(this.user, "deckSyncJob");
     }
@@ -230,6 +234,7 @@ export class UserDecksClient {
     this.userDecks = this.userDecks.filter((d) => d.id != dynUserDeck.id);
 
     await this.settings.setDynamicAutoSync(false);
+    await this.settings.setDynamicCreated(false);
     await this.settings.setDynamicSyncType(undefined);
     await this.settings.setDynamicSyncLink(undefined);
     await this.settings.setDynamicSyncMessage(undefined);
@@ -293,31 +298,32 @@ export type UserDeckId = string;
 export class UserDeck {
   readonly id: UserDeckId;
   private readonly _userdeck: IUserDeck;
-  private _deckId: DeckId;
-  private _dynamic: boolean;
+  readonly deckId: DeckId;
+  readonly dynamic: boolean;
   private _enabled: boolean;
   private _deleted: boolean;
   private _order: number;
   private _cardsCount: number;
   private _cardsLearned: number;
-  private _deckName: string;
+  readonly deckName: string;
+  readonly ownedBy: string;
+  readonly canPublicIt: boolean;
+  private _published: boolean;
   constructor(userdeck: IUserDeck, deck: DeckDTO) {
     this.id = String(userdeck._id);
     this._userdeck = userdeck;
-    this._deckId = String(userdeck.deck);
-    this._dynamic = userdeck.dynamic;
+    this.deckId = String(userdeck.deck);
+    this.dynamic = userdeck.dynamic;
     this._enabled = userdeck.enabled;
     this._deleted = userdeck.deleted;
     this._order = userdeck.order;
     this._cardsCount = userdeck.cardsCount;
     this._cardsLearned = userdeck.cardsLearned;
-    this._deckName = deck.name;
-  }
-  get deckId() {
-    return this._deckId;
-  }
-  get dynamic() {
-    return this._dynamic;
+    this.deckName = deck.name;
+    this.ownedBy = String(userdeck.user);
+    this._published = deck.public;
+    this.canPublicIt =
+      String(userdeck.user) === String(deck.createdBy) && !userdeck.dynamic;
   }
   get enabled() {
     return this._enabled;
@@ -334,8 +340,8 @@ export class UserDeck {
   get cardsLearned() {
     return this._cardsLearned;
   }
-  get deckName() {
-    return this._deckName;
+  get published() {
+    return this._published;
   }
   async delete() {
     this._deleted = true;
@@ -367,6 +373,10 @@ export class UserDeck {
     await this._userdeck.save();
     return this;
   }
+  async setPublished(value: boolean): Promise<UserDeck> {
+    this._published = value;
+    return this;
+  }
 }
 export class UserDeckDTO {
   readonly id: string;
@@ -378,6 +388,9 @@ export class UserDeckDTO {
   readonly cardsCount: number;
   readonly cardsLearned: number;
   readonly deckName: string;
+  readonly ownedBy: string;
+  readonly canPublicIt: boolean;
+  readonly published: boolean;
   constructor(userDeck: UserDeck) {
     this.id = userDeck.id;
     this.deckId = userDeck.deckId;
@@ -388,6 +401,9 @@ export class UserDeckDTO {
     this.cardsCount = userDeck.cardsCount;
     this.cardsLearned = userDeck.cardsLearned;
     this.deckName = userDeck.deckName;
+    this.ownedBy = userDeck.ownedBy;
+    this.canPublicIt = userDeck.canPublicIt;
+    this.published = userDeck.published;
   }
 }
 

@@ -14,20 +14,6 @@ async function getUserDecks(req: Request, res: Response, next: NextFunction) {
     next(error);
   }
 }
-async function getUserDecksSettings(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
-  try {
-    if (!req.user) throw new Unauthorized();
-    const udclient = await userDecksManager.getUserDecksClient(req.user);
-    const settings = udclient.getUserDecksSettings();
-    return res.send(settings);
-  } catch (error) {
-    next(error);
-  }
-}
 async function createUserDeck(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.user) throw new Unauthorized();
@@ -87,8 +73,8 @@ async function toggleUserDeckPublic(
     if (!req.user) throw new Unauthorized();
     const { userDeckId }: UDType = req.body;
     const udclient = await userDecksManager.getUserDecksClient(req.user);
-    const deck = await udclient.toggleUserDeckPublic(userDeckId);
-    return res.send(deck);
+    const userDeck = await udclient.toggleUserDeckPublic(userDeckId);
+    return res.send(userDeck);
   } catch (error) {
     next(error);
   }
@@ -158,6 +144,21 @@ async function syncDynamicUserDeck(
     const udclient = await userDecksManager.getUserDecksClient(req.user);
     const { settings, userDeck } = await udclient.syncDynamicUserDeck();
     return res.send({ userDeck, settings });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getUserDecksSettings(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    if (!req.user) throw new Unauthorized();
+    const udclient = await userDecksManager.getUserDecksClient(req.user);
+    const settings = udclient.getUserDecksSettings();
+    return res.send(settings);
   } catch (error) {
     next(error);
   }

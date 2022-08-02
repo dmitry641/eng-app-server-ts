@@ -14,7 +14,7 @@ export class SyncClient {
   constructor(type: DynamicSyncType, link: string) {
     this.fetcher = FetcherFactory.produce(type, link);
   }
-  async syncHandler(dynUserDeck: UserDeck): Promise<boolean> {
+  async syncHandler(dynUserDeck: UserDeck): Promise<[boolean, string?]> {
     // хотелось бы instance of UserDynamicDeck, но увы...
     if (!dynUserDeck.dynamic) throw new Error("Dynamic userDeck is required");
 
@@ -31,9 +31,10 @@ export class SyncClient {
         dynUserDeck.cardsCount + filteredRawCards.length
       );
 
-      return true;
+      return [true];
     } catch (error) {
-      return false;
+      const err = error as Error;
+      return [false, err?.message];
     }
   }
 }
@@ -56,7 +57,7 @@ class FetcherFactory {
     switch (type) {
       case DynamicSyncType.reverso:
         return new ReversoFetcher(link);
-      case DynamicSyncType.reverso:
+      case DynamicSyncType.yandex:
         return new YandexFetcher(link);
       default:
         throw new Error("not implemented");

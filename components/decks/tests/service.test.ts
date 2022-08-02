@@ -26,7 +26,7 @@ describe("Decks service: createDeck", () => {
     } catch (error) {
       let err = error as mongoose.Error.ValidationError;
       expect(err.message).toMatch(
-        "Deck validation failed: createdBy: Path `createdBy` is required."
+        "Deck validation failed: author: Path `author` is required., createdBy: Path `createdBy` is required."
       );
     }
   });

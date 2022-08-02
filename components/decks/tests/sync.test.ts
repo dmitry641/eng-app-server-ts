@@ -45,6 +45,7 @@ describe("Sync client:filterByCustomId ", () => {
   it("filterByCustomId, case 1", async () => {
     const dbDeck = await DecksService.createDeck({
       createdBy: user.id,
+      author: user.name,
       canBePublic: true,
       name: String(Math.random()) + "-deck",
       totalCardsCount: 0,

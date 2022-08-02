@@ -15,7 +15,6 @@ const upload = multer({ storage: storage });
 const decksRouter = Router();
 
 decksRouter.get("/", dc.getUserDecks);
-decksRouter.get("/settings", dc.getUserDecksSettings);
 decksRouter.post("/", upload.single("csv"), dc.createUserDeck);
 
 decksRouter.post("/enable", validate(UDSchema), dc.enableUserDeck);
@@ -29,13 +28,15 @@ decksRouter.post("/public", validate(DSchema), dc.addPublicDeckToUserDecks);
 decksRouter.post("/dynamic", dc.createDynamicUserDeck);
 decksRouter.delete("/dynamic", dc.deleteDynamicUserDeck);
 decksRouter.post("/dynamic/sync", dc.syncDynamicUserDeck);
+
+decksRouter.get("/settings", dc.getUserDecksSettings);
 decksRouter.post(
-  "/dynamic/update/auto",
+  "/settings/autosync",
   validate(autoSyncSchema),
   dc.updateAutoSync
 );
 decksRouter.post(
-  "/dynamic/update/data",
+  "/settings/syncdata",
   validate(syncDataSchema),
   dc.updateSyncData
 );
