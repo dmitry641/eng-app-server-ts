@@ -1,4 +1,3 @@
-import { HistoryStatusEnum } from "./models/userCards.model";
 import { UserCardId } from "./userCards";
 
 const hour = 1000 * 60 * 60;
@@ -16,10 +15,20 @@ export const intervalArray = {
 export type UCType = { userCardId: UserCardId };
 export type UCStatusType = UCType & { status: HistoryStatusEnum };
 
+export enum HistoryStatusEnum {
+  easy = "easy",
+  medium = "medium",
+  hard = "hard",
+}
+
+export type HistoryType = { status: HistoryStatusEnum; date: number };
+
 export enum UpdateTypeEnum {
-  highpriority = "highpriority",
-  shuffle = "shuffle",
-  showlearned = "showlearned",
+  dynamicHighPriority = "dynamicHighPriority",
+  showLearned = "showLearned",
+  shuffleDecks = "shuffleDecks",
+  frontSideFirst = "frontSideFirst",
+  randomSideFirst = "randomSideFirst",
 }
 export type UpdateType = {
   type: UpdateTypeEnum;

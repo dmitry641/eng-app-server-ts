@@ -19,9 +19,9 @@ export class UserDTO {
   }
 }
 export class UserSettingsDTO {
-  readonly darkTheme: boolean;
+  readonly darkMode: boolean;
   constructor(user: User) {
-    this.darkTheme = user.settings.darkTheme;
+    this.darkMode = user.settings.darkMode;
   }
 }
 

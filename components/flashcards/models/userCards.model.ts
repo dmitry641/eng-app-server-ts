@@ -2,6 +2,7 @@ import { Document, model, Schema } from "mongoose";
 import { UserDeckId } from "../../decks/userDeck";
 import { UserId } from "../../users/user";
 import { CardId } from "../cards";
+import { HistoryStatusEnum, HistoryType } from "../const";
 
 export interface UserCardInput {
   user: UserId;
@@ -14,14 +15,6 @@ export interface IUserCard extends UserCardInput, Document {
   deleted: boolean;
   favorite: boolean;
   showAfter: number;
-}
-
-export type HistoryType = { status: HistoryStatusEnum; date: number };
-
-export enum HistoryStatusEnum {
-  easy = "easy",
-  medium = "medium",
-  hard = "hard",
 }
 
 const UserCardSchema: Schema = new Schema(

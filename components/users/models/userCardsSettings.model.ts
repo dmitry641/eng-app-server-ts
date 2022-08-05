@@ -6,12 +6,11 @@ export interface UserCardsSettingsInput {
 }
 
 export interface IUserCardsSettings extends UserCardsSettingsInput, Document {
+  dynamicHighPriority: boolean;
+  showLearned: boolean;
+  shuffleDecks: boolean;
   frontSideFirst: boolean;
   randomSideFirst: boolean;
-  showPictures: boolean;
-  dynamicHighPriority: boolean;
-  shuffleDecks: boolean;
-  showLearned: boolean;
 }
 
 const UserCardsSettingsSchema: Schema = new Schema(
@@ -22,7 +21,6 @@ const UserCardsSettingsSchema: Schema = new Schema(
     shuffleDecks: { type: Boolean, default: false, required: true },
     frontSideFirst: { type: Boolean, default: true, required: true },
     randomSideFirst: { type: Boolean, default: false, required: true },
-    showPictures: { type: Boolean, default: false, required: true },
   },
   { timestamps: true }
 );

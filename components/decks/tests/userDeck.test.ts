@@ -407,7 +407,7 @@ describe("UserDecksClient: moveUserDeck", () => {
   });
 });
 
-// FIXME, многое не оттестированно
+// FIXME, многое связанное с "public decks" не оттестированно
 describe("UserDecksClient: public decks", () => {
   let user1: User;
   let user2: User;

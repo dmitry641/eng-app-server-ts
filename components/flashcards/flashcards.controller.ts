@@ -107,14 +107,20 @@ export async function updateSettings(
     let settings: UserCardsSettingsDTO;
 
     switch (type) {
-      case UpdateTypeEnum.highpriority:
+      case UpdateTypeEnum.dynamicHighPriority:
         settings = await ucclient.updateHighPriority(value);
         break;
-      case UpdateTypeEnum.showlearned:
+      case UpdateTypeEnum.showLearned:
         settings = await ucclient.updateShowLearned(value);
         break;
-      case UpdateTypeEnum.shuffle:
+      case UpdateTypeEnum.shuffleDecks:
         settings = await ucclient.updateShuffle(value);
+        break;
+      case UpdateTypeEnum.frontSideFirst:
+        settings = await ucclient.updateFrontSideFirst(value);
+        break;
+      case UpdateTypeEnum.randomSideFirst:
+        settings = await ucclient.updateRandomSideFirst(value);
         break;
       default:
         throw new BadRequest();

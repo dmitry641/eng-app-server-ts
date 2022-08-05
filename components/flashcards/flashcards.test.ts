@@ -12,8 +12,8 @@ import { globalJobStore } from "../schedule";
 import { globalUserStore, User } from "../users/user";
 import { DynamicSyncType, UserDeckPositionEnum } from "../users/users.util";
 import { CardDTO, CardsStore, globalCardsStore } from "./cards";
+import { HistoryStatusEnum, HistoryType } from "./const";
 import { CardInputOmit } from "./models/cards.model";
-import { HistoryStatusEnum, HistoryType } from "./models/userCards.model";
 import {
   calcShowAfter,
   CARDS_COUNT,

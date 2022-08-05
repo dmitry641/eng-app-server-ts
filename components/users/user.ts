@@ -49,7 +49,7 @@ class UserStore {
     });
     const userSettings: UserSettings = await this.createUserSettings({
       user: String(dbUser._id),
-      darkTheme: true, // FIXME
+      darkMode: true, // FIXME
     });
     const newUser = new User(dbUser, userSettings);
     this.addUserToStore(newUser);
@@ -94,10 +94,10 @@ class UserStore {
   }
   private async createUserSettings({
     user,
-    darkTheme,
+    darkMode,
   }: UserSettingsInput): Promise<UserSettings> {
     const dbSettings: IUserSettings =
-      await UserSettingsService.createUserSettings({ user, darkTheme });
+      await UserSettingsService.createUserSettings({ user, darkMode });
     const dbPhoneSettings: IUserPhoneSettings =
       await UserPhoneSettingsService.createUserPhoneSettings({ user });
     const phoneSettings: UserPhoneSettings = new UserPhoneSettings(
@@ -186,21 +186,21 @@ export class User {
 }
 
 export class UserSettings {
-  private _darkTheme: boolean;
+  private _darkMode: boolean;
   constructor(
     private _settings: IUserSettings,
     public readonly phoneSettings: UserPhoneSettings,
     public readonly userDecksSettings: UserDecksSettings,
     public readonly userCardsSettings: UserCardsSettings
   ) {
-    this._darkTheme = _settings.darkTheme;
+    this._darkMode = _settings.darkMode;
   }
-  get darkTheme() {
-    return this._darkTheme;
+  get darkMode() {
+    return this._darkMode;
   }
-  async setDarkTheme(value: boolean): Promise<UserSettings> {
-    this._darkTheme = value;
-    this._settings.darkTheme = value;
+  async setDarkMode(value: boolean): Promise<UserSettings> {
+    this._darkMode = value;
+    this._settings.darkMode = value;
     await this._settings.save(); // спорный момент
     return this;
   }
@@ -328,11 +328,15 @@ export class UserCardsSettings {
   private _dynamicHighPriority: boolean;
   private _showLearned: boolean;
   private _shuffleDecks: boolean;
+  private _frontSideFirst: boolean;
+  private _randomSideFirst: boolean;
   constructor(settings: IUserCardsSettings) {
     this._settings = settings;
     this._dynamicHighPriority = settings.dynamicHighPriority;
     this._shuffleDecks = settings.shuffleDecks;
     this._showLearned = settings.showLearned;
+    this._frontSideFirst = settings.frontSideFirst;
+    this._randomSideFirst = settings.randomSideFirst;
   }
   get dynamicHighPriority() {
     return this._dynamicHighPriority;
@@ -361,15 +365,37 @@ export class UserCardsSettings {
     await this._settings.save();
     return this;
   }
+  get frontSideFirst() {
+    return this._frontSideFirst;
+  }
+  async setFrontSideFirst(value: boolean) {
+    this._frontSideFirst = value;
+    this._settings.frontSideFirst = value;
+    await this._settings.save();
+    return this;
+  }
+  get randomSideFirst() {
+    return this._randomSideFirst;
+  }
+  async setRandomSideFirst(value: boolean) {
+    this._randomSideFirst = value;
+    this._settings.randomSideFirst = value;
+    await this._settings.save();
+    return this;
+  }
 }
 export class UserCardsSettingsDTO {
   readonly dynamicHighPriority: boolean;
   readonly showLearned: boolean;
   readonly shuffleDecks: boolean;
+  readonly frontSideFirst: boolean;
+  readonly randomSideFirst: boolean;
   constructor(settings: UserCardsSettings) {
     this.dynamicHighPriority = settings.dynamicHighPriority;
     this.showLearned = settings.showLearned;
     this.shuffleDecks = settings.shuffleDecks;
+    this.frontSideFirst = settings.frontSideFirst;
+    this.randomSideFirst = settings.randomSideFirst;
   }
 }
 

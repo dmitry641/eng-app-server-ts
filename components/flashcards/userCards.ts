@@ -12,13 +12,9 @@ import {
   UserId,
 } from "../users/user";
 import { CardDTO, CardId, globalCardsStore } from "./cards";
-import { intervalArray } from "./const";
+import { HistoryStatusEnum, HistoryType, intervalArray } from "./const";
 import { UserCardsService } from "./flashcards.service";
-import {
-  HistoryStatusEnum,
-  HistoryType,
-  IUserCard,
-} from "./models/userCards.model";
+import { IUserCard } from "./models/userCards.model";
 
 export const CARDS_COUNT = 15;
 
@@ -196,6 +192,14 @@ export class UserCardsClient {
     await this.settings.setShowLearned(value);
     return this.settingsToDTO();
   }
+  async updateFrontSideFirst(value: boolean): Promise<UserCardsSettingsDTO> {
+    await this.settings.setFrontSideFirst(value);
+    return this.settingsToDTO();
+  }
+  async updateRandomSideFirst(value: boolean): Promise<UserCardsSettingsDTO> {
+    await this.settings.setRandomSideFirst(value);
+    return this.settingsToDTO();
+  }
 }
 
 function slice<T>(array: T[]): T[] {
@@ -215,8 +219,8 @@ export type UserCardId = string;
 export class UserCard {
   readonly id: UserCardId;
   private readonly _userCard: IUserCard;
-  private _cardId: CardId;
-  private _userDeckId: UserDeckId;
+  readonly cardId: CardId;
+  readonly userDeckId: UserDeckId;
   private _deleted: boolean;
   private _history: HistoryType[];
   private _showAfter: number;
@@ -225,8 +229,8 @@ export class UserCard {
   constructor(userCard: IUserCard, card: CardDTO) {
     this.id = String(userCard._id);
     this._userCard = userCard;
-    this._cardId = String(userCard.card);
-    this._userDeckId = String(userCard.userDeck);
+    this.cardId = String(userCard.card);
+    this.userDeckId = String(userCard.userDeck);
     this._deleted = userCard.deleted;
     this._history = userCard.history;
     this._showAfter = userCard.showAfter;
@@ -235,12 +239,6 @@ export class UserCard {
   }
   get card() {
     return this._card;
-  }
-  get cardId() {
-    return this._cardId;
-  }
-  get userDeckId() {
-    return this._userDeckId;
   }
   get deleted() {
     return this._deleted;
