@@ -35,15 +35,19 @@ export type UnsplashImage = {
 };
 
 export class ImageDto {
+  readonly id: string;
   readonly original: string;
   readonly thumbnail: string;
   readonly name: string;
   readonly userLink: string;
+  readonly description: string;
   constructor(img: UnsplashImage) {
+    this.id = img.id;
     this.original = img.urls.regular;
     this.thumbnail = img.urls.thumb;
     this.name = img.user.name;
     this.userLink = img.user.links.html;
+    this.description = img.description;
   }
 }
 

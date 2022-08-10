@@ -308,6 +308,7 @@ export class UserTopicDTO {
   readonly updatedAt: Date;
   readonly topicId: TopicId;
   readonly totalQuestionCount: number;
+  readonly userQuestions: string[];
   readonly topicName: string;
   readonly status: UserTopicStatusEnum;
   readonly questionsInRow: number;
@@ -316,6 +317,7 @@ export class UserTopicDTO {
     this.updatedAt = userTopic.updatedAt;
     this.topicId = userTopic.topicId;
     this.totalQuestionCount = userTopic.totalQuestionCount;
+    this.userQuestions = userTopic.userQuestions.map((q) => q.id);
     this.topicName = userTopic.topicName;
     this.status = userTopic.status;
     this.questionsInRow = userTopic.questionsInRow;

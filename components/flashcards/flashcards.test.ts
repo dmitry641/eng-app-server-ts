@@ -294,6 +294,17 @@ describe("UserCardsClient", () => {
     });
   });
 
+  /*
+  FIXME не оттестирован один момент:
+
+  Создаю колоду
+  Получаю карточки
+  Удаляю колоду
+  Пробую выучить/удалить карточку
+    в момент изучени, происходит попытка увеличить количество
+    выученных карточек в колоде, но колода уже удаленна
+    и происходит ошибка
+  */
   it("learnUserCard + getLearnedUserCards", async () => {
     const udclient = await userDecksManager.getUserDecksClient(user);
     const tc = decksTestCases.case1;
@@ -309,7 +320,10 @@ describe("UserCardsClient", () => {
     jest.clearAllMocks();
 
     const uc1 = Object.assign({}, userCards[0]);
-    let luc1 = await ucclient.learnUserCard(uc1.id, HistoryStatusEnum.medium);
+    let { userCard: luc1 } = await ucclient.learnUserCard(
+      uc1.id,
+      HistoryStatusEnum.medium
+    );
     expect(luc1.history.length).toBe(1);
     expect(luc1.history[0].status).toBe(HistoryStatusEnum.medium);
 
@@ -344,7 +358,8 @@ describe("UserCardsClient", () => {
     expect(spyGetLearnedUserCards).toBeCalled();
 
     // learn the same user card again
-    luc1 = await ucclient.learnUserCard(uc1.id, HistoryStatusEnum.medium);
+    let object = await ucclient.learnUserCard(uc1.id, HistoryStatusEnum.medium);
+    luc1 = object.userCard;
     expect(luc1.history.length).toBe(2);
 
     userCards = await ucclient.getUserCards();

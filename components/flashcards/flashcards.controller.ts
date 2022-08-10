@@ -58,8 +58,9 @@ export async function deleteUserCard(
     const { userCardId } = req.params;
     if (!userCardId) throw new BadRequest();
     const ucclient = await userCardsManager.getUserCardsClient(req.user);
-    const result = await ucclient.deleteUserCard(userCardId);
-    return res.send(result);
+    // костыль
+    const object = await ucclient.deleteUserCard(userCardId);
+    return res.send(object);
   } catch (error) {
     next(error);
   }
@@ -88,8 +89,9 @@ export async function learnUserCard(
     if (!req.user) throw new Unauthorized();
     const { userCardId, status }: UCStatusType = req.body;
     const ucclient = await userCardsManager.getUserCardsClient(req.user);
-    const userCard = await ucclient.learnUserCard(userCardId, status);
-    return res.send(userCard);
+    // костыль
+    const object = await ucclient.learnUserCard(userCardId, status);
+    return res.send(object);
   } catch (error) {
     next(error);
   }

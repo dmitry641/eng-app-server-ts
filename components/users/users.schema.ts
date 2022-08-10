@@ -1,4 +1,5 @@
 import yup from "../../utils/yup.util";
+import { UpdUserSettingsEnum } from "./users.util";
 
 export const signUpSchema = yup.object({
   name: yup.string().required("Name is required"),
@@ -24,4 +25,9 @@ export const signInSchema = yup.object({
     .required("Email is required"),
   password: yup.string().min(5, "Password is too short").required(),
   // reToken: yup.string().required("ReCaptcha is required"),
+});
+
+export const updateSettingsSchema = yup.object({
+  value: yup.boolean().required("Value is required"),
+  type: yup.string().oneOf(Object.values(UpdUserSettingsEnum), "Wrong type"),
 });

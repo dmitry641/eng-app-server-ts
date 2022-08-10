@@ -86,12 +86,12 @@ export class UserDecksClient {
     await userDeck.enable();
     return this.userDeckToDTO(userDeck);
   }
-  async deleteUserDeck(userDeckId: UserDeckId): Promise<UserDeckDTO> {
+  async deleteUserDeck(userDeckId: UserDeckId): Promise<boolean> {
     const userDeck = this.getUserDeck(userDeckId);
     if (userDeck.dynamic) throw new Error("Dynamic deck is not allowed");
     await userDeck.delete();
     this.userDecks = this.userDecks.filter((d) => d.id != userDeck.id);
-    return this.userDeckToDTO(userDeck);
+    return true;
   }
   async moveUserDeck(
     userDeckId: UserDeckId,
@@ -190,10 +190,7 @@ export class UserDecksClient {
     await this.settings.setDynamicCreated(true);
     return this.userDeckToDTO(userDeck);
   }
-  async syncDynamicUserDeck(): Promise<{
-    settings: UserDecksSettingsDTO;
-    userDeck: UserDeckDTO;
-  }> {
+  async syncDynamicUserDeck(): Promise<UserDeckDTO> {
     const dynUserDeck = this.getDynamicUserDeck();
     if (!dynUserDeck) throw new Error("Dynamic userDeck doesn't exist");
     const type = this.settings.dynamicSyncType;
@@ -221,12 +218,9 @@ export class UserDecksClient {
       globalJobStore.userJobs.cancelJob(this.user, "deckSyncJob");
     }
 
-    return {
-      settings: this.settingsToDTO(),
-      userDeck: this.userDeckToDTO(dynUserDeck),
-    };
+    return this.userDeckToDTO(dynUserDeck);
   }
-  async deleteDynamicUserDeck(): Promise<UserDecksSettingsDTO> {
+  async deleteDynamicUserDeck(): Promise<boolean> {
     // спорный момент. В методе "удалить" мы не только удаляем, но еще и настройки изменяем...
     const dynUserDeck = this.getDynamicUserDeck();
     if (!dynUserDeck) throw new Error("Dynamic userDeck doesn't exist");
@@ -242,7 +236,7 @@ export class UserDecksClient {
 
     globalJobStore.userJobs.cancelJob(this.user, "deckSyncJob");
 
-    return this.settingsToDTO();
+    return true;
   }
   async updateSyncData(
     type: DynamicSyncType,

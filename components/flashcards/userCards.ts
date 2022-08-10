@@ -55,15 +55,26 @@ export class UserCardsClient {
   private userCardToDTO(userCard: UserCard): UserCardDTO {
     return new UserCardDTO(userCard);
   }
-  async deleteUserCard(userCardId: UserCardId) {
+  async deleteUserCard(
+    userCardId: UserCardId
+  ): Promise<{ result: boolean; userDeck?: UserDeckDTO }> {
     const userCard = this.getUserCard(userCardId);
     if (userCard.deleted) throw new Error("UserCard is already deleted");
     const result = await userCard.delete();
-    // очень спорный момент. Нарушение все возможных паттернов...
-    const udclient = await userDecksManager.getUserDecksClient(this.user);
-    const userDeck = udclient.getUserDeckById(userCard.userDeckId);
-    await udclient.updateCardsCount(userDeck.id, userDeck.cardsCount - 1);
-    return result;
+
+    let userDeck;
+    try {
+      // очень спорный момент. Нарушение все возможных паттернов...
+      // + костыль
+      const udclient = await userDecksManager.getUserDecksClient(this.user);
+      userDeck = udclient.getUserDeckById(userCard.userDeckId);
+      userDeck = await udclient.updateCardsCount(
+        userDeck.id,
+        userDeck.cardsCount - 1
+      );
+    } catch (error) {}
+
+    return { result, userDeck };
   }
   async favoriteUserCard(userCardId: UserCardId): Promise<UserCardDTO> {
     const userCard = this.getUserCard(userCardId);
@@ -74,16 +85,23 @@ export class UserCardsClient {
   async learnUserCard(
     userCardId: UserCardId,
     status: HistoryStatusEnum
-  ): Promise<UserCardDTO> {
+  ): Promise<{ userCard: UserCardDTO; userDeck?: UserDeckDTO }> {
     const userCard = this.getUserCard(userCardId);
     const historyLen = Number(userCard.history.length);
     await userCard.learn(status);
+    let userDeck: UserDeckDTO | undefined;
     if (historyLen == 0) {
       const udclient = await userDecksManager.getUserDecksClient(this.user);
-      const userDeck = udclient.getUserDeckById(userCard.userDeckId);
-      await udclient.updateCardsLearned(userDeck.id, userDeck.cardsLearned + 1);
+      try {
+        // костыль
+        userDeck = udclient.getUserDeckById(userCard.userDeckId);
+        userDeck = await udclient.updateCardsLearned(
+          userDeck.id,
+          userDeck.cardsLearned + 1
+        );
+      } catch (error) {}
     }
-    return this.userCardToDTO(userCard);
+    return { userCard: this.userCardToDTO(userCard), userDeck: userDeck };
   }
   getFavorites(): UserCardDTO[] {
     const notdeleted = this.userCards.filter((uc) => !uc.deleted);

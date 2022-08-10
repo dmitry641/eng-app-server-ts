@@ -17,3 +17,11 @@ export const COOKIE_OPTIONS: CookieOptions = {
   secure: Boolean(process.env.COOKIE_SECURE),
   sameSite: "lax", // FIXME: разобраться
 };
+
+export enum UpdUserSettingsEnum {
+  darkMode = "darkMode",
+}
+export type UpdUserSettingsType = {
+  type: UpdUserSettingsEnum;
+  value: boolean;
+};

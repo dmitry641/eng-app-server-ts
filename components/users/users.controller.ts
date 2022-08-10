@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from "express";
+import BadRequest from "../../exceptions/BadRequest";
 import Unauthorized from "../../exceptions/Unauthorized";
 import { cryptr } from "../../utils";
 import { SessionModel } from "./models/sessions.model";
@@ -10,9 +11,14 @@ import {
   UserDTO,
   UserSettingsDTO,
 } from "./users.dto";
-import { COOKIE_NAME, COOKIE_OPTIONS } from "./users.util";
+import {
+  COOKIE_NAME,
+  COOKIE_OPTIONS,
+  UpdUserSettingsEnum,
+  UpdUserSettingsType,
+} from "./users.util";
 
-export async function signUp(req: Request, res: Response, next: NextFunction) {
+async function signUp(req: Request, res: Response, next: NextFunction) {
   try {
     const createUserDTO: CreateUserDTO = req.body;
     const user = await globalUserStore.createUser(createUserDTO);
@@ -31,7 +37,7 @@ export async function signUp(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-export async function signIn(req: Request, res: Response, next: NextFunction) {
+async function signIn(req: Request, res: Response, next: NextFunction) {
   try {
     const logInDTO: LogInDTO = req.body;
     const user = await globalUserStore.validateUser(logInDTO);
@@ -50,7 +56,7 @@ export async function signIn(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-export async function getUser(req: Request, res: Response, next: NextFunction) {
+async function getUser(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.user) throw new Unauthorized();
     const userDTO = new UserDTO(req.user);
@@ -61,7 +67,7 @@ export async function getUser(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-export async function logout(req: Request, res: Response, next: NextFunction) {
+async function logout(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.sessionId) throw new Unauthorized();
     const sessionId = req.sessionId;
@@ -73,11 +79,7 @@ export async function logout(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-export async function getSessions(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
+async function getSessions(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.user) throw new Unauthorized();
     const userId = req.user.id;
@@ -92,11 +94,7 @@ export async function getSessions(
   }
 }
 
-export async function resetSessions(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
+async function resetSessions(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.user) throw new Unauthorized();
     const userId = req.user.id;
@@ -107,3 +105,34 @@ export async function resetSessions(
     next(error);
   }
 }
+
+async function updateSettings(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) throw new Unauthorized();
+    const { type, value }: UpdUserSettingsType = req.body;
+    let settings;
+
+    switch (type) {
+      case UpdUserSettingsEnum.darkMode:
+        settings = await req.user.settings.setDarkMode(value);
+        break;
+      default:
+        throw new BadRequest();
+    }
+
+    settings = new UserSettingsDTO(req.user);
+    return res.send(settings);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export const usersController = {
+  signUp,
+  signIn,
+  getUser,
+  logout,
+  getSessions,
+  resetSessions,
+  updateSettings,
+};

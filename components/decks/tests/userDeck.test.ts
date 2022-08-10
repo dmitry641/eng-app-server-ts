@@ -190,8 +190,7 @@ describe("UserDecksClient", () => {
       const spyDelete = jest.spyOn(UserDeck.prototype, "delete");
       const spyEnable = jest.spyOn(UserDeck.prototype, "enable");
       expect(userDeck.deleted).toBe(false);
-      userDeck = await udclient.deleteUserDeck(userDeck.id);
-      expect(userDeck.deleted).toBe(true);
+      await udclient.deleteUserDeck(userDeck.id);
       expect(spyDelete).toBeCalled();
       expect(spyEnable).not.toBeCalled();
       const userDecks = udclient.getUserDecks();
@@ -629,7 +628,8 @@ describe("UserDecksClient: dynamic deck", () => {
     let userDecks = udclient.getUserDecks();
     expect(userDecks).toContainEqual(dynUserDeck);
 
-    const settings = await udclient.deleteDynamicUserDeck();
+    await udclient.deleteDynamicUserDeck();
+    const settings = udclient.getUserDecksSettings();
 
     userDecks = udclient.getUserDecks();
     expect(userDecks).not.toContain(dynUserDeck);
