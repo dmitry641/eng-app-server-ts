@@ -1,37 +1,30 @@
 import { NextFunction, Request, Response } from "express";
-import BadRequest from "../../exceptions/BadRequest";
 import Unauthorized from "../../exceptions/Unauthorized";
 import { cryptr } from "../../utils";
 import { SessionModel } from "./models/sessions.model";
-import { globalUserStore } from "./user";
-import {
-  CreateUserDTO,
-  LogInDTO,
-  SessionDTO,
-  UserDTO,
-  UserSettingsDTO,
-} from "./users.dto";
+import { userService } from "./users.service";
 import {
   COOKIE_NAME,
   COOKIE_OPTIONS,
-  UpdUserSettingsEnum,
+  CreateUserDTO,
+  LogInDTO,
+  SessionDTO,
   UpdUserSettingsType,
 } from "./users.util";
 
 async function signUp(req: Request, res: Response, next: NextFunction) {
   try {
     const createUserDTO: CreateUserDTO = req.body;
-    const user = await globalUserStore.createUser(createUserDTO);
-    const userDTO = new UserDTO(user);
-    const userSettingsDTO = new UserSettingsDTO(user);
+    const user = await userService.createUser(createUserDTO);
+    const settings = await userService.getSettings(user.id);
     const session = await SessionModel.create({
-      user: userDTO.id,
+      user: user.id,
       userAgent: req.headers["user-agent"] || "",
       ip: req.ip || req.headers["x-forwarded-for"] || "",
     });
     const encrypted = cryptr.encrypt(String(session._id));
     res.cookie(COOKIE_NAME, encrypted, COOKIE_OPTIONS);
-    return res.json({ user: userDTO, settings: userSettingsDTO });
+    return res.json({ user, settings });
   } catch (error) {
     next(error);
   }
@@ -40,17 +33,16 @@ async function signUp(req: Request, res: Response, next: NextFunction) {
 async function signIn(req: Request, res: Response, next: NextFunction) {
   try {
     const logInDTO: LogInDTO = req.body;
-    const user = await globalUserStore.validateUser(logInDTO);
-    const userDTO = new UserDTO(user);
-    const userSettingsDTO = new UserSettingsDTO(user);
+    const user = await userService.validateUser(logInDTO);
+    const settings = await userService.getSettings(user.id);
     const session = await SessionModel.create({
-      user: userDTO.id,
+      user: user.id,
       userAgent: req.headers["user-agent"] || "",
       ip: req.ip || req.headers["x-forwarded-for"] || "",
     });
     const encrypted = cryptr.encrypt(String(session._id));
     res.cookie(COOKIE_NAME, encrypted, COOKIE_OPTIONS);
-    return res.json({ user: userDTO, settings: userSettingsDTO });
+    return res.json({ user, settings });
   } catch (error) {
     next(error);
   }
@@ -58,10 +50,10 @@ async function signIn(req: Request, res: Response, next: NextFunction) {
 
 async function getUser(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) throw new Unauthorized();
-    const userDTO = new UserDTO(req.user);
-    const userSettingsDTO = new UserSettingsDTO(req.user);
-    return res.json({ user: userDTO, settings: userSettingsDTO });
+    if (!req.userId) throw new Unauthorized();
+    const user = await userService.getUser(req.userId);
+    const settings = await userService.getSettings(req.userId);
+    return res.json({ user, settings });
   } catch (error) {
     next(error);
   }
@@ -81,13 +73,12 @@ async function logout(req: Request, res: Response, next: NextFunction) {
 
 async function getSessions(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) throw new Unauthorized();
-    const userId = req.user.id;
+    if (!req.userId) throw new Unauthorized();
     const sessions = await SessionModel.find({
-      user: userId,
+      user: req.userId,
       valid: true,
     });
-    const sessionsDTO = sessions.map((el) => new SessionDTO(el));
+    const sessionsDTO = sessions.map((s) => new SessionDTO(s));
     return res.send(sessionsDTO);
   } catch (error) {
     next(error);
@@ -96,9 +87,8 @@ async function getSessions(req: Request, res: Response, next: NextFunction) {
 
 async function resetSessions(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) throw new Unauthorized();
-    const userId = req.user.id;
-    await SessionModel.updateMany({ user: userId }, { valid: false });
+    if (!req.userId) throw new Unauthorized();
+    await SessionModel.updateMany({ user: req.userId }, { valid: false });
     res.clearCookie(COOKIE_NAME);
     return res.sendStatus(200);
   } catch (error) {
@@ -108,19 +98,9 @@ async function resetSessions(req: Request, res: Response, next: NextFunction) {
 
 async function updateSettings(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) throw new Unauthorized();
-    const { type, value }: UpdUserSettingsType = req.body;
-    let settings;
-
-    switch (type) {
-      case UpdUserSettingsEnum.darkMode:
-        settings = await req.user.settings.setDarkMode(value);
-        break;
-      default:
-        throw new BadRequest();
-    }
-
-    settings = new UserSettingsDTO(req.user);
+    if (!req.userId) throw new Unauthorized();
+    const updateDTO: UpdUserSettingsType = req.body;
+    const settings = await userService.updateSetting(req.userId, updateDTO);
     return res.send(settings);
   } catch (error) {
     next(error);

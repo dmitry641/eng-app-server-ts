@@ -1,8 +1,11 @@
 import { Document, model, Schema } from "mongoose";
-import { UserId } from "../user";
+import { IUser } from "./users.model";
 
-export interface ISession extends Document {
-  user: UserId;
+export interface SessionInput {
+  user: IUser["_id"];
+}
+
+export interface ISession extends SessionInput, Document {
   valid: boolean;
   userAgent: string;
   ip: string;

@@ -1,83 +1,125 @@
-import { FilterQuery } from "mongoose";
+import bcrypt from "bcrypt";
+import { StripeUtil } from "../../utils/stripe.util";
 import {
-  IUserCardsSettings,
-  UserCardsSettingsInput,
-  UserCardsSettingsModel,
-} from "./models/userCardsSettings.model";
+  DecksSettingsInput,
+  DecksSettingsModel,
+} from "../decks/models/decksSettings.model";
 import {
-  IUserDecksSettings,
-  UserDecksSettingsInput,
-  UserDecksSettingsModel,
-} from "./models/userDecksSettings.model";
-import {
-  IUserPhoneSettings,
-  UserPhoneSettingsInput,
-  UserPhoneSettingsModel,
-} from "./models/userPhoneSettings.model";
+  CardsSettingsInput,
+  CardsSettingsModel,
+} from "../flashcards/models/CardsSettings.model";
 import { IUser, UserInput, UserModel } from "./models/users.model";
 import {
   IUserSettings,
   UserSettingsInput,
   UserSettingsModel,
 } from "./models/userSettings.model";
+import {
+  CreateUserDTO,
+  LogInDTO,
+  UpdUserSettingsEnum,
+  UpdUserSettingsType,
+  UserDTO,
+  UserSettingsDTO,
+} from "./users.util";
 
-export class UserService {
-  static async findOneUser(query: FilterQuery<IUser>): Promise<IUser | null> {
-    return UserModel.findOne(query);
-  }
-  static async createUser(obj: UserInput): Promise<IUser> {
-    return UserModel.create(obj);
+declare global {
+  namespace Express {
+    interface Request {
+      userId?: string;
+      sessionId?: string;
+    }
   }
 }
 
-export class UserSettingsService {
-  static async createUserSettings(
-    obj: UserSettingsInput
-  ): Promise<IUserSettings> {
-    return UserSettingsModel.create(obj);
+class UserService {
+  async createUser({
+    email,
+    name,
+    password,
+    ...rest
+  }: CreateUserDTO): Promise<UserDTO> {
+    const emailTaken = await this.isEmailTaken(email);
+    if (emailTaken) throw new Error("This email address is already in use");
+
+    const stripeUser = await StripeUtil.createUser({ email, name });
+    const hashedPassword = await bcrypt.hash(password, 5);
+    const userInput: UserInput = {
+      email,
+      name,
+      password: hashedPassword,
+      stripeCustomerId: stripeUser.id,
+    };
+    const user = await UserModel.create(userInput);
+
+    await this.afterUserCreation(user);
+
+    return this.userToDTO(user);
   }
-  static async findOneUserSettings(
-    query: FilterQuery<IUserSettings>
-  ): Promise<IUserSettings | null> {
-    return UserSettingsModel.findOne(query);
+  async validateUser({ email, password }: LogInDTO): Promise<UserDTO> {
+    const user = await UserModel.findOne({ email });
+    if (!user) throw new Error("Invalid email");
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) throw new Error("Invalid password");
+    return this.userToDTO(user);
+  }
+  async getUser(userId: string): Promise<UserDTO> {
+    const user = await UserModel.findOne({ _id: userId });
+    if (!user) throw new Error("User doesn't exist");
+    return this.userToDTO(user);
+  }
+  async getSettings(userId: string): Promise<UserSettingsDTO> {
+    const settings = await UserSettingsModel.findOne({ user: userId });
+    if (!settings) throw new Error("UserSettings doesn't exist");
+    return this.settingsToDTO(settings);
+  }
+  async updateSetting(
+    userId: string,
+    { type, value }: UpdUserSettingsType
+  ): Promise<UserSettingsDTO> {
+    const settings = await UserSettingsModel.findOne({ user: userId });
+    if (!settings) throw new Error("UserSettings doesn't exist");
+
+    switch (type) {
+      case UpdUserSettingsEnum.darkMode:
+        settings.darkMode = value;
+        break;
+      default:
+        throw new Error("Wrong type");
+    }
+    await settings.save();
+
+    return this.settingsToDTO(settings);
+  }
+
+  private async afterUserCreation(user: IUser) {
+    const userSettingsInput: UserSettingsInput = {
+      user: String(user._id),
+      darkMode: true, // FIXME
+    };
+    await UserSettingsModel.create(userSettingsInput);
+
+    const decksSettingsInput: DecksSettingsInput = {
+      user: String(user.id),
+    };
+    await DecksSettingsModel.create(decksSettingsInput);
+
+    const cardsSettingsInput: CardsSettingsInput = {
+      user: String(user.id),
+    };
+    await CardsSettingsModel.create(cardsSettingsInput);
+  }
+  private async isEmailTaken(email: string): Promise<boolean> {
+    const candidate = await UserModel.find({ email });
+    if (candidate) return true;
+    return false;
+  }
+  private userToDTO(user: IUser): UserDTO {
+    return new UserDTO(user);
+  }
+  private settingsToDTO(settings: IUserSettings): UserSettingsDTO {
+    return new UserSettingsDTO(settings);
   }
 }
 
-export class UserPhoneSettingsService {
-  static async createUserPhoneSettings(
-    obj: UserPhoneSettingsInput
-  ): Promise<IUserPhoneSettings> {
-    return UserPhoneSettingsModel.create(obj);
-  }
-  static async findOneUserPhoneSettings(
-    query: FilterQuery<IUserPhoneSettings>
-  ): Promise<IUserPhoneSettings | null> {
-    return UserPhoneSettingsModel.findOne(query);
-  }
-}
-
-export class UserDecksSettingsService {
-  static async createUserDecksSettings(
-    obj: UserDecksSettingsInput
-  ): Promise<IUserDecksSettings> {
-    return UserDecksSettingsModel.create(obj);
-  }
-  static async findOneUserDecksSettings(
-    query: FilterQuery<IUserDecksSettings>
-  ): Promise<IUserDecksSettings | null> {
-    return UserDecksSettingsModel.findOne(query);
-  }
-}
-
-export class UserCardsSettingsService {
-  static async createUserCardsSettings(
-    obj: UserCardsSettingsInput
-  ): Promise<IUserCardsSettings> {
-    return UserCardsSettingsModel.create(obj);
-  }
-  static async findOneUserCardsSettings(
-    query: FilterQuery<IUserCardsSettings>
-  ): Promise<IUserCardsSettings | null> {
-    return UserCardsSettingsModel.findOne(query);
-  }
-}
+export const userService = new UserService();

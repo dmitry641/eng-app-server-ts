@@ -1,8 +1,8 @@
 import { Document, model, Schema } from "mongoose";
-import { UserId } from "../user";
+import { IUser } from "./users.model";
 
 export interface UserSettingsInput {
-  user: UserId;
+  user: IUser["_id"];
   darkMode: boolean;
 }
 
