@@ -1,6 +1,8 @@
-import path from "path";
-import { getBuffer, getCsvData } from "../../utils";
-import { QuestionService, TopicService } from "./quiz.service";
+import { IQuestion } from "./models/questions.model";
+import { ITopic } from "./models/topics.model";
+import { IUserTopic } from "./models/userTopics.model";
+
+// quiz util
 
 export const quizCsvHeaders = ["topicName", "text"] as const;
 export type QuizKeysType = { [K in typeof quizCsvHeaders[number]]: string };
@@ -9,73 +11,139 @@ export type QuizKeysType = { [K in typeof quizCsvHeaders[number]]: string };
 //   topicName: ITopic["topicName"];
 //   text: IQuestion["text"];
 // };
-
-type CreateCollType = {
+export type CreateCollType = {
   csvFileNames: string[];
   pathToDir: string;
   csvHeaders: (keyof QuizKeysType)[] | readonly (keyof QuizKeysType)[];
 };
 
-export class QuizUtil {
-  static async quizDBInitialize() {
-    const topics = await TopicService.findTopics();
-    const questions = await QuestionService.findQuestions();
-    if (topics.length && questions.length) return;
-    if (topics.length) await TopicService.dropTopics();
-    if (questions.length) await QuestionService.dropQuestions();
-    console.log("Quiz: Topics and questions collections are creating...");
-    await this.createCollections({
-      csvFileNames: ["esldiscussions", "iteslj"],
-      pathToDir: path.resolve(__dirname, "quizdata"),
-      csvHeaders: quizCsvHeaders,
-    });
-    console.log("Quiz: Topics and questions collections created.");
+// misc + dto
+
+export enum UTStatus {
+  current = "current",
+  paused = "paused",
+  started = "started",
+  finished = "finished",
+  blocked = "blocked",
+}
+export const images_count = 10;
+export const apiRoot = process.env.UNSPLASH_API_URL;
+export const accessKey = process.env.UNSPLASH_ACCESS_KEY;
+export const questionsInRowLIMIT = 7;
+export const questionSliceEnd = 7;
+export const oneDay = 1000 * 60 * 60 * 24;
+export const topicSliceEnd = 5;
+
+export type UTType = { userTopicId: string };
+export type TType = { topicId: string };
+export type QType = { questionId: string };
+
+export type UnsplashImage = {
+  id: string;
+  width: number;
+  height: number;
+  description: string;
+  urls: {
+    raw: string;
+    full: string;
+    regular: string;
+    small: string;
+    thumb: string;
+    small_s3: string;
+  };
+  links: {
+    self: string;
+    html: string;
+    download: string;
+    download_location: string;
+  };
+  user: {
+    id: string;
+    username: string;
+    name: string;
+    links: {
+      html: string;
+    };
+  };
+};
+export type UnsplashResponse = {
+  total: number;
+  total_pages: number;
+  results: UnsplashImage[];
+};
+export class ImageDto {
+  readonly id: string;
+  readonly original: string;
+  readonly thumbnail: string;
+  readonly name: string;
+  readonly userLink: string;
+  readonly description: string;
+  constructor(img: UnsplashImage) {
+    this.id = img.id;
+    this.original = img.urls.regular;
+    this.thumbnail = img.urls.thumb;
+    this.name = img.user.name;
+    this.userLink = img.user.links.html;
+    this.description = img.description;
   }
+}
 
-  // esldissussion: line 5451, 5462, 8913 should be removed manually
-  static async createCollections({
-    csvFileNames,
-    pathToDir,
-    csvHeaders,
-  }: CreateCollType) {
-    let parsedData: {
-      source: string;
-      data: QuizKeysType[];
-    }[] = [];
-
-    for (let fileName of csvFileNames) {
-      const pathToFile = path.resolve(pathToDir, fileName + ".csv");
-      const buffer = getBuffer(pathToFile);
-      const data = await getCsvData<QuizKeysType>(
-        buffer,
-        csvHeaders,
-        [true, true],
-        "|"
-      );
-      parsedData.push({ source: fileName, data });
-    }
-
-    for (let { source, data } of parsedData) {
-      await this.createNewQuestion(source, data);
-    }
+export class TopicDTO {
+  readonly id: string;
+  readonly topicName: string;
+  readonly source: string;
+  constructor(topic: ITopic) {
+    this.id = String(topic._id);
+    this.topicName = topic.topicName;
+    this.source = topic.source;
   }
+}
 
-  static async createNewQuestion(source: string, data: QuizKeysType[]) {
-    let uniqueTopics = new Set<string>(
-      data.map((t) => {
-        return t.topicName;
-      })
-    );
-
-    for (let topicName of uniqueTopics) {
-      const topic = await TopicService.createTopic({ topicName, source });
-      let questions = data.filter((obj) => obj.topicName === topicName);
-      for (let el of questions) {
-        await QuestionService.createQuestion({
-          topic: String(topic._id),
-          text: el.text,
-        });
-      }
-    }
+export class QuestionDTO {
+  readonly id: string;
+  readonly text: string;
+  readonly topicId: string;
+  constructor(question: IQuestion) {
+    this.id = String(question._id);
+    this.text = question.text;
+    this.topicId = String(question.topic);
   }
+}
+
+export class UserTopicDTO {
+  readonly id: string;
+  readonly updatedAt: Date;
+  readonly topicId: string;
+  readonly totalQuestionCount: number;
+  readonly learnedQuestions: string[];
+  readonly topicName: string;
+  readonly status: UTStatus;
+  readonly questionsInRow: number;
+  constructor(userTopic: IUserTopic) {
+    this.id = String(userTopic._id);
+    this.updatedAt = userTopic.updatedAt;
+    this.topicId = String(userTopic.topic);
+    this.totalQuestionCount = userTopic.totalQuestionCount;
+    this.learnedQuestions = userTopic.learnedQuestions.map(String);
+    this.topicName = userTopic.topicName;
+    this.status = userTopic.status;
+    this.questionsInRow = userTopic.questionsInRow;
+  }
+}
+
+// functions
+
+export function filterTopics(userTopics: IUserTopic[], topics: ITopic[]) {
+  const utIds = userTopics.map((ut) => String(ut.topic));
+  const filteredTopics = topics.filter((t) => !utIds.includes(String(t._id)));
+  return filteredTopics;
+}
+
+export function filterQuestions(
+  learnedQuestions: IUserTopic["learnedQuestions"], // почему any[]? и почему нет ошибок?
+  questions: IQuestion[]
+): IQuestion[] {
+  const lrnQstIds = learnedQuestions.map((lq) => String(lq));
+  const filtered = questions.filter((q) => !lrnQstIds.includes(String(q._id)));
+  return filtered;
 }

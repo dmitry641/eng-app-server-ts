@@ -7,10 +7,10 @@ import helmet from "helmet";
 import morgan from "morgan";
 import { globalDecksStore } from "./components/decks/deck";
 import { globalCardsStore } from "./components/flashcards/cards";
-import { globalQuizStore } from "./components/quiz/quiz";
-import { QuizUtil } from "./components/quiz/quiz.util";
+import { QuizUtil } from "./components/quiz/quiz.service";
 import { globalJobStore } from "./components/schedule";
 import { connectToDB } from "./db";
+import { deleteMe } from "./deleteme";
 import NotFound from "./exceptions/NotFound";
 import errorMiddleware from "./middleware/error";
 import apiRouter from "./routes";
@@ -43,12 +43,11 @@ async function start() {
     await connectToDB();
     console.log("Connected to database.");
     await QuizUtil.quizDBInitialize();
-    await globalQuizStore.init();
     await globalJobStore.init();
     await globalDecksStore.init();
     await globalCardsStore.init();
 
-    // await deleteMe();
+    await deleteMe();
     app.listen(PORT, () =>
       console.log(`Server is running at localhost:${PORT}`)
     );

@@ -2,7 +2,7 @@ import { connectToTestDB, disconnectFromDB } from "../../db";
 import { quizTestData1, testQuestions, testTopics } from "../../test/testcases";
 import { sleep } from "../../utils";
 import { globalUserStore, User } from "../users/user";
-import { UserTopicStatusEnum } from "./models/userTopics.model";
+import { UTStatus } from "./models/userTopics.model";
 import { globalQuizStore, QuestionDTO, TopicDTO } from "./quiz";
 import {
   oneDay,
@@ -222,11 +222,11 @@ describe("UserQuizClient", () => {
   it("initCurrentUserTopic", async () => {
     const topic = uqclient.getTopics()[0];
     const ut1 = await uqclient.addTopicToUserTopics(topic.id);
-    expect(ut1.status).toBe(UserTopicStatusEnum.started);
+    expect(ut1.status).toBe(UTStatus.started);
 
     const init = await uqclient.initUserTopic();
     expect(init.id).toBe(ut1.id);
-    expect(init.status).toBe(UserTopicStatusEnum.current);
+    expect(init.status).toBe(UTStatus.current);
 
     for (let i = 0; i < 3; i++) {
       const ut = await uqclient.initUserTopic();
@@ -300,7 +300,7 @@ describe("UserQuizClient", () => {
 
     const uts = uqclient.getUserTopics();
     const ut3 = uts.find((ut) => ut.id == ut2.id)!;
-    expect(ut3.status).toBe(UserTopicStatusEnum.paused);
+    expect(ut3.status).toBe(UTStatus.paused);
     expect(ut3.questionsInRow).toBe(0);
 
     const ut4 = await uqclient.changeCurrentUserTopic(ut3.id);
@@ -322,7 +322,7 @@ describe("UserQuizClient", () => {
 
     const uts2 = uqclient.getUserTopics();
     const ut6 = uts2.find((ut) => ut.id == ut5.id)!;
-    expect(ut6.status).toBe(UserTopicStatusEnum.finished);
+    expect(ut6.status).toBe(UTStatus.finished);
 
     try {
       await uqclient.changeCurrentUserTopic(ut6.id);
@@ -333,7 +333,7 @@ describe("UserQuizClient", () => {
     expect(errMsg).toBe("UserTopic is finished");
 
     const statuses = uqclient.getUserTopics().map((ut) => ut.status);
-    const current = statuses.find((s) => s == UserTopicStatusEnum.current);
+    const current = statuses.find((s) => s == UTStatus.current);
     expect(current).toBeUndefined();
   });
 
@@ -416,7 +416,7 @@ describe("UserQuizClient", () => {
 
     let ut0 = uqclient.getUserTopics().find((ut) => ut.id == initUT.id)!;
     expect(ut0.questionsInRow).toBe(1);
-    expect(ut0.status).toBe(UserTopicStatusEnum.current);
+    expect(ut0.status).toBe(UTStatus.current);
 
     const topics1 = uqclient.getTopics();
     let ut1 = await uqclient.addTopicToUserTopics(topics1[0].id);
@@ -426,9 +426,9 @@ describe("UserQuizClient", () => {
     expect(uts1.length).toBe(2);
     ut0 = uts1.find((ut) => ut.id == initUT.id)!;
     expect(ut0.questionsInRow).toBe(0);
-    expect(ut0.status).toBe(UserTopicStatusEnum.started);
+    expect(ut0.status).toBe(UTStatus.started);
     ut1 = uts1.find((ut) => ut.id == ut1.id)!;
-    expect(ut1.status).toBe(UserTopicStatusEnum.current);
+    expect(ut1.status).toBe(UTStatus.current);
 
     const topics2 = uqclient.getTopics();
     const includes = topics2.map((t) => t.id).includes(topics1[0].id);
@@ -441,9 +441,7 @@ describe("UserQuizClient", () => {
     const uts2 = uqclient.getUserTopics();
     expect(uts2.length).toBe(3);
 
-    const filtered = uts2.filter(
-      (ut) => ut.status == UserTopicStatusEnum.current
-    );
+    const filtered = uts2.filter((ut) => ut.status == UTStatus.current);
     expect(filtered.length).toBe(1);
     expect(filtered[0].id).toBe(ut2.id);
 
@@ -457,9 +455,7 @@ describe("UserQuizClient", () => {
     expect(errMsg).toBe("UserTopic is blocked");
 
     const uts3 = uqclient.getUserTopics();
-    const filtered1 = uts3.filter(
-      (ut) => ut.status == UserTopicStatusEnum.current
-    );
+    const filtered1 = uts3.filter((ut) => ut.status == UTStatus.current);
     expect(filtered1.length).toBe(1);
     expect(filtered1[0].id).toBe(ut2.id);
   });
@@ -477,12 +473,12 @@ describe("UserQuizClient", () => {
 
     const topics = uqclient.getTopics();
     let ut2 = await uqclient.addTopicToUserTopics(topics[0].id);
-    expect(ut2.status).toBe(UserTopicStatusEnum.started);
+    expect(ut2.status).toBe(UTStatus.started);
     ut2 = await uqclient.blockUserTopic(ut2.id);
-    expect(ut2.status).toBe(UserTopicStatusEnum.blocked);
+    expect(ut2.status).toBe(UTStatus.blocked);
 
     ut2 = await uqclient.blockUserTopic(ut2.id);
-    expect(ut2.status).toBe(UserTopicStatusEnum.started);
+    expect(ut2.status).toBe(UTStatus.started);
   });
 
   afterAll(async () => {

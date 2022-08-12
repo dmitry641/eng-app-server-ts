@@ -1,25 +1,21 @@
 import { model, Schema } from "mongoose";
 import { DocumentWithTimestamps } from "../../../utils/types";
-import { UserId } from "../../users/user";
-import { TopicId } from "../quiz";
-
-export enum UserTopicStatusEnum {
-  current = "current",
-  paused = "paused",
-  started = "started",
-  finished = "finished",
-  blocked = "blocked",
-}
+import { IUser } from "../../users/models/users.model";
+import { UTStatus } from "../quiz.util";
+import { IQuestion } from "./questions.model";
+import { ITopic } from "./topics.model";
 
 export interface UserTopicInput {
-  user: UserId;
-  topic: TopicId;
+  user: IUser["_id"];
+  topic: ITopic["_id"];
+  topicName: string; // populate?
   totalQuestionCount: number;
-  status: UserTopicStatusEnum;
+  status: UTStatus;
 }
 
 export interface IUserTopic extends UserTopicInput, DocumentWithTimestamps {
   questionsInRow: number;
+  learnedQuestions: Array<IQuestion["_id"]>;
 }
 
 const UserTopicSchema: Schema = new Schema(
@@ -28,11 +24,18 @@ const UserTopicSchema: Schema = new Schema(
     topic: { type: Schema.Types.ObjectId, ref: "Topic", required: true },
     status: {
       type: String,
-      enum: UserTopicStatusEnum,
+      enum: UTStatus,
       required: true,
     },
     totalQuestionCount: { type: Number, required: true },
     questionsInRow: { type: Number, default: 0, required: true },
+    learnedQuestions: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Question",
+        required: true,
+      },
+    ],
   },
   { timestamps: true }
 );

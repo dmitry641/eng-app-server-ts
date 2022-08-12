@@ -1,8 +1,8 @@
 import { Document, model, Schema } from "mongoose";
-import { TopicId } from "../quiz";
+import { ITopic } from "./topics.model";
 
 export interface QuestionInput {
-  topic: TopicId;
+  topic: ITopic["_id"];
   text: string;
 }
 
