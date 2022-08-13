@@ -17,8 +17,8 @@ import {
 
 async function initUserTopic(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) throw new Unauthorized();
-    const currentUT = await quizService.initUserTopic(req.user.id);
+    if (!req.userId) throw new Unauthorized();
+    const currentUT = await quizService.initUserTopic(req.userId);
     // const questions = uqclient.getQuestions();
     return res.send(currentUT);
   } catch (error) {
@@ -27,8 +27,8 @@ async function initUserTopic(req: Request, res: Response, next: NextFunction) {
 }
 async function getUserTopics(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) throw new Unauthorized();
-    const userTopics = await quizService.getUserTopics(req.user.id);
+    if (!req.userId) throw new Unauthorized();
+    const userTopics = await quizService.getUserTopics(req.userId);
     return res.send(userTopics);
   } catch (error) {
     next(error);
@@ -40,14 +40,14 @@ async function selectUserTopic(
   next: NextFunction
 ) {
   try {
-    if (!req.user) throw new Unauthorized();
+    if (!req.userId) throw new Unauthorized();
     const { userTopicId }: UTType = req.body;
     const currentUT = await quizService.selectUserTopic(
-      req.user.id,
+      req.userId,
       userTopicId
     );
-    const userTopics = await quizService.getUserTopics(req.user.id);
-    const questions = await quizService.getQuestions(req.user.id);
+    const userTopics = await quizService.getUserTopics(req.userId);
+    const questions = await quizService.getQuestions(req.userId);
     return res.send({ currentUT, userTopics, questions });
   } catch (error) {
     next(error);
@@ -55,12 +55,9 @@ async function selectUserTopic(
 }
 async function blockUserTopic(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) throw new Unauthorized();
+    if (!req.userId) throw new Unauthorized();
     const { userTopicId }: UTType = req.body;
-    const userTopic = await quizService.blockUserTopic(
-      req.user.id,
-      userTopicId
-    );
+    const userTopic = await quizService.blockUserTopic(req.userId, userTopicId);
     return res.send(userTopic);
   } catch (error) {
     next(error);
@@ -69,8 +66,8 @@ async function blockUserTopic(req: Request, res: Response, next: NextFunction) {
 
 async function getTopics(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) throw new Unauthorized();
-    const topics = await quizService.getTopics(req.user.id);
+    if (!req.userId) throw new Unauthorized();
+    const topics = await quizService.getTopics(req.userId);
     return res.send(topics);
   } catch (error) {
     next(error);
@@ -82,12 +79,12 @@ async function addTopicToUserTopics(
   next: NextFunction
 ) {
   try {
-    if (!req.user) throw new Unauthorized();
+    if (!req.userId) throw new Unauthorized();
     const { topicId }: TType = req.body;
-    const newUT = await quizService.addTopicToUserTopics(req.user.id, topicId);
-    const currentUT = await quizService.selectUserTopic(req.user.id, newUT.id);
-    const userTopics = await quizService.getUserTopics(req.user.id);
-    const questions = await quizService.getQuestions(req.user.id);
+    const newUT = await quizService.addTopicToUserTopics(req.userId, topicId);
+    const currentUT = await quizService.selectUserTopic(req.userId, newUT.id);
+    const userTopics = await quizService.getUserTopics(req.userId);
+    const questions = await quizService.getQuestions(req.userId);
     return res.send({ userTopics, currentUT, questions });
   } catch (error) {
     next(error);
@@ -96,8 +93,8 @@ async function addTopicToUserTopics(
 
 async function getQuestions(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) throw new Unauthorized();
-    const questions = await quizService.getQuestions(req.user.id);
+    if (!req.userId) throw new Unauthorized();
+    const questions = await quizService.getQuestions(req.userId);
     return res.send(questions);
   } catch (error) {
     next(error);
@@ -105,9 +102,9 @@ async function getQuestions(req: Request, res: Response, next: NextFunction) {
 }
 async function learnQuestion(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) throw new Unauthorized();
+    if (!req.userId) throw new Unauthorized();
     const { questionId }: QType = req.body;
-    const object = await quizService.learnQuestion(req.user.id, questionId);
+    const object = await quizService.learnQuestion(req.userId, questionId);
     return res.send(object);
   } catch (error) {
     next(error);

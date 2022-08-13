@@ -32,7 +32,7 @@ import {
   UTStatus,
 } from "./quiz.util";
 
-class QuizService {
+export class QuizService {
   async initUserTopic(userId: string): Promise<UserTopicDTO> {
     let currentUT = await this.initCurrentUserTopic(userId);
     if (!currentUT) {
@@ -51,7 +51,7 @@ class QuizService {
   async addTopicToUserTopics(
     userId: string,
     topicId: string
-  ): Promise<IUserTopic> {
+  ): Promise<UserTopicDTO> {
     const topic = await this.findOneITopic(topicId);
     const userTopics = await this.findIUserTopics(userId);
     const existedIds = userTopics.map((ut) => String(ut.topic));
@@ -67,7 +67,7 @@ class QuizService {
       totalQuestionCount: questions.length,
     };
     const userTopic = await UserTopicModel.create(userTopicInput);
-    return userTopic;
+    return this.userTopicToDTO(userTopic);
   }
   async getUserTopics(userId: string): Promise<UserTopicDTO[]> {
     const userTopics = await this.findIUserTopics(userId);
@@ -137,7 +137,7 @@ class QuizService {
     questionId: string
   ): Promise<{ changeTopic: boolean }> {
     const currentUT = await this.getCurrentUT(userId);
-    const topic = await this.findOneITopic(String(currentUT._id));
+    const topic = await this.findOneITopic(String(currentUT.topic));
     const questions = await this.findIQuestions(String(topic._id));
     const question = questions.find((q) => String(q._id) === questionId);
     if (!question) throw new Error("Question not found");
@@ -147,7 +147,7 @@ class QuizService {
     if (learned) throw new Error("Question is already learned");
 
     currentUT.questionsInRow = currentUT.questionsInRow + 1;
-    currentUT.learnedQuestions.push(questionId); // FIXME question.id
+    currentUT.learnedQuestions.push(questionId);
 
     let changeTopic = false;
     if (currentUT.questionsInRow === questionsInRowLIMIT) {
@@ -217,7 +217,8 @@ class QuizService {
     if (!topics.length) throw new Error("No topics found");
     const randomNumber = randomIntFromInterval(0, topics.length - 1);
     const randomTopic = topics[randomNumber];
-    const userTopic = await this.addTopicToUserTopics(userId, randomTopic.id);
+    const utDTO = await this.addTopicToUserTopics(userId, randomTopic.id);
+    const userTopic = await this.findOneIUserTopic(userId, utDTO.id);
     return this.makeCurrent(userTopic);
   }
   private userTopicToDTO(userTopic: IUserTopic): UserTopicDTO {
@@ -237,8 +238,8 @@ class QuizService {
 
 export const quizService = new QuizService();
 
-export class QuizUtil {
-  static async quizDBInitialize() {
+export class QuizDB {
+  static async saturate() {
     const topics = await TopicModel.find();
     const questions = await QuestionModel.find();
     if (topics.length && questions.length) return;

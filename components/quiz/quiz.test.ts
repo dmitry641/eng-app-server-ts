@@ -1,31 +1,30 @@
+import { ObjectID } from "bson";
 import { connectToTestDB, disconnectFromDB } from "../../db";
 import { quizTestData1, testQuestions, testTopics } from "../../test/testcases";
 import { sleep } from "../../utils";
-import { globalUserStore, User } from "../users/user";
-import { UTStatus } from "./models/userTopics.model";
-import { globalQuizStore, QuestionDTO, TopicDTO } from "./quiz";
+import { userService } from "../users/users.service";
 import {
-  oneDay,
-  QuestionService,
-  questionSliceEnd,
-  TopicService,
-  topicSliceEnd,
-} from "./quiz.service";
-import { QuizUtil } from "./quiz.util";
+  IQuestion,
+  QuestionInput,
+  QuestionModel,
+} from "./models/questions.model";
+import { ITopic, TopicInput, TopicModel } from "./models/topics.model";
+import { IUserTopic } from "./models/userTopics.model";
+import { QuizDB, quizService, QuizService } from "./quiz.service";
 import {
   filterQuestions,
   filterTopics,
-  UserQuestionDTO,
-  UserQuizClient,
-  userQuizManager,
-  UserTopic,
-} from "./userQuiz";
+  oneDay,
+  questionSliceEnd,
+  topicSliceEnd,
+  UTStatus,
+} from "./quiz.util";
 
 async function dropTopicsAndQuestions() {
-  const topics = await TopicService.findTopics();
-  const questions = await QuestionService.findQuestions();
-  if (topics.length) await TopicService.dropTopics();
-  if (questions.length) await QuestionService.dropQuestions();
+  const topics = await TopicModel.find({});
+  const questions = await QuestionModel.find({});
+  if (topics.length) await TopicModel.collection.drop();
+  if (questions.length) await QuestionModel.collection.drop();
 }
 
 describe("Quiz util:", () => {
@@ -41,9 +40,9 @@ describe("Quiz util:", () => {
 
   describe("CreateNewQuestion function", () => {
     it("correct test case", async () => {
-      await QuizUtil.createNewQuestion("qwerty", quizTestData1);
-      const topics = await TopicService.findTopics();
-      const questions = await QuestionService.findQuestions();
+      await QuizDB.createNewQuestion("qwerty", quizTestData1);
+      const topics = await TopicModel.find({});
+      const questions = await QuestionModel.find({});
       expect(topics.length).toBe(2);
       expect(questions.length).toBe(10);
     });
@@ -67,12 +66,12 @@ describe("Quiz util:", () => {
     // expect(questions.length).toBe(18929);
     // });
     it("19k documents should not be created", async () => {
-      const spyCreateCollections = jest.spyOn(QuizUtil, "createCollections");
-      await QuizUtil.createNewQuestion("qwerty", quizTestData1);
-      await QuizUtil.quizDBInitialize();
+      const spyCreateCollections = jest.spyOn(QuizDB, "createCollections");
+      await QuizDB.createNewQuestion("qwerty", quizTestData1);
+      await QuizDB.saturate();
       expect(spyCreateCollections).not.toBeCalled();
-      const topics = await TopicService.findTopics();
-      const questions = await QuestionService.findQuestions();
+      const topics = await TopicModel.find({});
+      const questions = await QuestionModel.find({});
       expect(topics.length).toBe(2);
       expect(questions.length).toBe(10);
     });
@@ -83,52 +82,8 @@ describe("Quiz util:", () => {
   });
 });
 
-describe("Quiz model service", () => {
-  beforeAll(async () => {
-    await connectToTestDB();
-  });
-  beforeEach(async () => {
-    await dropTopicsAndQuestions();
-  });
-  afterEach(async () => {
-    await dropTopicsAndQuestions();
-  });
-
-  describe("Topic service", () => {
-    it("...", () => {
-      expect(1).toBe(1);
-    });
-  });
-  describe("Question service", () => {
-    it("...", () => {
-      expect(1).toBe(1);
-    });
-  });
-  describe("User topic service", () => {
-    it("...", () => {
-      expect(1).toBe(1);
-    });
-  });
-  describe("User question service", () => {
-    it("...", () => {
-      expect(1).toBe(1);
-    });
-  });
-
-  describe("qwe", () => {
-    it("asd", async () => {
-      const spyCreateCollections = jest.spyOn(QuizUtil, "createCollections");
-      expect(spyCreateCollections).not.toBeCalled();
-    });
-  });
-
-  afterAll(async () => {
-    await disconnectFromDB();
-  });
-});
-
-jest.mock("./quiz.service", () => {
-  const originalModule = jest.requireActual("./quiz.service");
+jest.mock("./quiz.util", () => {
+  const originalModule = jest.requireActual("./quiz.util");
 
   return {
     __esModule: true,
@@ -140,134 +95,150 @@ jest.mock("./quiz.service", () => {
   };
 });
 
-// --- quiz ---
-// @ts-ignore
-globalQuizStore.topics = testTopics;
-// @ts-ignore
-globalQuizStore.questions = testQuestions;
-
-const spyGlobalGetTopics = jest.spyOn(globalQuizStore, "getTopics");
-const spyGetQuestionsByTopicId = jest.spyOn(
-  globalQuizStore,
-  "getQuestionsByTopicId"
-);
-const spyGetTopicById = jest.spyOn(globalQuizStore, "getTopicById");
-
-// --- user quiz ---
 const spyInitCurrentUserTopic = jest.spyOn(
-  UserQuizClient.prototype, // @ts-ignore
+  QuizService.prototype, // @ts-ignore
   "initCurrentUserTopic"
 );
 const spyInitRandomUserTopic = jest.spyOn(
-  UserQuizClient.prototype, // @ts-ignore
+  QuizService.prototype, // @ts-ignore
   "initRandomUserTopic"
 );
 const spyGetTopics = jest.spyOn(
-  UserQuizClient.prototype, // @ts-ignore
+  QuizService.prototype, // @ts-ignore
   "getTopics"
 );
 const spyAddTopicToUserTopics = jest.spyOn(
-  UserQuizClient.prototype, // @ts-ignore
+  QuizService.prototype, // @ts-ignore
   "addTopicToUserTopics"
 );
-const spyGetUserTopic = jest.spyOn(
-  UserQuizClient.prototype, // @ts-ignore
-  "getUserTopic"
-);
 const spyMakeCurrent = jest.spyOn(
-  UserQuizClient.prototype, // @ts-ignore
+  QuizService.prototype, // @ts-ignore
   "makeCurrent"
 );
 const spyUserTopicToDTO = jest.spyOn(
-  UserQuizClient.prototype, // @ts-ignore
+  QuizService.prototype, // @ts-ignore
   "userTopicToDTO"
 );
-const spyGetCurrentUserTopic = jest.spyOn(
-  UserQuizClient.prototype, // @ts-ignore
-  "getCurrentUserTopic"
+const spyGetCurrentUT = jest.spyOn(
+  QuizService.prototype, // @ts-ignore
+  "getCurrentUT"
+);
+const spyFindQuestions = jest.spyOn(
+  QuizService.prototype, // @ts-ignore
+  "findIQuestions"
+);
+const spyFindOneTopic = jest.spyOn(
+  QuizService.prototype, // @ts-ignore
+  "findOneITopic"
+);
+const spyFindOneUserTopic = jest.spyOn(
+  QuizService.prototype, // @ts-ignore
+  "findOneIUserTopic"
 );
 
 describe("UserQuizClient", () => {
-  let user: User;
-  let uqclient: UserQuizClient;
+  let userId: string;
   beforeAll(async () => {
     await connectToTestDB();
+
+    for (const topicDTO of testTopics) {
+      const topicInput: TopicInput = {
+        topicName: topicDTO.topicName,
+        source: topicDTO.source,
+      };
+      const topic = await TopicModel.create(topicInput);
+
+      let questions = testQuestions.filter((q) => q.topicId === topicDTO.id);
+      for (let el of questions) {
+        const questionInput: QuestionInput = {
+          topic: String(topic._id),
+          text: el.text,
+        };
+        await QuestionModel.create(questionInput);
+      }
+    }
   });
   beforeEach(async () => {
     jest.clearAllMocks();
-    user = await globalUserStore.createUser({
+    const user = await userService.createUser({
       email: String(Math.random()) + "@email.com",
       name: "123",
       password: "123",
     });
-    uqclient = await userQuizManager.getUserQuizClient(user);
+    userId = user.id;
   });
 
   it("initUserTopic", async () => {
-    const userTopic1 = await uqclient.initUserTopic();
+    const userTopic1 = await quizService.initUserTopic(userId);
     expect(spyInitCurrentUserTopic).toBeCalled();
     expect(spyInitRandomUserTopic).toBeCalled();
     expect(spyGetTopics).toBeCalled();
     expect(spyAddTopicToUserTopics).toBeCalled();
-    expect(spyGetUserTopic).toBeCalled();
     expect(spyMakeCurrent).toBeCalled();
     expect(spyUserTopicToDTO).toBeCalled();
     jest.clearAllMocks();
 
-    const userTopic2 = await uqclient.initUserTopic();
+    const userTopic2 = await quizService.initUserTopic(userId);
     expect(spyInitRandomUserTopic).not.toBeCalled();
     expect(userTopic1.id).toBe(userTopic2.id);
   });
 
   it("initCurrentUserTopic", async () => {
-    const topic = uqclient.getTopics()[0];
-    const ut1 = await uqclient.addTopicToUserTopics(topic.id);
+    const topics = await quizService.getTopics(userId);
+    const topic = topics[0];
+    const ut1 = await quizService.addTopicToUserTopics(userId, topic.id);
     expect(ut1.status).toBe(UTStatus.started);
 
-    const init = await uqclient.initUserTopic();
+    const init = await quizService.initUserTopic(userId);
     expect(init.id).toBe(ut1.id);
     expect(init.status).toBe(UTStatus.current);
 
     for (let i = 0; i < 3; i++) {
-      const ut = await uqclient.initUserTopic();
-      let questions = uqclient.getQuestions();
+      await quizService.initUserTopic(userId);
+      const questions = await quizService.getQuestions(userId);
       for (const q of questions) {
-        await uqclient.learnQuestion(q.id);
+        await quizService.learnQuestion(userId, q.id);
       }
       await sleep(15);
     }
 
     await sleep(oneDay);
 
-    const ut2 = await uqclient.initUserTopic();
+    const ut2 = await quizService.initUserTopic(userId);
     expect(ut2.id).toBe(ut1.id);
   });
 
   it("getQuestions", async () => {
-    const fn = () => uqclient.getQuestions();
-    expect(fn).toThrowError("Current userTopic is not set");
-    expect(spyGetQuestionsByTopicId).not.toBeCalled();
-    expect(spyGlobalGetTopics).not.toBeCalled();
-    const userTopic = await uqclient.initUserTopic();
+    let errMsg;
+    try {
+      await quizService.getQuestions(userId);
+    } catch (error) {
+      const err = error as Error;
+      errMsg = err.message;
+    }
+    expect(errMsg).toBe("Current userTopic is not set");
 
-    const questions = uqclient.getQuestions();
-    expect(spyGetCurrentUserTopic).toBeCalled();
-    expect(spyGetTopicById).toBeCalled();
-    expect(spyGetQuestionsByTopicId).toBeCalled();
+    expect(spyFindQuestions).not.toBeCalled();
+    await quizService.initUserTopic(userId);
+
+    const questions = await quizService.getQuestions(userId);
+    expect(spyGetCurrentUT).toBeCalled();
+    expect(spyFindOneTopic).toBeCalled();
+    expect(spyFindQuestions).toBeCalled();
     expect(questions.length).toBe(questionSliceEnd);
   });
 
   it("learnQuestion", async () => {
     let errMsg;
-    const ut1 = await uqclient.initUserTopic();
-    let questions = uqclient.getQuestions();
+    const ut1 = await quizService.initUserTopic(userId);
+    let questions = await quizService.getQuestions(userId);
     expect(questions.length).toBe(questionSliceEnd);
 
-    const topics = uqclient.getTopics();
-    const otherQuestions = globalQuizStore.getQuestionsByTopicId(topics[0].id);
-    for (const iterator of ["", otherQuestions[0].id]) {
+    const topics = await quizService.getTopics(userId);
+    const otherQuestions = await QuestionModel.find({ topic: topics[0].id });
+    for (const qId of ["", String(otherQuestions[0]._id)]) {
       try {
-        await uqclient.learnQuestion(iterator);
+        await quizService.learnQuestion(userId, qId);
       } catch (error) {
         const err = error as Error;
         errMsg = err.message;
@@ -275,81 +246,94 @@ describe("UserQuizClient", () => {
       expect(errMsg).toBe("Question not found");
     }
 
-    const spyAppend = jest.spyOn(UserTopic.prototype, "appendToUserQuestions");
-    const first = await uqclient.learnQuestion(questions[0].id);
-    expect(first.changeTopic).toBe(false);
-    expect(spyAppend).toBeCalled();
+    const obj1 = await quizService.learnQuestion(userId, questions[0].id);
+    expect(obj1.changeTopic).toBe(false);
+    const currentUT = await quizService.initUserTopic(userId);
+    expect(currentUT.learnedQuestions).toContain(questions[0].id);
 
     try {
-      await uqclient.learnQuestion(questions[0].id);
+      await quizService.learnQuestion(userId, questions[0].id);
     } catch (error) {
       const err = error as Error;
       errMsg = err.message;
     }
     expect(errMsg).toBe("Question is already learned");
 
-    const ut2 = await uqclient.initUserTopic();
+    const ut2 = await quizService.initUserTopic(userId);
     expect(ut2.questionsInRow).toBe(1);
     expect(ut2.id).toBe(ut1.id);
 
-    const second = await uqclient.learnQuestion(questions[1].id);
-    expect(second.changeTopic).toBe(true);
+    const obj2 = await quizService.learnQuestion(userId, questions[1].id);
+    expect(obj2.changeTopic).toBe(true);
 
-    const fn = () => uqclient.getQuestions();
-    expect(fn).toThrowError("Current userTopic is not set");
+    try {
+      await quizService.getQuestions(userId);
+    } catch (error) {
+      const err = error as Error;
+      errMsg = err.message;
+    }
+    expect(errMsg).toBe("Current userTopic is not set");
 
-    const uts = uqclient.getUserTopics();
-    const ut3 = uts.find((ut) => ut.id == ut2.id)!;
+    const uts = await quizService.getUserTopics(userId);
+    const ut3 = uts.find((ut) => ut.id === ut2.id)!;
     expect(ut3.status).toBe(UTStatus.paused);
     expect(ut3.questionsInRow).toBe(0);
 
-    const ut4 = await uqclient.changeCurrentUserTopic(ut3.id);
+    const ut4 = await quizService.selectUserTopic(userId, ut3.id);
     expect(ut4.id).toBe(ut1.id);
 
-    questions = uqclient.getQuestions();
-    const three = await uqclient.learnQuestion(questions[0].id);
-    expect(three.changeTopic).toBe(false);
-    const four = await uqclient.learnQuestion(questions[1].id);
-    expect(four.changeTopic).toBe(true);
+    questions = await quizService.getQuestions(userId);
+    const obj3 = await quizService.learnQuestion(userId, questions[0].id);
+    expect(obj3.changeTopic).toBe(false);
+    const obj4 = await quizService.learnQuestion(userId, questions[1].id);
+    expect(obj4.changeTopic).toBe(true);
 
-    const ut5 = await uqclient.changeCurrentUserTopic(ut4.id);
+    const ut5 = await quizService.selectUserTopic(userId, ut4.id);
     expect(ut5.id).toBe(ut2.id);
 
-    questions = uqclient.getQuestions();
+    questions = await quizService.getQuestions(userId);
     expect(questions.length).toBe(1);
-    const five = await uqclient.learnQuestion(questions[0].id);
-    expect(five.changeTopic).toBe(true);
+    const obj5 = await quizService.learnQuestion(userId, questions[0].id);
+    expect(obj5.changeTopic).toBe(true);
 
-    const uts2 = uqclient.getUserTopics();
-    const ut6 = uts2.find((ut) => ut.id == ut5.id)!;
+    const uts2 = await quizService.getUserTopics(userId);
+    const ut6 = uts2.find((ut) => ut.id === ut5.id)!;
     expect(ut6.status).toBe(UTStatus.finished);
 
     try {
-      await uqclient.changeCurrentUserTopic(ut6.id);
+      await quizService.selectUserTopic(userId, ut6.id);
     } catch (error) {
       const err = error as Error;
       errMsg = err.message;
     }
     expect(errMsg).toBe("UserTopic is finished");
 
-    const statuses = uqclient.getUserTopics().map((ut) => ut.status);
+    try {
+      await quizService.blockUserTopic(userId, ut6.id);
+    } catch (error) {
+      const err = error as Error;
+      errMsg = err.message;
+    }
+    expect(errMsg).toBe("Finished userTopic cannot be blocked");
+
+    const utopics = await quizService.getUserTopics(userId);
+    const statuses = utopics.map((ut) => ut.status);
     const current = statuses.find((s) => s == UTStatus.current);
     expect(current).toBeUndefined();
   });
 
   it("getTopics", async () => {
-    const topics = uqclient.getTopics();
+    const topics = await quizService.getTopics(userId);
     expect(spyGetTopics).toBeCalled();
-    expect(spyGlobalGetTopics).toBeCalled();
     expect(topics.length).toBe(topicSliceEnd);
   });
 
   it("getUserTopics", async () => {
-    let userTopics = uqclient.getUserTopics();
+    let userTopics = await quizService.getUserTopics(userId);
     expect(userTopics.length).toBe(0);
 
-    const userTopic = await uqclient.initUserTopic();
-    userTopics = uqclient.getUserTopics();
+    const userTopic = await quizService.initUserTopic(userId);
+    userTopics = await quizService.getUserTopics(userId);
     expect(userTopics.length).toBe(1);
     expect(userTopics[0].id).toBe(userTopic.id);
   });
@@ -357,72 +341,73 @@ describe("UserQuizClient", () => {
   it("addTopicToUserTopics", async () => {
     let errMsg;
     try {
-      await uqclient.addTopicToUserTopics("");
+      await quizService.addTopicToUserTopics(userId, String(new ObjectID()));
     } catch (error) {
       const err = error as Error;
       errMsg = err.message;
     }
-    expect(spyGetTopicById).toBeCalled();
+    expect(spyFindOneTopic).toBeCalled();
     expect(errMsg).toBe("Topic doesn't exist");
 
-    const topics = uqclient.getTopics();
-    const ut1 = await uqclient.addTopicToUserTopics(topics[0].id);
+    const topics = await quizService.getTopics(userId);
+    const ut1 = await quizService.addTopicToUserTopics(userId, topics[0].id);
     expect(ut1.topicId).toBe(topics[0].id);
 
-    const uts = uqclient.getUserTopics();
+    const uts = await quizService.getUserTopics(userId);
     expect(uts.length).toBe(1);
     expect(uts[0].id).toBe(ut1.id);
     expect(uts[0].topicId).toBe(topics[0].id);
 
-    const init = await uqclient.initUserTopic();
+    const init = await quizService.initUserTopic(userId);
     expect(spyInitRandomUserTopic).not.toBeCalled();
     expect(init.id).toBe(ut1.id);
 
     try {
-      await uqclient.addTopicToUserTopics(topics[0].id);
+      await quizService.addTopicToUserTopics(userId, topics[0].id);
     } catch (error) {
       const err = error as Error;
       errMsg = err.message;
     }
     expect(errMsg).toBe("Topic is already added");
 
-    const uts2 = uqclient.getUserTopics();
+    const uts2 = await quizService.getUserTopics(userId);
     expect(uts2.length).toBe(1);
   });
 
-  it("changeCurrentUserTopic", async () => {
+  it("selectUserTopic", async () => {
     let errMsg;
     try {
-      await uqclient.changeCurrentUserTopic("");
+      await quizService.selectUserTopic(userId, String(new ObjectID()));
     } catch (error) {
       const err = error as Error;
       errMsg = err.message;
     }
     expect(errMsg).toBe("UserTopic doesn't exist");
-    expect(spyGetUserTopic).toBeCalled();
+    expect(spyFindOneUserTopic).toBeCalled();
 
-    const initUT = await uqclient.initUserTopic();
+    const initUT = await quizService.initUserTopic(userId);
     expect(initUT.questionsInRow).toBe(0);
     try {
-      await uqclient.changeCurrentUserTopic(initUT.id);
+      await quizService.selectUserTopic(userId, initUT.id);
     } catch (error) {
       const err = error as Error;
       errMsg = err.message;
     }
     expect(errMsg).toBe("UserTopic is current already");
 
-    const questions = uqclient.getQuestions();
-    await uqclient.learnQuestion(questions[0].id);
+    const questions = await quizService.getQuestions(userId);
+    await quizService.learnQuestion(userId, questions[0].id);
 
-    let ut0 = uqclient.getUserTopics().find((ut) => ut.id == initUT.id)!;
+    const uts = await quizService.getUserTopics(userId);
+    let ut0 = uts.find((ut) => ut.id === initUT.id)!;
     expect(ut0.questionsInRow).toBe(1);
     expect(ut0.status).toBe(UTStatus.current);
 
-    const topics1 = uqclient.getTopics();
-    let ut1 = await uqclient.addTopicToUserTopics(topics1[0].id);
-    await uqclient.changeCurrentUserTopic(ut1.id);
+    const topics1 = await quizService.getTopics(userId);
+    let ut1 = await quizService.addTopicToUserTopics(userId, topics1[0].id);
+    await quizService.selectUserTopic(userId, ut1.id);
 
-    const uts1 = uqclient.getUserTopics();
+    const uts1 = await quizService.getUserTopics(userId);
     expect(uts1.length).toBe(2);
     ut0 = uts1.find((ut) => ut.id == initUT.id)!;
     expect(ut0.questionsInRow).toBe(0);
@@ -430,31 +415,31 @@ describe("UserQuizClient", () => {
     ut1 = uts1.find((ut) => ut.id == ut1.id)!;
     expect(ut1.status).toBe(UTStatus.current);
 
-    const topics2 = uqclient.getTopics();
+    const topics2 = await quizService.getTopics(userId);
     const includes = topics2.map((t) => t.id).includes(topics1[0].id);
     expect(includes).toBe(false);
-    let ut2 = await uqclient.addTopicToUserTopics(topics2[0].id);
-    await uqclient.changeCurrentUserTopic(ut2.id);
+    let ut2 = await quizService.addTopicToUserTopics(userId, topics2[0].id);
+    await quizService.selectUserTopic(userId, ut2.id);
 
-    const topics3 = uqclient.getTopics();
+    const topics3 = await quizService.getTopics(userId);
     expect(topics3.length).toBe(2);
-    const uts2 = uqclient.getUserTopics();
+    const uts2 = await quizService.getUserTopics(userId);
     expect(uts2.length).toBe(3);
 
     const filtered = uts2.filter((ut) => ut.status == UTStatus.current);
     expect(filtered.length).toBe(1);
     expect(filtered[0].id).toBe(ut2.id);
 
-    await uqclient.blockUserTopic(ut1.id);
+    await quizService.blockUserTopic(userId, ut1.id);
     try {
-      await uqclient.changeCurrentUserTopic(ut1.id);
+      await quizService.selectUserTopic(userId, ut1.id);
     } catch (error) {
       const err = error as Error;
       errMsg = err.message;
     }
     expect(errMsg).toBe("UserTopic is blocked");
 
-    const uts3 = uqclient.getUserTopics();
+    const uts3 = await quizService.getUserTopics(userId);
     const filtered1 = uts3.filter((ut) => ut.status == UTStatus.current);
     expect(filtered1.length).toBe(1);
     expect(filtered1[0].id).toBe(ut2.id);
@@ -462,22 +447,22 @@ describe("UserQuizClient", () => {
 
   it("blockUserTopic", async () => {
     let errMsg;
-    const ut1 = await uqclient.initUserTopic();
+    const ut1 = await quizService.initUserTopic(userId);
     try {
-      await uqclient.blockUserTopic(ut1.id);
+      await quizService.blockUserTopic(userId, ut1.id);
     } catch (error) {
       const err = error as Error;
       errMsg = err.message;
     }
     expect(errMsg).toBe("Current userTopic cannot be blocked");
 
-    const topics = uqclient.getTopics();
-    let ut2 = await uqclient.addTopicToUserTopics(topics[0].id);
+    const topics = await quizService.getTopics(userId);
+    let ut2 = await quizService.addTopicToUserTopics(userId, topics[0].id);
     expect(ut2.status).toBe(UTStatus.started);
-    ut2 = await uqclient.blockUserTopic(ut2.id);
+    ut2 = await quizService.blockUserTopic(userId, ut2.id);
     expect(ut2.status).toBe(UTStatus.blocked);
 
-    ut2 = await uqclient.blockUserTopic(ut2.id);
+    ut2 = await quizService.blockUserTopic(userId, ut2.id);
     expect(ut2.status).toBe(UTStatus.started);
   });
 
@@ -488,48 +473,48 @@ describe("UserQuizClient", () => {
 
 describe("filterTopics", () => {
   it("should be empty", () => {
-    const userTopics1 = [] as UserTopic[];
-    const topics1 = [] as TopicDTO[];
+    const userTopics1 = [] as IUserTopic[];
+    const topics1 = [] as ITopic[];
     const filtered1 = filterTopics(userTopics1, topics1);
     expect(filtered1.length).toBe(0);
 
-    const userTopics2 = [{ topicId: "1" }] as UserTopic[];
-    const topics2 = [{ id: "1" }] as TopicDTO[];
+    const userTopics2 = [{ topic: "1" }] as IUserTopic[];
+    const topics2 = [{ _id: "1" }] as ITopic[];
     const filtered2 = filterTopics(userTopics2, topics2);
     expect(filtered2.length).toBe(0);
 
     const userTopics3 = [
-      { topicId: "3" },
-      { topicId: "1" },
-      { topicId: "2" },
-    ] as UserTopic[];
-    const topics3 = [{ id: "1" }, { id: "3" }, { id: "2" }] as TopicDTO[];
+      { topic: "3" },
+      { topic: "1" },
+      { topic: "2" },
+    ] as IUserTopic[];
+    const topics3 = [{ _id: "1" }, { _id: "3" }, { _id: "2" }] as ITopic[];
     const filtered3 = filterTopics(userTopics3, topics3);
     expect(filtered3.length).toBe(0);
   });
   it("should not be empty", () => {
-    const userTopics1 = [] as UserTopic[];
-    const topics1 = [{ id: "1" }] as TopicDTO[];
+    const userTopics1 = [] as IUserTopic[];
+    const topics1 = [{ _id: "1" }] as ITopic[];
     const filtered1 = filterTopics(userTopics1, topics1);
     expect(filtered1.length).toBe(1);
 
-    const userTopics2 = [{ topicId: "1" }] as UserTopic[];
-    const topics2 = [{ id: "1" }, { id: "2" }, { id: "3" }] as TopicDTO[];
+    const userTopics2 = [{ topic: "1" }] as IUserTopic[];
+    const topics2 = [{ _id: "1" }, { _id: "2" }, { _id: "3" }] as ITopic[];
     const filtered2 = filterTopics(userTopics2, topics2);
     expect(filtered2.length).toBe(2);
 
     const userTopics3 = [
-      { topicId: "4" },
-      { topicId: "5" },
-      { topicId: "6" },
-      { topicId: "7" },
-    ] as UserTopic[];
+      { topic: "4" },
+      { topic: "5" },
+      { topic: "6" },
+      { topic: "7" },
+    ] as IUserTopic[];
     const topics3 = [
-      { id: "1" },
-      { id: "2" },
-      { id: "3" },
-      { id: "4" },
-    ] as TopicDTO[];
+      { _id: "1" },
+      { _id: "2" },
+      { _id: "3" },
+      { _id: "4" },
+    ] as ITopic[];
     const filtered3 = filterTopics(userTopics3, topics3);
     expect(filtered3.length).toBe(3);
   });
@@ -537,49 +522,48 @@ describe("filterTopics", () => {
 
 describe("filterQuestions", () => {
   it("should be empty", () => {
-    const userQuestions1 = [] as UserQuestionDTO[];
-    const questions1 = [] as QuestionDTO[];
-    const filtered1 = filterQuestions(userQuestions1, questions1);
+    const learnedQuestion1: string[] = [];
+    const questions1 = [] as IQuestion[];
+    const filtered1 = filterQuestions(learnedQuestion1, questions1);
     expect(filtered1.length).toBe(0);
 
-    const userQuestions2 = [{ questionId: "1" }] as UserQuestionDTO[];
-    const questions2 = [{ id: "1" }] as QuestionDTO[];
-    const filtered2 = filterQuestions(userQuestions2, questions2);
+    const learnedQuestion2: string[] = ["1"];
+    const questions2 = [{ _id: "1" }] as IQuestion[];
+    const filtered2 = filterQuestions(learnedQuestion2, questions2);
     expect(filtered2.length).toBe(0);
 
-    const userQuestions3 = [
-      { questionId: "3" },
-      { questionId: "1" },
-      { questionId: "2" },
-    ] as UserQuestionDTO[];
-    const questions3 = [{ id: "1" }, { id: "3" }, { id: "2" }] as QuestionDTO[];
-    const filtered3 = filterQuestions(userQuestions3, questions3);
+    const learnedQuestion3 = ["3", "1", "2"];
+    const questions3 = [
+      { _id: "1" },
+      { _id: "3" },
+      { _id: "2" },
+    ] as IQuestion[];
+    const filtered3 = filterQuestions(learnedQuestion3, questions3);
     expect(filtered3.length).toBe(0);
   });
   it("should not be empty", () => {
-    const userQuestions1 = [] as UserQuestionDTO[];
-    const questions1 = [{ id: "1" }] as QuestionDTO[];
-    const filtered1 = filterQuestions(userQuestions1, questions1);
+    const learnedQuestion1: string[] = [];
+    const questions1 = [{ _id: "1" }] as IQuestion[];
+    const filtered1 = filterQuestions(learnedQuestion1, questions1);
     expect(filtered1.length).toBe(1);
 
-    const userQuestions2 = [{ questionId: "1" }] as UserQuestionDTO[];
-    const questions2 = [{ id: "1" }, { id: "2" }, { id: "3" }] as QuestionDTO[];
-    const filtered2 = filterQuestions(userQuestions2, questions2);
+    const learnedQuestion2 = ["1"];
+    const questions2 = [
+      { _id: "1" },
+      { _id: "2" },
+      { _id: "3" },
+    ] as IQuestion[];
+    const filtered2 = filterQuestions(learnedQuestion2, questions2);
     expect(filtered2.length).toBe(2);
 
-    const userQuestions3 = [
-      { questionId: "4" },
-      { questionId: "5" },
-      { questionId: "6" },
-      { questionId: "7" },
-    ] as UserQuestionDTO[];
+    const learnedQuestion3 = ["4", "5", "6", "7"];
     const questions3 = [
-      { id: "1" },
-      { id: "2" },
-      { id: "3" },
-      { id: "4" },
-    ] as QuestionDTO[];
-    const filtered3 = filterQuestions(userQuestions3, questions3);
+      { _id: "1" },
+      { _id: "2" },
+      { _id: "3" },
+      { _id: "4" },
+    ] as IQuestion[];
+    const filtered3 = filterQuestions(learnedQuestion3, questions3);
     expect(filtered3.length).toBe(3);
   });
 });

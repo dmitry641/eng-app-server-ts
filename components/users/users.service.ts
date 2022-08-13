@@ -7,7 +7,7 @@ import {
 import {
   CardsSettingsInput,
   CardsSettingsModel,
-} from "../flashcards/models/CardsSettings.model";
+} from "../flashcards/models/cardsSettings.model";
 import { IUser, UserInput, UserModel } from "./models/users.model";
 import {
   IUserSettings,
@@ -110,7 +110,7 @@ class UserService {
     await CardsSettingsModel.create(cardsSettingsInput);
   }
   private async isEmailTaken(email: string): Promise<boolean> {
-    const candidate = await UserModel.find({ email });
+    const candidate = await UserModel.findOne({ email });
     if (candidate) return true;
     return false;
   }

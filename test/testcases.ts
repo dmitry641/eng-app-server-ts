@@ -1,7 +1,10 @@
 import { resolve } from "path";
 import { IReversoResponse, IYandexResponse } from "../components/decks/sync";
-import { QuestionDTO, TopicDTO } from "../components/quiz/quiz";
-import { QuizKeysType } from "../components/quiz/quiz.util";
+import {
+  QuestionDTO,
+  QuizKeysType,
+  TopicDTO,
+} from "../components/quiz/quiz.util";
 
 // { [K: string]: { pathToFile: string; csvHeaders: string[] } }
 // export const quizTestCases = new Map<number, T>()

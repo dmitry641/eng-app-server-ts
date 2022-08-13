@@ -7,7 +7,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import { globalDecksStore } from "./components/decks/deck";
 import { globalCardsStore } from "./components/flashcards/cards";
-import { QuizUtil } from "./components/quiz/quiz.service";
+import { QuizDB } from "./components/quiz/quiz.service";
 import { globalJobStore } from "./components/schedule";
 import { connectToDB } from "./db";
 import { deleteMe } from "./deleteme";
@@ -42,7 +42,7 @@ async function start() {
     console.log("Connecting to database...");
     await connectToDB();
     console.log("Connected to database.");
-    await QuizUtil.quizDBInitialize();
+    await QuizDB.saturate();
     await globalJobStore.init();
     await globalDecksStore.init();
     await globalCardsStore.init();
