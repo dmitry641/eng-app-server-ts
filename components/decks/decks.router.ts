@@ -20,10 +20,10 @@ decksRouter.post("/", upload.single("csv"), dc.createUserDeck);
 decksRouter.post("/enable", validate(UDSchema), dc.enableUserDeck);
 decksRouter.delete("/delete/:userDeckId", dc.deleteUserDeck);
 decksRouter.post("/move", validate(UDPosSchema), dc.moveUserDeck);
-decksRouter.post("/toggle", validate(UDSchema), dc.toggleUserDeckPublic);
+decksRouter.post("/publish", validate(UDSchema), dc.publishUserDeck);
 
 decksRouter.get("/public", dc.getPublicDecks);
-decksRouter.post("/public", validate(DSchema), dc.addPublicDeckToUserDecks);
+decksRouter.post("/public", validate(DSchema), dc.addPublicDeck);
 
 decksRouter.post("/dynamic", dc.createDynamicUserDeck);
 decksRouter.delete("/dynamic", dc.deleteDynamicUserDeck);

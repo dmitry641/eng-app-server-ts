@@ -1,14 +1,19 @@
 import { NextFunction, Request, Response } from "express";
 import BadRequest from "../../exceptions/BadRequest";
 import Unauthorized from "../../exceptions/Unauthorized";
-import { AutoSyncType, DType, SyncDataType, UDPosType, UDType } from "./types";
-import { userDecksManager } from "./userDeck";
+import { decksService } from "./decks.service";
+import {
+  AutoSyncType,
+  DType,
+  SyncDataType,
+  UDPosType,
+  UDType,
+} from "./decks.util";
 
 async function getUserDecks(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) throw new Unauthorized();
-    const udclient = await userDecksManager.getUserDecksClient(req.user);
-    const userDecks = udclient.getUserDecks();
+    if (!req.userId) throw new Unauthorized();
+    const userDecks = await decksService.getUserDecks(req.userId);
     return res.send(userDecks);
   } catch (error) {
     next(error);
@@ -16,14 +21,13 @@ async function getUserDecks(req: Request, res: Response, next: NextFunction) {
 }
 async function createUserDeck(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) throw new Unauthorized();
-    const udclient = await userDecksManager.getUserDecksClient(req.user);
+    if (!req.userId) throw new Unauthorized();
     const file = req.file;
     if (!file) throw new BadRequest();
     if (file.mimetype != "text/csv" && !file.originalname.endsWith(".csv")) {
       throw new BadRequest("Mime type must be 'text/csv'");
     }
-    const userDeck = await udclient.createUserDeck(file);
+    const userDeck = await decksService.createUserDeck(req.userId, file);
     return res.send(userDeck);
   } catch (error) {
     next(error);
@@ -32,10 +36,9 @@ async function createUserDeck(req: Request, res: Response, next: NextFunction) {
 
 async function enableUserDeck(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) throw new Unauthorized();
+    if (!req.userId) throw new Unauthorized();
     const { userDeckId }: UDType = req.body;
-    const udclient = await userDecksManager.getUserDecksClient(req.user);
-    const userDeck = await udclient.enableUserDeck(userDeckId);
+    const userDeck = await decksService.enableUserDeck(req.userId, userDeckId);
     return res.send(userDeck);
   } catch (error) {
     next(error);
@@ -43,11 +46,10 @@ async function enableUserDeck(req: Request, res: Response, next: NextFunction) {
 }
 async function deleteUserDeck(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) throw new Unauthorized();
+    if (!req.userId) throw new Unauthorized();
     const { userDeckId } = req.params;
     if (!userDeckId) throw new BadRequest();
-    const udclient = await userDecksManager.getUserDecksClient(req.user);
-    const result = await udclient.deleteUserDeck(userDeckId);
+    const result = await decksService.deleteUserDeck(req.userId, userDeckId);
     return res.send(result);
   } catch (error) {
     next(error);
@@ -55,26 +57,24 @@ async function deleteUserDeck(req: Request, res: Response, next: NextFunction) {
 }
 async function moveUserDeck(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) throw new Unauthorized();
+    if (!req.userId) throw new Unauthorized();
     const { userDeckId, position }: UDPosType = req.body;
-    const udclient = await userDecksManager.getUserDecksClient(req.user);
-    await udclient.moveUserDeck(userDeckId, position);
-    const userDecks = udclient.getUserDecks();
+    await decksService.moveUserDeck(req.userId, userDeckId, position);
+    const userDecks = await decksService.getUserDecks(req.userId);
     return res.send(userDecks);
   } catch (error) {
     next(error);
   }
 }
-async function toggleUserDeckPublic(
+async function publishUserDeck(
   req: Request,
   res: Response,
   next: NextFunction
 ) {
   try {
-    if (!req.user) throw new Unauthorized();
+    if (!req.userId) throw new Unauthorized();
     const { userDeckId }: UDType = req.body;
-    const udclient = await userDecksManager.getUserDecksClient(req.user);
-    const userDeck = await udclient.toggleUserDeckPublic(userDeckId);
+    const userDeck = await decksService.publishUserDeck(req.userId, userDeckId);
     return res.send(userDeck);
   } catch (error) {
     next(error);
@@ -83,24 +83,18 @@ async function toggleUserDeckPublic(
 
 async function getPublicDecks(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) throw new Unauthorized();
-    const udclient = await userDecksManager.getUserDecksClient(req.user);
-    const decks = udclient.getPublicDecks();
+    if (!req.userId) throw new Unauthorized();
+    const decks = await decksService.getPublicDecks(req.userId);
     return res.send(decks);
   } catch (error) {
     next(error);
   }
 }
-async function addPublicDeckToUserDecks(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
+async function addPublicDeck(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) throw new Unauthorized();
+    if (!req.userId) throw new Unauthorized();
     const { deckId }: DType = req.body;
-    const udclient = await userDecksManager.getUserDecksClient(req.user);
-    const userDeck = await udclient.addPublicDeckToUserDecks(deckId);
+    const userDeck = await decksService.addPublicDeck(req.userId, deckId);
     return res.send(userDeck);
   } catch (error) {
     next(error);
@@ -113,10 +107,9 @@ async function createDynamicUserDeck(
   next: NextFunction
 ) {
   try {
-    if (!req.user) throw new Unauthorized();
-    const udclient = await userDecksManager.getUserDecksClient(req.user);
-    const userDeck = await udclient.createDynamicUserDeck();
-    const settings = udclient.getUserDecksSettings();
+    if (!req.userId) throw new Unauthorized();
+    const userDeck = await decksService.createDynamicUserDeck(req.userId);
+    const settings = await decksService.getDecksSettings(req.userId);
     return res.send({ userDeck, settings });
   } catch (error) {
     next(error);
@@ -128,10 +121,9 @@ async function deleteDynamicUserDeck(
   next: NextFunction
 ) {
   try {
-    if (!req.user) throw new Unauthorized();
-    const udclient = await userDecksManager.getUserDecksClient(req.user);
-    await udclient.deleteDynamicUserDeck();
-    const settings = udclient.getUserDecksSettings();
+    if (!req.userId) throw new Unauthorized();
+    await decksService.deleteDynamicUserDeck(req.userId);
+    const settings = await decksService.getDecksSettings(req.userId);
     return res.send(settings);
   } catch (error) {
     next(error);
@@ -143,10 +135,9 @@ async function syncDynamicUserDeck(
   next: NextFunction
 ) {
   try {
-    if (!req.user) throw new Unauthorized();
-    const udclient = await userDecksManager.getUserDecksClient(req.user);
-    const userDeck = await udclient.syncDynamicUserDeck();
-    const settings = udclient.getUserDecksSettings();
+    if (!req.userId) throw new Unauthorized();
+    const userDeck = await decksService.syncDynamicUserDeck(req.userId);
+    const settings = await decksService.getDecksSettings(req.userId);
     return res.send({ userDeck, settings });
   } catch (error) {
     next(error);
@@ -159,9 +150,8 @@ async function getUserDecksSettings(
   next: NextFunction
 ) {
   try {
-    if (!req.user) throw new Unauthorized();
-    const udclient = await userDecksManager.getUserDecksClient(req.user);
-    const settings = udclient.getUserDecksSettings();
+    if (!req.userId) throw new Unauthorized();
+    const settings = await decksService.getDecksSettings(req.userId);
     return res.send(settings);
   } catch (error) {
     next(error);
@@ -169,10 +159,9 @@ async function getUserDecksSettings(
 }
 async function updateSyncData(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) throw new Unauthorized();
+    if (!req.userId) throw new Unauthorized();
     const { type, link }: SyncDataType = req.body;
-    const udclient = await userDecksManager.getUserDecksClient(req.user);
-    const settings = await udclient.updateSyncData(type, link);
+    const settings = await decksService.updateSyncData(req.userId, type, link);
     return res.send(settings);
   } catch (error) {
     next(error);
@@ -180,10 +169,9 @@ async function updateSyncData(req: Request, res: Response, next: NextFunction) {
 }
 async function updateAutoSync(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) throw new Unauthorized();
+    if (!req.userId) throw new Unauthorized();
     const { value }: AutoSyncType = req.body;
-    const udclient = await userDecksManager.getUserDecksClient(req.user);
-    const settings = await udclient.updateAutoSync(value);
+    const settings = await decksService.updateAutoSync(req.userId, value);
     return res.send(settings);
   } catch (error) {
     next(error);
@@ -197,9 +185,9 @@ export const decksController = {
   enableUserDeck,
   deleteUserDeck,
   moveUserDeck,
-  toggleUserDeckPublic,
+  publishUserDeck,
   getPublicDecks,
-  addPublicDeckToUserDecks,
+  addPublicDeck,
   createDynamicUserDeck,
   deleteDynamicUserDeck,
   syncDynamicUserDeck,

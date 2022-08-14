@@ -1,5 +1,5 @@
 import yup from "../../utils/yup.util";
-import { DynamicSyncType, UserDeckPositionEnum } from "../users/users.util";
+import { DynamicSyncType, UserDeckPositionEnum } from "./decks.util";
 
 export const UDSchema = yup.object({
   userDeckId: yup.string().isObjectId("UserDeckId is required"),

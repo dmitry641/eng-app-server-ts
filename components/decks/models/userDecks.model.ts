@@ -1,10 +1,10 @@
 import { Document, model, Schema } from "mongoose";
-import { UserId } from "../../users/user";
-import { DeckId } from "../deck";
+import { IUser } from "../../users/models/users.model";
+import { IDeck } from "./decks.model";
 
 export interface UserDeckInput {
-  user: UserId;
-  deck: DeckId;
+  user: IUser["_id"];
+  deck: IDeck["_id"];
   order: number;
   cardsCount: number;
   dynamic: boolean;

@@ -1,12 +1,10 @@
 import { Document, model, Schema } from "mongoose";
-import { UserId } from "../../users/user";
+import { IUser } from "../../users/models/users.model";
 
 export interface DeckInput {
-  createdBy: UserId;
-  author: string; // костыль
+  createdBy: IUser["_id"];
   name: string;
   totalCardsCount: number;
-  canBePublic: boolean;
 }
 
 export interface IDeck extends DeckInput, Document {
@@ -16,10 +14,8 @@ export interface IDeck extends DeckInput, Document {
 const DeckSchema: Schema = new Schema(
   {
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    author: { type: String, required: true }, // костыль, нужно через population делать
     name: { type: String, required: true },
     totalCardsCount: { type: Number, required: true },
-    canBePublic: { type: Boolean, required: true },
     public: { type: Boolean, default: false, required: true },
   },
   { timestamps: true }
