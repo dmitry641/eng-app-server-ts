@@ -61,7 +61,7 @@ export class QuizService {
     const questions = await this.findIQuestions(String(topic._id));
     const userTopicInput: UserTopicInput = {
       topic: String(topic._id),
-      topicName: topic.topicName,
+      topicName: topic.topicName, // костыль
       user: userId,
       status: UTStatus.started,
       totalQuestionCount: questions.length,

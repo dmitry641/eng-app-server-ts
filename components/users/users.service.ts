@@ -1,13 +1,13 @@
 import bcrypt from "bcrypt";
 import { StripeUtil } from "../../utils/stripe.util";
 import {
+  CardsSettingsInput,
+  CardsSettingsModel,
+} from "../cards/models/cardsSettings.model";
+import {
   DecksSettingsInput,
   DecksSettingsModel,
 } from "../decks/models/decksSettings.model";
-import {
-  CardsSettingsInput,
-  CardsSettingsModel,
-} from "../flashcards/models/cardsSettings.model";
 import { IUser, UserInput, UserModel } from "./models/users.model";
 import {
   IUserSettings,

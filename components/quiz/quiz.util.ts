@@ -125,7 +125,7 @@ export class UserTopicDTO {
     this.topicId = String(userTopic.topic);
     this.totalQuestionCount = userTopic.totalQuestionCount;
     this.learnedQuestions = userTopic.learnedQuestions.map(String);
-    this.topicName = userTopic.topicName;
+    this.topicName = userTopic.topicName; // костыль
     this.status = userTopic.status;
     this.questionsInRow = userTopic.questionsInRow;
   }

@@ -22,6 +22,7 @@ const UserTopicSchema: Schema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     topic: { type: Schema.Types.ObjectId, ref: "Topic", required: true },
+    topicName: { type: String, required: true }, // костыль
     status: {
       type: String,
       enum: UTStatus,

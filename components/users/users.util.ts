@@ -3,6 +3,7 @@ import { ISession } from "./models/sessions.model";
 import { IUser, UserInput } from "./models/users.model";
 import { IUserSettings, UserSettingsInput } from "./models/userSettings.model";
 
+export type UserId = string;
 export const COOKIE_NAME: string = "engApp";
 export const COOKIE_OPTIONS: CookieOptions = {
   maxAge: 30 * 24 * 60 * 60 * 1000,
@@ -29,7 +30,7 @@ export class UserDTO {
   readonly name: string;
   readonly email: string;
   constructor(user: IUser) {
-    this.id = String(user.id);
+    this.id = String(user._id);
     this.name = user.name;
     this.email = user.email;
   }
