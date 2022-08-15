@@ -1,18 +1,12 @@
 import { Document, model, Schema } from "mongoose";
-import { DeckId } from "../../decks/deck";
-
-export const cardsCsvHeaders = [
-  "frontPrimary",
-  "frontSecondary",
-  "backPrimary",
-  "backSecondary",
-] as const;
-export type CardsKeysType = { [K in typeof cardsCsvHeaders[number]]: string };
+import { IDeck } from "../../decks/models/decks.model";
+import { CardsKeysType } from "../cards.util";
 
 export interface CardInput extends CardsKeysType {
-  deck: DeckId;
+  deck: IDeck["_id"];
   customId?: string;
 }
+
 export type CardInputOmit = Omit<CardInput, "deck">;
 
 export interface ICard extends CardInput, Document {}

@@ -1,5 +1,5 @@
 import yup from "../../utils/yup.util";
-import { HistoryStatusEnum, UpdateTypeEnum } from "./const";
+import { HistoryStatusEnum, UpdateTypeEnum } from "./cards.util";
 
 export const UCSchema = yup.object({
   userCardId: yup.string().isObjectId("UserCardId is required"),

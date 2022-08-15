@@ -1,13 +1,13 @@
 import { Document, model, Schema } from "mongoose";
-import { UserDeckId } from "../../decks/userDeck";
-import { UserId } from "../../users/user";
-import { CardId } from "../cards";
-import { HistoryStatusEnum, HistoryType } from "../const";
+import { IUserDeck } from "../../decks/models/userDecks.model";
+import { IUser } from "../../users/models/users.model";
+import { HistoryStatusEnum, HistoryType } from "../cards.util";
+import { ICard } from "./cards.model";
 
 export interface UserCardInput {
-  user: UserId;
-  card: CardId;
-  userDeck: UserDeckId;
+  user: IUser["_id"];
+  card: ICard["_id"];
+  userDeck: IUserDeck["_id"];
 }
 
 export interface IUserCard extends UserCardInput, Document {
