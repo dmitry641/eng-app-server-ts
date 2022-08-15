@@ -18,7 +18,6 @@ const day = hour * 24;
 const hardArray = [hour];
 const mediumArray = [hour * 5, hour * 10];
 const easyArray = [day, day * 3, day * 7, day * 20, day * 50, day * 300];
-
 export const intervalArray = {
   hardArray,
   mediumArray,
@@ -107,43 +106,6 @@ export class CardsSettingsDTO {
   }
 }
 
-export function calcShowAfter(
-  status: HistoryStatusEnum,
-  history: HistoryType[]
-): number {
-  let newShowAfter = Date.now();
-  const intervalsArray = getIntervalArray(status);
-  if (intervalsArray.length == 0) throw new Error("Array cannot be empty"); // FIXME ???
-
-  let streak = getStreak(status, history);
-  if (streak >= intervalsArray.length) {
-    streak = intervalsArray.length - 1;
-  }
-  newShowAfter += intervalsArray[streak] || 0;
-  return newShowAfter;
-}
-export function getIntervalArray(status: HistoryStatusEnum) {
-  switch (status) {
-    case HistoryStatusEnum.easy:
-      return intervalArray.easyArray;
-    case HistoryStatusEnum.medium:
-      return intervalArray.mediumArray;
-    case HistoryStatusEnum.hard:
-      return intervalArray.hardArray;
-    default:
-      throw new Error("Invalid status");
-  }
-}
-export function getStreak(status: HistoryStatusEnum, history: HistoryType[]) {
-  let result = 0;
-  let tempHistory = Array.from(history);
-  tempHistory.reverse();
-  for (let el of tempHistory) {
-    if (el.status != status) break;
-    result += 1;
-  }
-  return result;
-}
 export function slice<T>(array: T[]): T[] {
   return array.slice(0, CARDS_COUNT);
 }

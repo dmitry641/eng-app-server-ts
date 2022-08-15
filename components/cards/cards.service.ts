@@ -1,14 +1,14 @@
 import { FilterQuery } from "mongoose";
 import { shuffle } from "../../utils";
 import { decksService } from "../decks/decks.service";
-import { ascSortByOrderFn, UserDeckDTO } from "../decks/decks.util";
-import { IDeck } from "../decks/models/decks.model";
+import { DeckDTO, UserDeckDTO } from "../decks/decks.util";
 import {
-  calcShowAfter,
   CardDTO,
   CardsSettingsDTO,
   filterByCardId,
   HistoryStatusEnum,
+  HistoryType,
+  intervalArray,
   LrnDelType,
   slice,
   UpdateType,
@@ -161,7 +161,6 @@ export class CardsService {
   ): Promise<IUserCard[]> {
     let newUserCards: IUserCard[] = [];
     let userDecks = await decksService.getUserDecks(userId);
-    userDecks.sort(ascSortByOrderFn);
     userDecks = userDecks.filter((ud) => ud.enabled);
 
     const settings = await this.findCardsSettings(userId);
@@ -251,7 +250,7 @@ export class CardsService {
   }
   async createCards(
     rawCards: CardInputOmit[],
-    deck: IDeck
+    deck: DeckDTO
   ): Promise<CardDTO[]> {
     const newCards: ICard[] = [];
     for (const rawCard of rawCards) {
@@ -260,7 +259,7 @@ export class CardsService {
       rawCard.backPrimary = rawCard.backPrimary.replace(reg3, "");
 
       const cardInput: CardInput = {
-        deck: String(deck._id),
+        deck: deck.id,
         ...rawCard,
       };
       const card = await CardModel.create(cardInput);
@@ -273,6 +272,44 @@ export class CardsService {
     const cards = await this.findICards(deckId);
     return cards.map(this.cardToDTO);
   }
+}
+
+export function calcShowAfter(
+  status: HistoryStatusEnum,
+  history: HistoryType[]
+): number {
+  let newShowAfter = Date.now();
+  const intervalsArray = getIntervalArray(status);
+  if (intervalsArray.length == 0) throw new Error("Array cannot be empty"); // FIXME ???
+
+  let streak = getStreak(status, history);
+  if (streak >= intervalsArray.length) {
+    streak = intervalsArray.length - 1;
+  }
+  newShowAfter += intervalsArray[streak] || 0;
+  return newShowAfter;
+}
+export function getIntervalArray(status: HistoryStatusEnum) {
+  switch (status) {
+    case HistoryStatusEnum.easy:
+      return intervalArray.easyArray;
+    case HistoryStatusEnum.medium:
+      return intervalArray.mediumArray;
+    case HistoryStatusEnum.hard:
+      return intervalArray.hardArray;
+    default:
+      throw new Error("Invalid status");
+  }
+}
+export function getStreak(status: HistoryStatusEnum, history: HistoryType[]) {
+  let result = 0;
+  let tempHistory = Array.from(history);
+  tempHistory.reverse();
+  for (let el of tempHistory) {
+    if (el.status != status) break;
+    result += 1;
+  }
+  return result;
 }
 
 export const cardsService = new CardsService();

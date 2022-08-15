@@ -1,6 +1,6 @@
 import { Router } from "express";
+import flashcardsRouter from "../components/cards/cards.router";
 import decksRouter from "../components/decks/decks.router";
-import flashcardsRouter from "../components/flashcards/flashcards.router";
 import quizRouter from "../components/quiz/quiz.router";
 import usersRouter from "../components/users/users.router";
 import auth from "../middleware/auth";
