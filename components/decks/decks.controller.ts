@@ -49,8 +49,8 @@ async function deleteUserDeck(req: Request, res: Response, next: NextFunction) {
     if (!req.userId) throw new Unauthorized();
     const { userDeckId } = req.params;
     if (!userDeckId) throw new BadRequest();
-    const result = await decksService.deleteUserDeck(req.userId, userDeckId);
-    return res.send(result);
+    const userDeck = await decksService.deleteUserDeck(req.userId, userDeckId);
+    return res.send(userDeck);
   } catch (error) {
     next(error);
   }
@@ -122,9 +122,9 @@ async function deleteDynamicUserDeck(
 ) {
   try {
     if (!req.userId) throw new Unauthorized();
-    await decksService.deleteDynamicUserDeck(req.userId);
+    const userDeck = await decksService.deleteDynamicUserDeck(req.userId);
     const settings = await decksService.getDecksSettings(req.userId);
-    return res.send(settings);
+    return res.send({ userDeck, settings });
   } catch (error) {
     next(error);
   }
@@ -144,7 +144,7 @@ async function syncDynamicUserDeck(
   }
 }
 
-async function getUserDecksSettings(
+async function getDecksSettings(
   req: Request,
   res: Response,
   next: NextFunction
@@ -180,7 +180,7 @@ async function updateAutoSync(req: Request, res: Response, next: NextFunction) {
 
 export const decksController = {
   getUserDecks,
-  getUserDecksSettings,
+  getDecksSettings,
   createUserDeck,
   enableUserDeck,
   deleteUserDeck,

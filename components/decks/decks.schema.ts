@@ -1,5 +1,5 @@
 import yup from "../../utils/yup.util";
-import { DynamicSyncType, UserDeckPositionEnum } from "./decks.util";
+import { DynamicSyncType, UDPositionEnum } from "./decks.util";
 
 export const UDSchema = yup.object({
   userDeckId: yup.string().isObjectId("UserDeckId is required"),
@@ -7,9 +7,7 @@ export const UDSchema = yup.object({
 
 export const UDPosSchema = yup.object({
   userDeckId: yup.string().isObjectId("UserDeckId is required"),
-  position: yup
-    .string()
-    .oneOf(Object.values(UserDeckPositionEnum), "Wrong order"),
+  position: yup.string().oneOf(Object.values(UDPositionEnum), "Wrong order"),
 });
 
 export const DSchema = yup.object({

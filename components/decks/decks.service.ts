@@ -1,17 +1,19 @@
 import { FilterQuery } from "mongoose";
 import { getCsvData } from "../../utils";
-import { cardsCsvHeaders, CardsKeysType } from "../flashcards/flashcards.util";
+import { cardsService } from "../cards/cards.service";
+import { cardsCsvHeaders, CardsKeysType } from "../cards/cards.util";
 import { globalJobStore } from "../schedule";
-import { UserJobTypesEnum } from "../schedule/types";
 import { userService } from "../users/users.service";
 import {
-  ascSortByOrderFn,
   DeckDTO,
   DecksSettingsDTO,
   DynamicSyncType,
+  SYNC_ATTEMPTS_COUNT_LIMIT,
+  SYNC_TIMEOUT_LIMIT,
+  UDPositionEnum,
   UploadedFile,
   UserDeckDTO,
-  UserDeckPositionEnum,
+  UserJobTypesEnum,
 } from "./decks.util";
 import { DeckInput, DeckModel, IDeck } from "./models/decks.model";
 import {
@@ -23,21 +25,12 @@ import {
   UserDeckInput,
   UserDeckModel,
 } from "./models/userDecks.model";
-import {
-  SyncClient,
-  SYNC_ATTEMPTS_COUNT_LIMIT,
-  SYNC_TIMEOUT_LIMIT,
-} from "./sync";
+import { SyncClient } from "./sync";
 
 export class DecksService {
   async getUserDecks(userId: string): Promise<UserDeckDTO[]> {
     const userDecks = await this.findIUserDecks(userId);
-    const DTOs = [];
-    for (const ud of userDecks) {
-      const dto = await this.userDeckToDTO(ud);
-      DTOs.push(dto);
-    }
-    return DTOs;
+    return this.userDeckToDTO(userDecks);
   }
   async createUserDeck(
     userId: string,
@@ -51,16 +44,14 @@ export class DecksService {
       ","
     );
 
-    const user = await userService.getUser(userId);
     const deckInput: DeckInput = {
       createdBy: userId,
       name: filename,
       totalCardsCount: rawCards.length,
     };
     const deck = await this.newDeck(deckInput);
-
-    // FIXME
-    // await cardsService.createCards(rawCards, deck);
+    const deckDTO = await this.deckToDTO(deck);
+    await cardsService.createCards(rawCards, deckDTO);
 
     const userDeck = await this.newUserDeck(userId, deck);
     return this.userDeckToDTO(userDeck);
@@ -74,33 +65,34 @@ export class DecksService {
     await userDeck.save();
     return this.userDeckToDTO(userDeck);
   }
-  async deleteUserDeck(userId: string, userDeckId: string): Promise<boolean> {
+  async deleteUserDeck(
+    userId: string,
+    userDeckId: string
+  ): Promise<UserDeckDTO> {
     const userDeck = await this.findOneIUserDeck(userId, userDeckId);
     if (userDeck.dynamic) throw new Error("Dynamic deck is not allowed");
     userDeck.deleted = true;
     await userDeck.save();
-    return true;
+    return this.userDeckToDTO(userDeck);
   }
   async moveUserDeck(
     userId: string,
     userDeckId: string,
-    position: UserDeckPositionEnum
+    position: UDPositionEnum
   ): Promise<UserDeckDTO> {
     const userDeckOne = await this.findOneIUserDeck(userId, userDeckId);
 
-    // спорный момент. Вероятно не нужно, так как они уже должны быть отсортированны
     const userDecks = await this.findIUserDecks(userId);
-    userDecks.sort(ascSortByOrderFn);
     const currIndex = userDecks.findIndex(
       (ud) => String(ud._id) === String(userDeckOne._id)
     );
 
     let userDeckTwo;
     switch (position) {
-      case UserDeckPositionEnum.up:
+      case UDPositionEnum.up:
         userDeckTwo = userDecks?.[currIndex - 1];
         break;
-      case UserDeckPositionEnum.down:
+      case UDPositionEnum.down:
         userDeckTwo = userDecks?.[currIndex + 1];
         break;
       default:
@@ -115,7 +107,6 @@ export class DecksService {
     userDeckOne.order = orderTwo;
     await userDeckOne.save();
 
-    userDecks.sort(ascSortByOrderFn);
     return this.userDeckToDTO(userDeckOne);
   }
   async publishUserDeck(
@@ -139,12 +130,7 @@ export class DecksService {
     const filteredDecks = decks.filter(
       (d) => !existedIds.includes(String(d._id))
     );
-    const DTOs = [];
-    for (const d of filteredDecks) {
-      const dto = await this.deckToDTO(d);
-      DTOs.push(dto);
-    }
-    return DTOs;
+    return this.deckToDTO(filteredDecks);
   }
   async addPublicDeck(userId: string, deckId: string): Promise<UserDeckDTO> {
     const deck = await this.findOneIDeck(deckId);
@@ -161,7 +147,6 @@ export class DecksService {
     const existed = await this.findDynamicUserDeck(userId);
     if (existed) throw new Error("Dynamic userDeck already exists");
 
-    const user = await userService.getUser(userId);
     const deckInput: DeckInput = {
       createdBy: userId,
       name: "Dynamic deck",
@@ -170,14 +155,14 @@ export class DecksService {
     const deck = await this.newDeck(deckInput);
     const dynUserDeck = await this.newUserDeck(userId, deck, true);
 
-    const settings = await this.findDecksSettings(userId);
     await this.updateAutoSync(userId, true); // спорный момент, нарушение принципов
+    const settings = await this.findDecksSettings(userId);
     settings.dynamicCreated = true;
     await settings.save();
 
     return this.userDeckToDTO(dynUserDeck);
   }
-  async deleteDynamicUserDeck(userId: string): Promise<boolean> {
+  async deleteDynamicUserDeck(userId: string): Promise<UserDeckDTO> {
     // спорный момент. В методе "удалить" мы не только удаляем, но еще и настройки изменяем...
     const dynUserDeck = await this.findDynamicUserDeck(userId);
     if (!dynUserDeck) throw new Error("Dynamic userDeck doesn't exist");
@@ -195,7 +180,7 @@ export class DecksService {
 
     globalJobStore.userJobs.cancelJob(userId, "deckSyncJob");
 
-    return true;
+    return this.userDeckToDTO(dynUserDeck);
   }
   async syncDynamicUserDeck(userId: string): Promise<UserDeckDTO> {
     const dynUserDeck = await this.findDynamicUserDeck(userId);
@@ -220,7 +205,7 @@ export class DecksService {
     settings.dynamicSyncAttempts.push(Date.now());
 
     const syncClient = new SyncClient(type, link);
-    const [synced, msg] = await syncClient.syncHandler(dynUserDeck); // FIXME не UserDeck, а IUserDeck
+    const [synced, msg] = await syncClient.syncHandler(dynUserDeck);
     if (synced) {
       settings.dynamicSyncMessage = `Last sync at ${new Date().toLocaleTimeString()}`;
     } else {
@@ -272,6 +257,40 @@ export class DecksService {
   createZipUserDeck() {
     throw new Error("not implemented");
   }
+  async getDeckById(deckId: string): Promise<DeckDTO> {
+    const deck = await this.findOneIDeck(deckId);
+    return this.deckToDTO(deck);
+  }
+  // спорно
+  async decrementCardsCount(
+    userId: string,
+    userDeckId: string
+  ): Promise<UserDeckDTO | undefined> {
+    let userDeck;
+    try {
+      userDeck = await this.findOneIUserDeck(userId, userDeckId);
+      userDeck.cardsCount = userDeck.cardsCount - 1;
+      await userDeck.save();
+    } catch (error) {}
+
+    if (userDeck) return this.userDeckToDTO(userDeck);
+    return undefined;
+  }
+  // спорно
+  async incrementCardsLearned(
+    userId: string,
+    userDeckId: string
+  ): Promise<UserDeckDTO | undefined> {
+    let userDeck;
+    try {
+      userDeck = await this.findOneIUserDeck(userId, userDeckId);
+      userDeck.cardsLearned = userDeck.cardsLearned + 1;
+      await userDeck.save();
+    } catch (error) {}
+
+    if (userDeck) return this.userDeckToDTO(userDeck);
+    return undefined;
+  }
   private async findDynamicUserDeck(
     userId: string
   ): Promise<IUserDeck | undefined> {
@@ -291,7 +310,7 @@ export class DecksService {
     return UserDeckModel.find({
       user: userId,
       deleted: false,
-    });
+    }).sort("order");
   }
   private async findOneIUserDeck(
     userId: string,
@@ -334,14 +353,39 @@ export class DecksService {
 
     return userDeck;
   }
-  private async deckToDTO(deck: IDeck): Promise<DeckDTO> {
-    const user = await userService.getUser(String(deck.createdBy));
-    return new DeckDTO(deck, user);
+  private async deckToDTO(deck: IDeck): Promise<DeckDTO>;
+  private async deckToDTO(deck: IDeck[]): Promise<DeckDTO[]>;
+  private async deckToDTO(deck: IDeck | IDeck[]): Promise<DeckDTO | DeckDTO[]> {
+    if (Array.isArray(deck)) {
+      const DTOs: DeckDTO[] = [];
+      for (const d of deck) {
+        const user = await userService.getUser(String(d.createdBy));
+        DTOs.push(new DeckDTO(d, user));
+      }
+      return DTOs;
+    } else {
+      const user = await userService.getUser(String(deck.createdBy));
+      return new DeckDTO(deck, user);
+    }
   }
-  private async userDeckToDTO(userDeck: IUserDeck): Promise<UserDeckDTO> {
-    const deck = await this.findOneIDeck(String(userDeck.deck));
-    const deckDTO = await this.deckToDTO(deck);
-    return new UserDeckDTO(userDeck, deckDTO);
+  private async userDeckToDTO(userDeck: IUserDeck): Promise<UserDeckDTO>;
+  private async userDeckToDTO(userDeck: IUserDeck[]): Promise<UserDeckDTO[]>;
+  private async userDeckToDTO(
+    userDeck: IUserDeck | IUserDeck[]
+  ): Promise<UserDeckDTO | UserDeckDTO[]> {
+    if (Array.isArray(userDeck)) {
+      const DTOs: UserDeckDTO[] = [];
+      for (const ud of userDeck) {
+        const deck = await this.findOneIDeck(String(ud.deck));
+        const deckDTO = await this.deckToDTO(deck);
+        DTOs.push(new UserDeckDTO(ud, deckDTO));
+      }
+      return DTOs;
+    } else {
+      const deck = await this.findOneIDeck(String(userDeck.deck));
+      const deckDTO = await this.deckToDTO(deck);
+      return new UserDeckDTO(userDeck, deckDTO);
+    }
   }
   private settingsToDTO(settings: IDecksSettings): DecksSettingsDTO {
     return new DecksSettingsDTO(settings);

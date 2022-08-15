@@ -3,12 +3,15 @@ import { IDeck } from "./models/decks.model";
 import { IDecksSettings } from "./models/decksSettings.model";
 import { IUserDeck } from "./models/userDecks.model";
 
+export const SYNC_TIMEOUT_LIMIT = 120000;
+export const SYNC_ATTEMPTS_COUNT_LIMIT = 3;
+
 export enum DynamicSyncType {
   reverso = "reverso",
   yandex = "yandex",
 }
 
-export enum UserDeckPositionEnum {
+export enum UDPositionEnum {
   up = "up",
   down = "down",
 }
@@ -19,16 +22,21 @@ export type UploadedFile = {
   buffer: Buffer;
 };
 
+export enum UserJobTypesEnum {
+  deckSync = "deckSync",
+  notification = "notification",
+}
+
 export type DType = { deckId: string };
 export type UDType = { userDeckId: string };
-export type UDPosType = UDType & { position: UserDeckPositionEnum };
+export type UDPosType = UDType & { position: UDPositionEnum };
 export type SyncDataType = { type: DynamicSyncType; link: string };
 export type AutoSyncType = { value: boolean };
 
 export class DeckDTO {
   readonly id: string;
   readonly name: string;
-  readonly createdBy: UserDTO;
+  readonly createdBy: Omit<UserDTO, "email">;
   readonly public: boolean;
   readonly totalCardsCount: number;
   constructor(deck: IDeck, user: UserDTO) {
@@ -36,7 +44,8 @@ export class DeckDTO {
     this.name = deck.name;
     this.public = deck.public;
     this.totalCardsCount = deck.totalCardsCount;
-    this.createdBy = user;
+    const { email, ...userWOemail } = user;
+    this.createdBy = userWOemail;
   }
 }
 
@@ -84,6 +93,3 @@ export class DecksSettingsDTO {
     this.dynamicSyncAttempts = settings.dynamicSyncAttempts;
   }
 }
-
-export const ascSortByOrderFn = <T extends { order: number }>(a: T, b: T) =>
-  a.order - b.order;

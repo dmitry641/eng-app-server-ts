@@ -29,7 +29,7 @@ decksRouter.post("/dynamic", dc.createDynamicUserDeck);
 decksRouter.delete("/dynamic", dc.deleteDynamicUserDeck);
 decksRouter.post("/dynamic/sync", dc.syncDynamicUserDeck);
 
-decksRouter.get("/settings", dc.getUserDecksSettings);
+decksRouter.get("/settings", dc.getDecksSettings);
 decksRouter.post(
   "/settings/autosync",
   validate(autoSyncSchema),
