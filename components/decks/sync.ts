@@ -1,35 +1,32 @@
 import axios, { AxiosRequestConfig } from "axios";
 import URLParse, { qs } from "url-parse";
-import { CardDTO, globalCardsStore } from "../flashcards/cards";
-import { CardInputOmit } from "../flashcards/models/cards.model";
-import { DynamicSyncType } from "../users/users.util";
-import { globalDecksStore } from "./deck";
-import { UserDeck } from "./userDeck";
-
-export const SYNC_TIMEOUT_LIMIT = 120000;
-export const SYNC_ATTEMPTS_COUNT_LIMIT = 3;
+import { cardsService } from "../cards/cards.service";
+import { CardDTO } from "../cards/cards.util";
+import { CardInputOmit } from "../cards/models/cards.model";
+import { decksService } from "./decks.service";
+import { DynamicSyncType } from "./decks.util";
+import { IUserDeck } from "./models/userDecks.model";
 
 export class SyncClient {
   private fetcher: IFetcher;
   constructor(type: DynamicSyncType, link: string) {
     this.fetcher = FetcherFactory.produce(type, link);
   }
-  async syncHandler(dynUserDeck: UserDeck): Promise<[boolean, string?]> {
+  async syncHandler(dynUserDeck: IUserDeck): Promise<[boolean, string?]> {
     // хотелось бы instance of UserDynamicDeck, но увы...
     if (!dynUserDeck.dynamic) throw new Error("Dynamic userDeck is required");
 
-    const deck = globalDecksStore.getDeckById(dynUserDeck.deckId);
+    const deck = await decksService.getDeckById(String(dynUserDeck.deck));
 
     try {
       const rawCards = await this.fetcher.getRawCards();
 
-      const existedCards = globalCardsStore.getCardsByDeckId(deck.id);
+      const existedCards = await cardsService.getCardsByDeckId(deck.id);
       const filteredRawCards = filterByCustomId(rawCards, existedCards);
 
-      await globalCardsStore.createCards(filteredRawCards, deck);
-      await dynUserDeck.setCardsCount(
-        dynUserDeck.cardsCount + filteredRawCards.length
-      );
+      await cardsService.createCards(filteredRawCards, deck);
+      dynUserDeck.cardsCount = dynUserDeck.cardsCount + filteredRawCards.length;
+      await dynUserDeck.save();
 
       return [true];
     } catch (error) {

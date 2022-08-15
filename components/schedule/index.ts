@@ -1,10 +1,9 @@
 import schedule from "node-schedule";
 import { randomIntFromInterval } from "../../utils";
-import { ObjId } from "../../utils/types";
-import { UserDecksService } from "../decks/services/userDecks.service";
-import { userDecksManager } from "../decks/userDeck";
-import { globalUserStore, User, UserId } from "../users/user";
-import { UserJobTypesEnum } from "./types";
+import { decksService } from "../decks/decks.service";
+import { UserDeckModel } from "../decks/models/userDecks.model";
+import { userService } from "../users/users.service";
+import { UserId } from "../users/users.util";
 
 class JobStore {
   private initialized: boolean = false;
@@ -23,55 +22,55 @@ class JobStore {
 }
 
 export class UserJobsManager {
-  private userjobs = new Map<User, UserJobStore>();
+  private userjobs = new Map<UserId, UserJobStore>();
   async init() {
     // спорный момент
-    const dbDynUserDeck = await UserDecksService.findUserDecks({
+    const dbDynUserDeck = await UserDeckModel.find({
       dynamic: true,
     });
     for (const dbDeck of dbDynUserDeck) {
-      const user = await globalUserStore.getUser(String(dbDeck.user));
-      this.createJob(user, UserJobTypesEnum.deckSync);
+      const user = await userService.getUser(String(dbDeck.user));
+      this.createJob(user.id, UserJobTypesEnum.deckSync);
     }
 
     // find notification(not implemented)
   }
   private createJob(
-    user: User,
+    userId: UserId,
     type: UserJobTypesEnum,
     options?: UserJobCreationOptions
   ) {
     const userJob = UserJobFactory.create(type, options);
     const rule = userJob.getRule(options);
-    const cb = userJob.getCallback({ userId: user.id, options });
+    const cb = userJob.getCallback({ userId, options });
 
     const job = schedule.scheduleJob(rule, cb);
 
     userJob.setJob(job);
-    const userJobStore = this.getUserJobStore(user);
+    const userJobStore = this.getUserJobStore(userId);
     userJobStore.appendJob(userJob);
   }
-  cancelJob(user: User, userJobId: UserJobId) {
-    const userJobStore = this.getUserJobStore(user);
+  cancelJob(userId: UserId, userJobId: UserJobId) {
+    const userJobStore = this.getUserJobStore(userId);
     const userJob = userJobStore.getJob(userJobId);
     if (!userJob) return; // Userjob not found
     userJob.cancel();
     userJobStore.deleteJob(userJob);
   }
   updateJob(
-    user: User,
+    userId: UserId,
     userJobId: UserJobId,
     type: UserJobTypesEnum,
     options?: UserJobCreationOptions
   ) {
-    this.cancelJob(user, userJobId);
-    this.createJob(user, type, options);
+    this.cancelJob(userId, userJobId);
+    this.createJob(userId, type, options);
   }
-  private getUserJobStore(user: User): UserJobStore {
-    let userJobs = this.userjobs.get(user);
+  private getUserJobStore(userId: UserId): UserJobStore {
+    let userJobs = this.userjobs.get(userId);
     if (userJobs) return userJobs;
     const userJobStore = new UserJobStore();
-    this.userjobs.set(user, userJobStore);
+    this.userjobs.set(userId, userJobStore);
     return userJobStore;
   }
 }
@@ -85,9 +84,14 @@ class GlobalJobsManager {
   }
 }
 
-type UserJobId = ObjId | "deckSyncJob";
+export enum UserJobTypesEnum {
+  deckSync = "deckSync",
+  notification = "notification",
+}
+
+type UserJobId = string | "deckSyncJob";
 type UserJobCreationOptions = {
-  detail?: { id: ObjId };
+  detail?: { id: string };
 };
 
 class UserJobStore {
@@ -130,7 +134,7 @@ interface IUserJob {
   getCallback(obj: GetCallbackAttr): schedule.JobCallback;
 }
 type GetCallbackAttr = {
-  userId: UserId;
+  userId: string;
   options?: UserJobCreationOptions;
 };
 
@@ -152,11 +156,10 @@ export class UserDeckSyncJob implements IUserJob {
   getCallback(obj: GetCallbackAttr): schedule.JobCallback {
     return async () => {
       try {
-        const user = await globalUserStore.getUser(obj.userId);
-        const autoSync = user.settings.userDecksSettings.dynamicAutoSync;
+        const decksSettings = await decksService.getDecksSettings(obj.userId);
+        const autoSync = decksSettings.dynamicAutoSync;
         if (!autoSync) throw new Error("DynamicAutoSync is false");
-        const udclient = await userDecksManager.getUserDecksClient(user);
-        await udclient.syncDynamicUserDeck();
+        await decksService.syncDynamicUserDeck(obj.userId);
       } catch (error) {
         this.cancel();
       }

@@ -1,9 +1,7 @@
-import { globalDecksStore } from "./components/decks/deck";
-import { userDecksManager } from "./components/decks/userDeck";
-import { globalCardsStore } from "./components/flashcards/cards";
-import { userCardsManager } from "./components/flashcards/userCards";
+import { cardsService } from "./components/cards/cards.service";
+import { decksService } from "./components/decks/decks.service";
 import { quizService } from "./components/quiz/quiz.service";
-import { globalUserStore } from "./components/users/user";
+import { userService } from "./components/users/users.service";
 import { decksTestCases } from "./test/testcases";
 import { getBuffer } from "./utils";
 
@@ -22,7 +20,7 @@ export async function deleteMe() {
   console.log("delete me");
   const br = "-".repeat(25);
 
-  const user = await globalUserStore.createUser({
+  const user = await userService.createUser({
     email: String(Math.random()),
     name: "123",
     password: "123",
@@ -30,9 +28,8 @@ export async function deleteMe() {
   console.log(user);
   console.log(br);
 
-  const udclient = await userDecksManager.getUserDecksClient(user);
   const result = getBuffer(decksTestCases.case1.pathToFile);
-  const userDeck = await udclient.createUserDeck({
+  const userDeck = await decksService.createUserDeck(user.id, {
     buffer: result,
     mimetype: "csv",
     originalname: String(Math.random()),
@@ -40,17 +37,16 @@ export async function deleteMe() {
   console.log(userDeck);
   console.log(br);
 
-  const deck = globalDecksStore.getDeckById(userDeck.deckId);
+  const deck = await decksService.getDeckById(userDeck.deck.id);
   console.log(deck);
   console.log(br);
 
-  const cards = globalCardsStore.getCardsByDeckId(deck.id);
+  const cards = await cardsService.getCardsByDeckId(deck.id);
   console.log(cards.length);
   console.log(cards[0]);
   console.log(br);
 
-  const ucclient = await userCardsManager.getUserCardsClient(user);
-  const userCards = await ucclient.getUserCards();
+  const userCards = await cardsService.getUserCards(user.id);
   console.log(userCards.length);
   console.log(userCards[0]);
   console.log(br);
