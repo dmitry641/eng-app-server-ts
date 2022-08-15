@@ -1,31 +1,31 @@
 import schedule from "node-schedule";
 import { globalJobStore, UserDeckSyncJob, UserJobsManager } from ".";
 import { connectToTestDB, disconnectFromDB } from "../../db";
-import { UserDecksClient, userDecksManager } from "../decks/userDeck";
-import { globalUserStore, User } from "../users/user";
-import { UserJobTypesEnum } from "./types";
+import { DecksService, decksService } from "../decks/decks.service";
+import { UserJobTypesEnum } from "../decks/decks.util";
+import { userService } from "../users/users.service";
 
 describe("UserJobsManager", () => {
-  let user: User;
+  let userId: string;
   let userjobsmanager = new UserJobsManager();
-  let udclient: UserDecksClient;
+
   beforeAll(async () => {
     await connectToTestDB();
-    user = await globalUserStore.createUser({
+    const user = await userService.createUser({
       email: String(Math.random()) + "@email.com",
       name: "123",
       password: "123",
     });
-    udclient = await userDecksManager.getUserDecksClient(user);
+    userId = user.id;
   });
 
   it("updateJob", async () => {
     const spySchedule = jest
       .spyOn(schedule, "scheduleJob")
       .mockImplementationOnce(() => null as unknown as schedule.Job);
-    userjobsmanager.updateJob(user, "deckSyncJob", UserJobTypesEnum.deckSync);
+    userjobsmanager.updateJob(userId, "deckSyncJob", UserJobTypesEnum.deckSync);
     expect(spySchedule).toBeCalled();
-    userjobsmanager.cancelJob(user, "deckSyncJob");
+    userjobsmanager.cancelJob(userId, "deckSyncJob");
   });
 
   it("UserDeckSyncJob: getRule", () => {
@@ -47,19 +47,16 @@ describe("UserJobsManager", () => {
 
   it("UserDeckSyncJob: getCallback", async () => {
     const udsj = new UserDeckSyncJob("deckSyncJob");
-    const cb = udsj.getCallback({ userId: user.id });
+    const cb = udsj.getCallback({ userId });
 
     const spyCancel = jest.spyOn(udsj, "cancel");
     const fn = async () => cb(new Date());
     await fn();
     expect(spyCancel).toBeCalledTimes(1);
 
-    await udclient.updateAutoSync(true);
-    globalJobStore.userJobs.cancelJob(user, "deckSyncJob");
-    const spySync = jest.spyOn(
-      UserDecksClient.prototype,
-      "syncDynamicUserDeck"
-    );
+    await decksService.updateAutoSync(userId, true);
+    globalJobStore.userJobs.cancelJob(userId, "deckSyncJob");
+    const spySync = jest.spyOn(DecksService.prototype, "syncDynamicUserDeck");
     // @ts-ignore
     spySync.mockImplementation(async () => {
       throw new Error();

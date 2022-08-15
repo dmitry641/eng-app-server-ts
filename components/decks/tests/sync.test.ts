@@ -9,25 +9,26 @@ import {
   yandexTestResponse,
 } from "../../../test/testcases";
 import { getBuffer } from "../../../utils";
-import { globalCardsStore } from "../../flashcards/cards";
+import { cardsService } from "../../cards/cards.service";
 import { UserJobsManager } from "../../schedule";
-import { globalUserStore, User } from "../../users/user";
-import { DynamicSyncType } from "../../users/users.util";
-import { Deck } from "../deck";
-import { DecksService } from "../services/decks.service";
+import { userService } from "../../users/users.service";
+import { UserDTO } from "../../users/users.util";
+import { decksService } from "../decks.service";
+import { DynamicSyncType } from "../decks.util";
+import { DeckModel } from "../models/decks.model";
+import { IUserDeck } from "../models/userDecks.model";
 import {
   filterByCustomId,
   ReversoFetcher,
   SyncClient,
   YandexFetcher,
 } from "../sync";
-import { UserDeck, UserDecksClient, userDecksManager } from "../userDeck";
 
 describe("Sync client:filterByCustomId ", () => {
-  let user: User;
+  let user: UserDTO;
   beforeAll(async () => {
     await connectToTestDB();
-    user = await globalUserStore.createUser({
+    user = await userService.createUser({
       email: String(Math.random()) + "@email.com",
       name: "123",
       password: "123",
@@ -43,15 +44,14 @@ describe("Sync client:filterByCustomId ", () => {
   };
 
   it("filterByCustomId, case 1", async () => {
-    const dbDeck = await DecksService.createDeck({
+    const dbDeck = await DeckModel.create({
       createdBy: user.id,
       author: user.name,
-      canBePublic: true,
       name: String(Math.random()) + "-deck",
       totalCardsCount: 0,
     });
-    const deck = new Deck(dbDeck);
-    const cards = await globalCardsStore.createCards(rawCardsTestData1, deck);
+    const deck = await decksService.getDeckById(dbDeck.id);
+    const cards = await cardsService.createCards(rawCardsTestData1, deck);
     expect(cards.length).toBe(rawCardsTestData1.length);
 
     const filtered1 = filterByCustomId(rawCardsTestData1, cards);
@@ -100,10 +100,9 @@ const spyGetRawCards = jest
   .mockImplementation(async () => rawCardsTestData1);
 
 describe("Sync client: syncHandler", () => {
-  let user: User;
-  let udclient: UserDecksClient;
-  let userDeck: UserDeck;
-  let dynUserDeck: UserDeck;
+  let user: UserDTO;
+  let userDeck: IUserDeck;
+  let dynUserDeck: IUserDeck;
   const tc = decksTestCases.case1;
   const buffer = getBuffer(tc.pathToFile);
   const type: DynamicSyncType = DynamicSyncType.reverso;
@@ -115,20 +114,21 @@ describe("Sync client: syncHandler", () => {
   });
 
   beforeEach(async () => {
-    user = await globalUserStore.createUser({
+    user = await userService.createUser({
       email: String(Math.random()) + "@email.com",
       name: "123",
       password: "123",
     });
-    udclient = await userDecksManager.getUserDecksClient(user);
-    userDeck = (await udclient.createUserDeck({
+
+    const ud = await decksService.createUserDeck(user.id, {
       buffer,
       mimetype: "csv",
       originalname: "deck",
-    })) as UserDeck;
+    });
+    userDeck = { ...ud, deck: ud.deck.id } as unknown as IUserDeck;
 
-    dynUserDeck = (await udclient.createDynamicUserDeck()) as UserDeck;
-    dynUserDeck.setCardsCount = async () => dynUserDeck;
+    const dud = await decksService.createDynamicUserDeck(user.id);
+    dynUserDeck = { ...dud, deck: dud.deck.id } as unknown as IUserDeck;
   });
 
   it("not dynamic user deck", async () => {
@@ -143,14 +143,12 @@ describe("Sync client: syncHandler", () => {
   });
 
   it("should call these functions", async () => {
-    const spyGetCards = jest.spyOn(globalCardsStore, "getCardsByDeckId");
-    const spyCreateCards = jest.spyOn(globalCardsStore, "createCards");
-    const spySetCardsCount = jest.spyOn(dynUserDeck, "setCardsCount");
+    const spyGetCards = jest.spyOn(cardsService, "getCardsByDeckId");
+    const spyCreateCards = jest.spyOn(cardsService, "createCards");
     await syncClient.syncHandler(dynUserDeck);
-    expect(spyGetCards).toBeCalledWith(dynUserDeck.deckId);
+    expect(spyGetCards).toBeCalledWith(dynUserDeck.deck);
     expect(spyGetRawCards).toBeCalled();
     expect(spyCreateCards).toBeCalled();
-    expect(spySetCardsCount).toBeCalled();
   });
 
   it("ReversoFetcher: getRawCards", async () => {

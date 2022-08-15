@@ -1,6 +1,7 @@
 import schedule from "node-schedule";
 import { randomIntFromInterval } from "../../utils";
 import { decksService } from "../decks/decks.service";
+import { UserJobTypesEnum } from "../decks/decks.util";
 import { UserDeckModel } from "../decks/models/userDecks.model";
 import { userService } from "../users/users.service";
 import { UserId } from "../users/users.util";
@@ -82,11 +83,6 @@ class GlobalJobsManager {
     this.cancelJob();
     this.createJob();
   }
-}
-
-export enum UserJobTypesEnum {
-  deckSync = "deckSync",
-  notification = "notification",
 }
 
 type UserJobId = string | "deckSyncJob";
