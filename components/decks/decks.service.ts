@@ -134,12 +134,12 @@ export class DecksService {
   }
   async addPublicDeck(userId: string, deckId: string): Promise<UserDeckDTO> {
     const deck = await this.findOneIDeck(deckId);
+    if (!deck.public) throw new Error("Deck cannot be added");
     const userDecks = await this.findIUserDecks(userId);
     const existed = userDecks.find(
       (ud) => String(ud.deck) === String(deck._id)
     );
     if (existed) throw new Error("Deck is already existed in userDecks");
-    if (!deck.public) throw new Error("Deck cannot be added");
     const userDeck = await this.newUserDeck(userId, deck);
     return this.userDeckToDTO(userDeck);
   }

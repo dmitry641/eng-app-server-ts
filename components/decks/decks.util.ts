@@ -71,7 +71,7 @@ export class UserDeckDTO {
     this.deck = deck;
     this.published = deck.public;
     this.canPublish =
-      String(userDeck.user) === String(deck.createdBy) && !userDeck.dynamic;
+      String(userDeck.user) === deck.createdBy.id && !userDeck.dynamic;
   }
 }
 

@@ -437,7 +437,6 @@ describe("Decks service: moveUserDeck", () => {
   });
 });
 
-// FIXME, многое связанное с "public decks" не оттестированно
 describe("Decks service: public decks", () => {
   let user1Id: string;
   let user2Id: string;
@@ -450,6 +449,11 @@ describe("Decks service: public decks", () => {
   const buffer = getBuffer(tc.pathToFile);
   beforeAll(async () => {
     await connectToTestDB();
+  });
+  beforeEach(async () => {
+    await DeckModel.collection.drop();
+    await UserDeckModel.collection.drop();
+
     const user1 = await userService.createUser({
       email: String(Math.random()) + "@111.com",
       name: "111",
@@ -466,22 +470,22 @@ describe("Decks service: public decks", () => {
     user1Deck1 = await decksService.createUserDeck(user1Id, {
       buffer,
       mimetype: "csv",
-      originalname: String(Math.random()),
+      originalname: "user1Deck1",
     });
     user1Deck2 = await decksService.createUserDeck(user1Id, {
       buffer,
       mimetype: "csv",
-      originalname: String(Math.random()),
+      originalname: "user1Deck2",
     });
     user2Deck1 = await decksService.createUserDeck(user2Id, {
       buffer,
       mimetype: "csv",
-      originalname: String(Math.random()),
+      originalname: "user2Deck1",
     });
     user2Deck2 = await decksService.createUserDeck(user2Id, {
       buffer,
       mimetype: "csv",
-      originalname: String(Math.random()),
+      originalname: "user2Deck2",
     });
   });
 
@@ -507,7 +511,7 @@ describe("Decks service: public decks", () => {
     expect(publicUser2Decks.length).toBe(0);
   });
 
-  it("toggleUserDeckPublic", async () => {
+  it("publishUserDeck, case 1", async () => {
     await decksService.publishUserDeck(user2Id, user2Deck1.id);
     await decksService.publishUserDeck(user2Id, user2Deck2.id);
     let publicUser1Decks = await decksService.getPublicDecks(user1Id);
@@ -520,9 +524,54 @@ describe("Decks service: public decks", () => {
     publicUser1Decks = await decksService.getPublicDecks(user1Id);
     expect(publicUser1Decks.length).toBe(0);
   });
+  it("publishUserDeck, case 2", async () => {
+    let pub1 = await decksService.getPublicDecks(user1Id);
+    expect(pub1.length).toBe(0);
+    let pub2 = await decksService.getPublicDecks(user2Id);
+    expect(pub2.length).toBe(0);
 
-  it("toggleUserDeckPublic: dynamic deck", async () => {
+    const user1ds = await decksService.getUserDecks(user1Id);
+    expect(user1ds.length).toBe(2);
+    for (const ud of user1ds) {
+      expect(ud.published).toBe(false);
+      expect(ud.canPublish).toBe(true);
+    }
+
+    const pubU1D1 = await decksService.publishUserDeck(user1Id, user1ds[0].id);
+    expect(pubU1D1.published).toBe(true);
+    expect(pubU1D1.canPublish).toBe(true);
+
+    pub1 = await decksService.getPublicDecks(user1Id);
+    expect(pub1.length).toBe(0);
+    pub2 = await decksService.getPublicDecks(user2Id);
+    expect(pub2[0].id).toBe(pubU1D1.deck.id);
+    expect(pub2[0].createdBy.id).toBe(user1Id);
+
+    let user2ds = await decksService.getUserDecks(user2Id);
+    expect(user2ds.length).toBe(2);
+    const addedPD1 = await decksService.addPublicDeck(user2Id, pub2[0].id);
+    expect(addedPD1.canPublish).toBe(false);
+    expect(addedPD1.published).toBe(true);
+
+    pub2 = await decksService.getPublicDecks(user2Id);
+    expect(pub2.length).toBe(0);
+    user2ds = await decksService.getUserDecks(user2Id);
+    expect(user2ds.length).toBe(3);
+
+    let errMsg;
+    try {
+      await decksService.publishUserDeck(user2Id, addedPD1.id);
+    } catch (error) {
+      const err = error as Error;
+      errMsg = err.message;
+    }
+    expect(errMsg).toBe("Only the owner can make changes");
+  });
+
+  it("publishUserDeck: dynamic deck", async () => {
     const dynUserDeck = await decksService.createDynamicUserDeck(user1Id);
+    expect(dynUserDeck.published).toBe(false);
+    expect(dynUserDeck.canPublish).toBe(false);
     let errMsg;
     try {
       await decksService.publishUserDeck(user1Id, dynUserDeck.id);
@@ -531,10 +580,21 @@ describe("Decks service: public decks", () => {
       errMsg = err.message;
     }
     expect(errMsg).toBe("Dynamic deck cannot be public");
+
+    const pub2 = await decksService.getPublicDecks(user2Id);
+    expect(pub2.length).toBe(0);
+    try {
+      await decksService.addPublicDeck(user2Id, dynUserDeck.deck.id);
+    } catch (error) {
+      const err = error as Error;
+      errMsg = err.message;
+    }
+    expect(errMsg).toBe("Deck cannot be added");
+
     await decksService.deleteDynamicUserDeck(user1Id);
   });
 
-  it("addPublicDeckToUserDecks", async () => {
+  it("addPublicDeck, case 1", async () => {
     let user1Decks = await decksService.getUserDecks(user1Id);
     expect(user1Decks.length).toBe(2);
     let user2Decks = await decksService.getUserDecks(user2Id);
@@ -553,6 +613,81 @@ describe("Decks service: public decks", () => {
     expect(publicUser1Decks.length).toBe(0);
     user1Decks = await decksService.getUserDecks(user1Id);
     expect(user1Decks.length).toBe(3);
+
+    let errMsg;
+    try {
+      await decksService.addPublicDeck(user1Id, user2Deck1.id);
+    } catch (error) {
+      const err = error as Error;
+      errMsg = err.message;
+    }
+    expect(errMsg).toBe("Deck doesn't exist");
+  });
+
+  it("addPublicDeck, case 2", async () => {
+    const pubU1D1 = await decksService.publishUserDeck(user1Id, user1Deck1.id);
+    let pub1 = await decksService.getPublicDecks(user1Id);
+    expect(pub1.length).toBe(0);
+    let pub2 = await decksService.getPublicDecks(user2Id);
+    expect(pub2.length).toBe(1);
+
+    let errMsg;
+    try {
+      await decksService.addPublicDeck(user1Id, pubU1D1.deck.id);
+    } catch (error) {
+      const err = error as Error;
+      errMsg = err.message;
+    }
+    expect(errMsg).toBe("Deck is already existed in userDecks");
+
+    try {
+      await decksService.addPublicDeck(user2Id, user1Deck2.deck.id);
+    } catch (error) {
+      const err = error as Error;
+      errMsg = err.message;
+    }
+    expect(errMsg).toBe("Deck cannot be added");
+  });
+
+  it("delete published user deck", async () => {
+    let errMsg;
+    try {
+      await decksService.deleteUserDeck(user1Id, user2Deck2.id);
+    } catch (error) {
+      const err = error as Error;
+      errMsg = err.message;
+    }
+    expect(errMsg).toBe("UserDeck doesn't exist");
+
+    let u1decks = await decksService.getUserDecks(user1Id);
+    expect(u1decks.length).toBe(2);
+    let pub1 = await decksService.getPublicDecks(user1Id);
+    expect(pub1.length).toBe(0);
+    let pub2 = await decksService.getPublicDecks(user2Id);
+    expect(pub2.length).toBe(0);
+
+    for (const ud of u1decks) {
+      let d = await decksService.publishUserDeck(user1Id, ud.id);
+      expect(d.published).toBe(true);
+      d = await decksService.deleteUserDeck(user1Id, ud.id);
+      expect(d.deleted).toBe(true);
+    }
+
+    u1decks = await decksService.getUserDecks(user1Id);
+    expect(u1decks.length).toBe(0);
+    pub1 = await decksService.getPublicDecks(user1Id);
+    expect(pub1.length).toBe(2);
+    pub2 = await decksService.getPublicDecks(user2Id);
+    expect(pub2.length).toBe(2);
+
+    for (const pud of pub1) {
+      await decksService.addPublicDeck(user1Id, pud.id);
+    }
+
+    u1decks = await decksService.getUserDecks(user1Id);
+    expect(u1decks.length).toBe(2);
+    pub1 = await decksService.getPublicDecks(user1Id);
+    expect(pub1.length).toBe(0);
   });
 
   afterAll(async () => {
@@ -687,6 +822,20 @@ describe("Decks service: dynamic deck", () => {
     expect(errMsg).toBe("Dynamic userDeck doesn't exist");
   });
 
+  it("deleteUserDeck", async () => {
+    const dynUD = await decksService.createDynamicUserDeck(userId);
+    let errMsg;
+    try {
+      await decksService.deleteUserDeck(userId, dynUD.id);
+    } catch (error) {
+      const err = error as Error;
+      errMsg = err.message;
+    }
+    expect(errMsg).toBe("Dynamic deck is not allowed");
+
+    await decksService.deleteDynamicUserDeck(userId);
+  });
+
   it("syncDynamicUserDeck", async () => {
     await decksService.createDynamicUserDeck(userId);
 
@@ -729,7 +878,6 @@ describe("Decks service: dynamic deck", () => {
 
     settings = await decksService.getDecksSettings(userId);
     expect(settings.dynamicSyncMessage).toMatch("Last sync at");
-
     try {
       await decksService.syncDynamicUserDeck(userId);
     } catch (error) {
@@ -737,10 +885,22 @@ describe("Decks service: dynamic deck", () => {
       errMsg = err.message;
     }
     expect(errMsg).toBe("Too many attempts. Try again later...");
-
     // jest.useFakeTimers();
     // jest.runAllTimers();
     await new Promise((r) => setTimeout(r, SYNC_TIMEOUT_LIMIT));
+
+    const someError = "someError";
+    SyncClient.prototype.syncHandler = jest.fn(async () =>
+      Promise.resolve([false, someError])
+    );
+    await decksService.syncDynamicUserDeck(userId);
+    settings = await decksService.getDecksSettings(userId);
+    expect(settings.dynamicAutoSync).toBe(false);
+    expect(settings.dynamicSyncMessage).toBe(someError);
+
+    SyncClient.prototype.syncHandler = jest.fn(async () =>
+      Promise.resolve([true])
+    );
     await decksService.syncDynamicUserDeck(userId);
     expect(spySyncHandler).toBeCalled();
     settings = await decksService.getDecksSettings(userId);

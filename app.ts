@@ -1,18 +1,18 @@
+import dotenv from "dotenv";
+dotenv.config();
+// ---
 import compression from "compression";
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import dotenv from "dotenv";
 import express, { NextFunction } from "express";
 import helmet from "helmet";
 import morgan from "morgan";
 import { QuizDB } from "./components/quiz/quiz.service";
 import { globalJobStore } from "./components/schedule";
 import { connectToDB } from "./db";
-import { deleteMe } from "./deleteme";
 import NotFound from "./exceptions/NotFound";
 import errorMiddleware from "./middleware/error";
 import apiRouter from "./routes";
-dotenv.config();
 
 const PORT = process.env.PORT || 5000;
 const app = express();
@@ -43,7 +43,7 @@ async function start() {
     await QuizDB.saturate();
     await globalJobStore.init();
 
-    await deleteMe();
+    // await deleteMe();
     app.listen(PORT, () =>
       console.log(`Server is running at localhost:${PORT}`)
     );

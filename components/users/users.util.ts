@@ -25,6 +25,7 @@ export type CreateUserDTO = Omit<UserInput, "stripeCustomerId"> &
 
 export type LogInDTO = { email: string; password: string };
 
+// PrivateUserDTO = Omit<UserDTO, 'email'> + overload in service
 export class UserDTO {
   readonly id: string;
   readonly name: string;
