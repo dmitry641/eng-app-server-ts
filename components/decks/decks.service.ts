@@ -133,7 +133,7 @@ export class DecksService {
     return this.deckToDTO(filteredDecks);
   }
   async addPublicDeck(userId: string, deckId: string): Promise<UserDeckDTO> {
-    const deck = await this.findOneIDeck(deckId);
+    const deck = await this.findOneIDeck(deckId); // {public:true}
     if (!deck.public) throw new Error("Deck cannot be added");
     const userDecks = await this.findIUserDecks(userId);
     const existed = userDecks.find(
@@ -302,6 +302,7 @@ export class DecksService {
     return DeckModel.find(query);
   }
   private async findOneIDeck(deckId: string): Promise<IDeck> {
+    // FilterQuery<IDeck>
     const deck = await DeckModel.findOne({ _id: deckId });
     if (!deck) throw new Error("Deck doesn't exist");
     return deck;

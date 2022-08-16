@@ -21,8 +21,8 @@ import {
 import {
   CARDS_COUNT,
   filterByCardId,
-  HistoryStatusEnum,
   HistoryType,
+  LrnStatus,
   UpdateTypeEnum,
 } from "./cards.util";
 import { CardInputOmit, ICard } from "./models/cards.model";
@@ -313,16 +313,6 @@ describe("CardsService", () => {
     });
   });
 
-  // FIXME не оттестирован один момент:
-
-  // Создаю колоду
-  // Получаю карточки
-  // Удаляю колоду
-  // Пробую выучить/удалить карточку
-  //   в момент изучени, происходит попытка увеличить количество
-  //   выученных карточек в колоде, но колода уже удаленна
-  //   и происходит ошибка
-
   it("learnUserCard + getLearnedUserCards", async () => {
     const tc = decksTestCases.case1;
     const file = {
@@ -340,10 +330,10 @@ describe("CardsService", () => {
     let { userCard: luc1 } = await cardsService.learnUserCard(
       userId,
       uc1.id,
-      HistoryStatusEnum.medium
+      LrnStatus.medium
     );
     expect(luc1.history.length).toBe(1);
-    expect(luc1.history[0].status).toBe(HistoryStatusEnum.medium);
+    expect(luc1.history[0].status).toBe(LrnStatus.medium);
 
     userCards = await cardsService.getUserCards(userId);
     expect(userCards.length).toBe(tc.cardsCount - 1);
@@ -352,11 +342,7 @@ describe("CardsService", () => {
 
     let errMsg;
     try {
-      await cardsService.learnUserCard(
-        userId,
-        uc1.id,
-        HistoryStatusEnum.medium
-      );
+      await cardsService.learnUserCard(userId, uc1.id, LrnStatus.medium);
     } catch (error) {
       const err = error as Error;
       errMsg = err.message;
@@ -369,7 +355,7 @@ describe("CardsService", () => {
     expect(spyGetLearnedUserCards).not.toBeCalled();
 
     for (const uc of userCards) {
-      await cardsService.learnUserCard(userId, uc.id, HistoryStatusEnum.easy);
+      await cardsService.learnUserCard(userId, uc.id, LrnStatus.easy);
     }
 
     await sleep(testIntervalArray.mediumArray[0]);
@@ -383,7 +369,7 @@ describe("CardsService", () => {
     let object = await cardsService.learnUserCard(
       userId,
       uc1.id,
-      HistoryStatusEnum.medium
+      LrnStatus.medium
     );
     luc1 = object.userCard;
     expect(luc1.history.length).toBe(2);
@@ -394,6 +380,41 @@ describe("CardsService", () => {
     await sleep(testIntervalArray.mediumArray[1]);
     userCards = await cardsService.getUserCards(userId);
     expect(userCards.length).toBe(1);
+  });
+
+  it("learn/delete userCard + delete user deck", async () => {
+    const tc = decksTestCases.case2;
+    const file = {
+      buffer: getBuffer(tc.pathToFile),
+      mimetype: "csv",
+      originalname: "userdeck1",
+    };
+    const ud = await decksService.createUserDeck(userId, file);
+
+    let ucs = await cardsService.getUserCards(userId);
+    expect(ucs.length).toBe(7);
+    await cardsService.learnUserCard(userId, ucs[0].id, LrnStatus.easy);
+    const obj = await cardsService.deleteUserCard(userId, ucs[1].id);
+
+    let uds = await decksService.getUserDecks(userId);
+    expect(uds.length).toBe(1);
+    const ud0 = uds[0];
+    expect(ud0).toEqual(obj.userDeck);
+    expect(ud0.cardsLearned).toBe(ud.cardsLearned + 1);
+    expect(ud0.cardsCount).toBe(ud.cardsCount - 1);
+
+    await decksService.deleteUserDeck(userId, ud.id);
+    const obj1 = await cardsService.learnUserCard(
+      userId,
+      ucs[2].id,
+      LrnStatus.easy
+    );
+    const obj2 = await cardsService.deleteUserCard(userId, ucs[3].id);
+    expect(obj1.userDeck).toBeUndefined();
+    expect(obj2.userDeck).toBeUndefined();
+
+    ucs = await cardsService.getUserCards(userId);
+    expect(ucs.length).toBe(3);
   });
 
   it("getUserCards: showLearned", async () => {
@@ -410,7 +431,7 @@ describe("CardsService", () => {
 
     let counter = 0;
     for (const uc of userCards) {
-      await cardsService.learnUserCard(userId, uc.id, HistoryStatusEnum.hard);
+      await cardsService.learnUserCard(userId, uc.id, LrnStatus.hard);
       counter++;
     }
     await sleep(testIntervalArray.hardArray[0]);
@@ -557,12 +578,12 @@ describe("CardsService", () => {
     expect(IDS_2).toEqual(secondHalf);
 
     const uc1 = String(userCards2[0].id);
-    await cardsService.learnUserCard(userId, uc1, HistoryStatusEnum.medium);
+    await cardsService.learnUserCard(userId, uc1, LrnStatus.medium);
 
     const userCards3 = await cardsService.getUserCards(userId);
     expect(userCards3.length).toBe(4);
     for (const uc of userCards3) {
-      await cardsService.learnUserCard(userId, uc.id, HistoryStatusEnum.easy);
+      await cardsService.learnUserCard(userId, uc.id, LrnStatus.easy);
     }
 
     const userCards4 = await cardsService.getUserCards(userId);
@@ -688,94 +709,94 @@ describe("calcShowAfter", () => {
   const TIA = testIntervalArray;
   it("streak 0", () => {
     const dateNow = Date.now();
-    const hardResult1 = calcShowAfter(HistoryStatusEnum.hard, []);
+    const hardResult1 = calcShowAfter(LrnStatus.hard, []);
     expect(hardResult1).toBeCloseTo(dateNow + TIA.hardArray[0], precision);
-    const hardResult2 = calcShowAfter(HistoryStatusEnum.hard, [
-      { date: 1, status: HistoryStatusEnum.easy },
+    const hardResult2 = calcShowAfter(LrnStatus.hard, [
+      { date: 1, status: LrnStatus.easy },
     ]);
     expect(hardResult2).toBeCloseTo(dateNow + TIA.hardArray[0], precision);
 
-    const mediumResult1 = calcShowAfter(HistoryStatusEnum.medium, []);
+    const mediumResult1 = calcShowAfter(LrnStatus.medium, []);
     expect(mediumResult1).toBeCloseTo(dateNow + TIA.mediumArray[0], precision);
-    const mediumResult2 = calcShowAfter(HistoryStatusEnum.medium, [
-      { date: 1, status: HistoryStatusEnum.medium },
-      { date: 2, status: HistoryStatusEnum.hard },
+    const mediumResult2 = calcShowAfter(LrnStatus.medium, [
+      { date: 1, status: LrnStatus.medium },
+      { date: 2, status: LrnStatus.hard },
     ]);
     expect(mediumResult2).toBeCloseTo(dateNow + TIA.mediumArray[0], precision);
 
-    const easyResult1 = calcShowAfter(HistoryStatusEnum.easy, []);
+    const easyResult1 = calcShowAfter(LrnStatus.easy, []);
     expect(easyResult1).toBeCloseTo(dateNow + TIA.easyArray[0], precision);
-    const easyResult2 = calcShowAfter(HistoryStatusEnum.easy, [
-      { date: 1, status: HistoryStatusEnum.easy },
-      { date: 2, status: HistoryStatusEnum.easy },
-      { date: 3, status: HistoryStatusEnum.medium },
+    const easyResult2 = calcShowAfter(LrnStatus.easy, [
+      { date: 1, status: LrnStatus.easy },
+      { date: 2, status: LrnStatus.easy },
+      { date: 3, status: LrnStatus.medium },
     ]);
     expect(easyResult2).toBeCloseTo(dateNow + TIA.easyArray[0], precision);
   });
   it("streak 1", () => {
     const dateNow = Date.now();
-    const hardResult = calcShowAfter(HistoryStatusEnum.hard, [
-      { date: 1, status: HistoryStatusEnum.hard },
+    const hardResult = calcShowAfter(LrnStatus.hard, [
+      { date: 1, status: LrnStatus.hard },
     ]);
     expect(hardResult).toBeCloseTo(dateNow + TIA.hardArray[0], precision); // out of bounds
     // кривовато сделано, можно было лучше: в цикле, hardArray.at(-1) и тд
 
-    const mediumResult = calcShowAfter(HistoryStatusEnum.medium, [
-      { date: 1, status: HistoryStatusEnum.hard },
-      { date: 2, status: HistoryStatusEnum.medium },
+    const mediumResult = calcShowAfter(LrnStatus.medium, [
+      { date: 1, status: LrnStatus.hard },
+      { date: 2, status: LrnStatus.medium },
     ]);
     expect(mediumResult).toBeCloseTo(dateNow + TIA.mediumArray[1], precision);
 
-    const easyResult = calcShowAfter(HistoryStatusEnum.easy, [
-      { date: 1, status: HistoryStatusEnum.easy },
-      { date: 2, status: HistoryStatusEnum.medium },
-      { date: 3, status: HistoryStatusEnum.easy },
+    const easyResult = calcShowAfter(LrnStatus.easy, [
+      { date: 1, status: LrnStatus.easy },
+      { date: 2, status: LrnStatus.medium },
+      { date: 3, status: LrnStatus.easy },
     ]);
     expect(easyResult).toBeCloseTo(dateNow + TIA.easyArray[1], precision);
   });
   it("streak 2", () => {
     const dateNow = Date.now();
-    const hardResult = calcShowAfter(HistoryStatusEnum.hard, [
-      { date: 1, status: HistoryStatusEnum.hard },
-      { date: 2, status: HistoryStatusEnum.hard },
+    const hardResult = calcShowAfter(LrnStatus.hard, [
+      { date: 1, status: LrnStatus.hard },
+      { date: 2, status: LrnStatus.hard },
     ]);
     expect(hardResult).toBeCloseTo(dateNow + TIA.hardArray[0], precision); // out of bounds
 
-    const mediumResult = calcShowAfter(HistoryStatusEnum.medium, [
-      { date: 1, status: HistoryStatusEnum.medium },
-      { date: 2, status: HistoryStatusEnum.medium },
+    const mediumResult = calcShowAfter(LrnStatus.medium, [
+      { date: 1, status: LrnStatus.medium },
+      { date: 2, status: LrnStatus.medium },
     ]);
     expect(mediumResult).toBeCloseTo(dateNow + TIA.mediumArray[1], precision); // out of bounds
 
-    const easyResult = calcShowAfter(HistoryStatusEnum.easy, [
-      { date: 1, status: HistoryStatusEnum.medium },
-      { date: 2, status: HistoryStatusEnum.easy },
-      { date: 3, status: HistoryStatusEnum.easy },
+    const easyResult = calcShowAfter(LrnStatus.easy, [
+      { date: 1, status: LrnStatus.medium },
+      { date: 2, status: LrnStatus.easy },
+      { date: 3, status: LrnStatus.easy },
     ]);
     expect(easyResult).toBeCloseTo(dateNow + TIA.easyArray[2], precision);
   });
   it("streak 3", () => {
     const dateNow = Date.now();
-    const hardResult = calcShowAfter(HistoryStatusEnum.hard, [
-      { date: 1, status: HistoryStatusEnum.hard },
-      { date: 2, status: HistoryStatusEnum.hard },
-      { date: 3, status: HistoryStatusEnum.hard },
+    const hardResult = calcShowAfter(LrnStatus.hard, [
+      { date: 1, status: LrnStatus.hard },
+      { date: 2, status: LrnStatus.hard },
+      { date: 3, status: LrnStatus.hard },
     ]);
     expect(hardResult).toBeCloseTo(dateNow + TIA.hardArray[0], precision); // out of bounds
 
-    const mediumResult = calcShowAfter(HistoryStatusEnum.medium, [
-      { date: 1, status: HistoryStatusEnum.medium },
-      { date: 2, status: HistoryStatusEnum.medium },
-      { date: 3, status: HistoryStatusEnum.medium },
+    const mediumResult = calcShowAfter(LrnStatus.medium, [
+      { date: 1, status: LrnStatus.medium },
+      { date: 2, status: LrnStatus.medium },
+      { date: 3, status: LrnStatus.medium },
     ]);
     expect(mediumResult).toBeCloseTo(dateNow + TIA.mediumArray[1], precision); // out of bounds
 
-    const easyResult = calcShowAfter(HistoryStatusEnum.easy, [
-      { date: 1, status: HistoryStatusEnum.easy },
-      { date: 2, status: HistoryStatusEnum.medium },
-      { date: 3, status: HistoryStatusEnum.easy },
-      { date: 4, status: HistoryStatusEnum.easy },
-      { date: 5, status: HistoryStatusEnum.easy },
+    const easyResult = calcShowAfter(LrnStatus.easy, [
+      { date: 1, status: LrnStatus.easy },
+      { date: 2, status: LrnStatus.medium },
+      { date: 3, status: LrnStatus.easy },
+      { date: 4, status: LrnStatus.easy },
+      { date: 5, status: LrnStatus.easy },
     ]);
     expect(easyResult).toBeCloseTo(dateNow + TIA.easyArray[3], precision);
   });
@@ -783,74 +804,74 @@ describe("calcShowAfter", () => {
 
 describe("getIntervalArray", () => {
   it("hard", () => {
-    const arr = getIntervalArray(HistoryStatusEnum.hard);
+    const arr = getIntervalArray(LrnStatus.hard);
     expect(arr).toEqual(testIntervalArray.hardArray);
   });
   it("medium", () => {
-    const arr = getIntervalArray(HistoryStatusEnum.medium);
+    const arr = getIntervalArray(LrnStatus.medium);
     expect(arr).toEqual(testIntervalArray.mediumArray);
   });
   it("easy", () => {
-    const arr = getIntervalArray(HistoryStatusEnum.easy);
+    const arr = getIntervalArray(LrnStatus.easy);
     expect(arr).toEqual(testIntervalArray.easyArray);
   });
 });
 
 describe("getStreak", () => {
   const arr: HistoryType[] = [
-    { date: 1, status: HistoryStatusEnum.easy },
-    { date: 2, status: HistoryStatusEnum.easy },
-    { date: 3, status: HistoryStatusEnum.easy },
-    { date: 4, status: HistoryStatusEnum.easy },
-    { date: 5, status: HistoryStatusEnum.easy },
-    { date: 6, status: HistoryStatusEnum.medium },
+    { date: 1, status: LrnStatus.easy },
+    { date: 2, status: LrnStatus.easy },
+    { date: 3, status: LrnStatus.easy },
+    { date: 4, status: LrnStatus.easy },
+    { date: 5, status: LrnStatus.easy },
+    { date: 6, status: LrnStatus.medium },
   ];
-  const arr0: HistoryType[] = [{ date: 1, status: HistoryStatusEnum.medium }];
+  const arr0: HistoryType[] = [{ date: 1, status: LrnStatus.medium }];
   const arr1: HistoryType[] = [
-    { date: 1, status: HistoryStatusEnum.easy },
-    { date: 2, status: HistoryStatusEnum.easy },
-    { date: 3, status: HistoryStatusEnum.easy },
+    { date: 1, status: LrnStatus.easy },
+    { date: 2, status: LrnStatus.easy },
+    { date: 3, status: LrnStatus.easy },
   ];
   const arr2: HistoryType[] = [
-    { date: 1, status: HistoryStatusEnum.easy },
-    { date: 2, status: HistoryStatusEnum.medium },
-    { date: 3, status: HistoryStatusEnum.easy },
-    { date: 4, status: HistoryStatusEnum.easy },
+    { date: 1, status: LrnStatus.easy },
+    { date: 2, status: LrnStatus.medium },
+    { date: 3, status: LrnStatus.easy },
+    { date: 4, status: LrnStatus.easy },
   ];
   const arr3: HistoryType[] = [
-    { date: 1, status: HistoryStatusEnum.easy },
-    { date: 2, status: HistoryStatusEnum.easy },
-    { date: 3, status: HistoryStatusEnum.medium },
-    { date: 4, status: HistoryStatusEnum.hard },
-    { date: 5, status: HistoryStatusEnum.easy },
+    { date: 1, status: LrnStatus.easy },
+    { date: 2, status: LrnStatus.easy },
+    { date: 3, status: LrnStatus.medium },
+    { date: 4, status: LrnStatus.hard },
+    { date: 5, status: LrnStatus.easy },
   ];
-  const arr4: HistoryType[] = [{ date: 1, status: HistoryStatusEnum.easy }];
+  const arr4: HistoryType[] = [{ date: 1, status: LrnStatus.easy }];
   it("should not mutate array", () => {
     const before = Array.from(arr1);
-    const streak = getStreak(HistoryStatusEnum.easy, arr1);
+    const streak = getStreak(LrnStatus.easy, arr1);
     const after = Array.from(arr1);
     expect(before).toEqual(after);
   });
   it("should return 0", () => {
-    const streak1 = getStreak(HistoryStatusEnum.easy, []);
+    const streak1 = getStreak(LrnStatus.easy, []);
     expect(streak1).toBe(0);
-    const streak2 = getStreak(HistoryStatusEnum.easy, arr);
+    const streak2 = getStreak(LrnStatus.easy, arr);
     expect(streak2).toBe(0);
-    const streak3 = getStreak(HistoryStatusEnum.easy, arr0);
+    const streak3 = getStreak(LrnStatus.easy, arr0);
     expect(streak3).toBe(0);
   });
   it("should return 3", () => {
-    const streak = getStreak(HistoryStatusEnum.easy, arr1);
+    const streak = getStreak(LrnStatus.easy, arr1);
     expect(streak).toBe(3);
   });
   it("should return 2", () => {
-    const streak = getStreak(HistoryStatusEnum.easy, arr2);
+    const streak = getStreak(LrnStatus.easy, arr2);
     expect(streak).toBe(2);
   });
   it("should return 1", () => {
-    const streak1 = getStreak(HistoryStatusEnum.easy, arr3);
+    const streak1 = getStreak(LrnStatus.easy, arr3);
     expect(streak1).toBe(1);
-    const streak2 = getStreak(HistoryStatusEnum.easy, arr4);
+    const streak2 = getStreak(LrnStatus.easy, arr4);
     expect(streak2).toBe(1);
   });
 });

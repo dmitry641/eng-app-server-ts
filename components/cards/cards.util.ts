@@ -25,15 +25,15 @@ export const intervalArray = {
 };
 
 export type UCType = { userCardId: string };
-export type UCStatusType = UCType & { status: HistoryStatusEnum };
+export type UCStatusType = UCType & { status: LrnStatus };
 
-export enum HistoryStatusEnum {
+export enum LrnStatus {
   easy = "easy",
   medium = "medium",
   hard = "hard",
 }
 
-export type HistoryType = { status: HistoryStatusEnum; date: number };
+export type HistoryType = { status: LrnStatus; date: number };
 
 export enum UpdateTypeEnum {
   dynamicHighPriority = "dynamicHighPriority",

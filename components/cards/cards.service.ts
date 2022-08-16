@@ -6,10 +6,10 @@ import {
   CardDTO,
   CardsSettingsDTO,
   filterByCardId,
-  HistoryStatusEnum,
   HistoryType,
   intervalArray,
   LrnDelType,
+  LrnStatus,
   slice,
   UpdateType,
   UserCardDTO,
@@ -95,7 +95,7 @@ export class CardsService {
   async learnUserCard(
     userId: string,
     userCardId: string,
-    status: HistoryStatusEnum
+    status: LrnStatus
   ): Promise<LrnDelType> {
     const userCard = await this.findOneIUserCard(userId, userCardId);
     const prevHistoryLen = Number(userCard.history.length);
@@ -275,7 +275,7 @@ export class CardsService {
 }
 
 export function calcShowAfter(
-  status: HistoryStatusEnum,
+  status: LrnStatus,
   history: HistoryType[]
 ): number {
   let newShowAfter = Date.now();
@@ -289,19 +289,19 @@ export function calcShowAfter(
   newShowAfter += intervalsArray[streak] || 0;
   return newShowAfter;
 }
-export function getIntervalArray(status: HistoryStatusEnum) {
+export function getIntervalArray(status: LrnStatus) {
   switch (status) {
-    case HistoryStatusEnum.easy:
+    case LrnStatus.easy:
       return intervalArray.easyArray;
-    case HistoryStatusEnum.medium:
+    case LrnStatus.medium:
       return intervalArray.mediumArray;
-    case HistoryStatusEnum.hard:
+    case LrnStatus.hard:
       return intervalArray.hardArray;
     default:
       throw new Error("Invalid status");
   }
 }
-export function getStreak(status: HistoryStatusEnum, history: HistoryType[]) {
+export function getStreak(status: LrnStatus, history: HistoryType[]) {
   let result = 0;
   let tempHistory = Array.from(history);
   tempHistory.reverse();

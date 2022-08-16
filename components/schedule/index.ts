@@ -28,6 +28,7 @@ export class UserJobsManager {
     // спорный момент
     const dbDynUserDeck = await UserDeckModel.find({
       dynamic: true,
+      deleted: false,
     });
     for (const dbDeck of dbDynUserDeck) {
       const user = await userService.getUser(String(dbDeck.user));

@@ -8,7 +8,7 @@ export const COOKIE_NAME: string = "engApp";
 export const COOKIE_OPTIONS: CookieOptions = {
   maxAge: 30 * 24 * 60 * 60 * 1000,
   httpOnly: true,
-  secure: Boolean(process.env.COOKIE_SECURE),
+  secure: true,
   sameSite: "lax", // FIXME: разобраться
 };
 

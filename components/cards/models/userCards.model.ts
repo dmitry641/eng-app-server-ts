@@ -1,7 +1,7 @@
 import { Document, model, Schema } from "mongoose";
 import { IUserDeck } from "../../decks/models/userDecks.model";
 import { IUser } from "../../users/models/users.model";
-import { HistoryStatusEnum, HistoryType } from "../cards.util";
+import { HistoryType, LrnStatus } from "../cards.util";
 import { ICard } from "./cards.model";
 
 export interface UserCardInput {
@@ -27,7 +27,7 @@ const UserCardSchema: Schema = new Schema(
     showAfter: { type: Number, default: () => Date.now(), required: true },
     history: [
       {
-        status: { type: String, enum: HistoryStatusEnum },
+        status: { type: String, enum: LrnStatus },
         date: { type: Number },
       },
     ],

@@ -451,8 +451,7 @@ describe("Decks service: public decks", () => {
     await connectToTestDB();
   });
   beforeEach(async () => {
-    await DeckModel.collection.drop();
-    await UserDeckModel.collection.drop();
+    await DeckModel.deleteMany({ public: true });
 
     const user1 = await userService.createUser({
       email: String(Math.random()) + "@111.com",
