@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import Unauthorized from "../../exceptions/Unauthorized";
 import { cryptr } from "../../utils";
+import { AvailableModules, Statistics } from "../../utils/statistics";
 import { SessionModel } from "./models/sessions.model";
 import { userService } from "./users.service";
 import {
@@ -107,6 +108,20 @@ async function updateSettings(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+async function getStatistics(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.userId) throw new Unauthorized();
+    const statistics = new Statistics(req.userId);
+    const modules: AvailableModules[] = ["quiz", "flashcards"];
+    statistics.setModules(modules);
+    statistics.setDaysCount(7);
+    const stats = await statistics.getResult();
+    return res.json(stats);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export const usersController = {
   signUp,
   signIn,
@@ -115,4 +130,5 @@ export const usersController = {
   getSessions,
   resetSessions,
   updateSettings,
+  getStatistics,
 };

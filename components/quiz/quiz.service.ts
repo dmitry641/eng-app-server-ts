@@ -71,6 +71,7 @@ export class QuizService {
   }
   async getUserTopics(userId: string): Promise<UserTopicDTO[]> {
     const userTopics = await this.findIUserTopics(userId);
+    userTopics.sort((a, b) => a.updatedAt.getTime() - b.updatedAt.getTime());
     return userTopics.map(this.userTopicToDTO);
   }
   async selectUserTopic(
@@ -142,12 +143,12 @@ export class QuizService {
     const question = questions.find((q) => String(q._id) === questionId);
     if (!question) throw new Error("Question not found");
     const learned = currentUT.learnedQuestions.find(
-      (lq) => String(lq) === questionId
+      (lq) => String(lq.qId) === questionId
     );
     if (learned) throw new Error("Question is already learned");
 
     currentUT.questionsInRow = currentUT.questionsInRow + 1;
-    currentUT.learnedQuestions.push(questionId);
+    currentUT.learnedQuestions.push({ qId: questionId, date: Date.now() });
 
     let changeTopic = false;
     if (currentUT.questionsInRow === questionsInRowLIMIT) {
@@ -254,7 +255,6 @@ export class QuizDB {
     console.log("Quiz: Topics and questions collections created.");
   }
 
-  // esldissussion: line 5451, 5462, 8913 should be removed manually
   static async createCollections({
     csvFileNames,
     pathToDir,

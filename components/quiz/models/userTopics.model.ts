@@ -1,8 +1,7 @@
 import { model, Schema } from "mongoose";
 import { DocumentWithTimestamps } from "../../../utils/types";
 import { IUser } from "../../users/models/users.model";
-import { UTStatus } from "../quiz.util";
-import { IQuestion } from "./questions.model";
+import { LearnedQuestion, UTStatus } from "../quiz.util";
 import { ITopic } from "./topics.model";
 
 export interface UserTopicInput {
@@ -15,7 +14,7 @@ export interface UserTopicInput {
 
 export interface IUserTopic extends UserTopicInput, DocumentWithTimestamps {
   questionsInRow: number;
-  learnedQuestions: Array<IQuestion["_id"]>;
+  learnedQuestions: Array<LearnedQuestion>;
 }
 
 const UserTopicSchema: Schema = new Schema(
@@ -32,9 +31,12 @@ const UserTopicSchema: Schema = new Schema(
     questionsInRow: { type: Number, default: 0, required: true },
     learnedQuestions: [
       {
-        type: Schema.Types.ObjectId,
-        ref: "Question",
-        required: true,
+        qId: {
+          type: Schema.Types.ObjectId,
+          ref: "Question",
+          required: true,
+        },
+        date: { type: Number, required: true },
       },
     ],
   },

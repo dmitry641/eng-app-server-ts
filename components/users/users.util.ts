@@ -21,8 +21,7 @@ export type UpdUserSettingsType = {
 };
 
 export type CreateUserDTO = Omit<UserInput, "stripeCustomerId"> &
-  Partial<Omit<UserSettingsInput, "user">>;
-
+  Partial<Pick<UserSettingsInput, "darkMode">>;
 export type LogInDTO = { email: string; password: string };
 
 // PrivateUserDTO = Omit<UserDTO, 'email'> + overload in service

@@ -25,6 +25,7 @@ usersRouter.post(
   uc.updateSettings
 );
 // /users/settings/phone/
-// /users/statistics
+
+usersRouter.get("/statistics", auth, uc.getStatistics);
 
 export default usersRouter;

@@ -37,7 +37,7 @@ class UserService {
     email,
     name,
     password,
-    ...rest
+    darkMode = true,
   }: CreateUserDTO): Promise<UserDTO> {
     const emailTaken = await this.isEmailTaken(email);
     if (emailTaken) throw new Error("This email address is already in use");
@@ -52,7 +52,7 @@ class UserService {
     };
     const user = await UserModel.create(userInput);
 
-    await this.afterUserCreation(user);
+    await this.afterUserCreation(user, darkMode);
 
     return this.userToDTO(user);
   }
@@ -92,10 +92,10 @@ class UserService {
     return this.settingsToDTO(settings);
   }
 
-  private async afterUserCreation(user: IUser) {
+  private async afterUserCreation(user: IUser, darkMode: boolean) {
     const userSettingsInput: UserSettingsInput = {
       user: String(user._id),
-      darkMode: true, // FIXME
+      darkMode,
     };
     await UserSettingsModel.create(userSettingsInput);
 

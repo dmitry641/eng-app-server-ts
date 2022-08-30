@@ -14,6 +14,7 @@ import { QuizDB, quizService, QuizService } from "./quiz.service";
 import {
   filterQuestions,
   filterTopics,
+  LearnedQuestion,
   oneDay,
   questionSliceEnd,
   topicSliceEnd,
@@ -249,7 +250,8 @@ describe("UserQuizClient", () => {
     const obj1 = await quizService.learnQuestion(userId, questions[0].id);
     expect(obj1.changeTopic).toBe(false);
     const currentUT = await quizService.initUserTopic(userId);
-    expect(currentUT.learnedQuestions).toContain(questions[0].id);
+    const qIds = currentUT.learnedQuestions.map((el) => el.qId);
+    expect(qIds).toContain(questions[0].id);
 
     try {
       await quizService.learnQuestion(userId, questions[0].id);
@@ -522,17 +524,21 @@ describe("filterTopics", () => {
 
 describe("filterQuestions", () => {
   it("should be empty", () => {
-    const learnedQuestion1: string[] = [];
+    const learnedQuestion1: LearnedQuestion[] = [];
     const questions1 = [] as IQuestion[];
     const filtered1 = filterQuestions(learnedQuestion1, questions1);
     expect(filtered1.length).toBe(0);
 
-    const learnedQuestion2: string[] = ["1"];
+    const learnedQuestion2: LearnedQuestion[] = [{ qId: "1", date: 1 }];
     const questions2 = [{ _id: "1" }] as IQuestion[];
     const filtered2 = filterQuestions(learnedQuestion2, questions2);
     expect(filtered2.length).toBe(0);
 
-    const learnedQuestion3 = ["3", "1", "2"];
+    const learnedQuestion3: LearnedQuestion[] = [
+      { qId: "3", date: 1 },
+      { qId: "1", date: 1 },
+      { qId: "2", date: 1 },
+    ];
     const questions3 = [
       { _id: "1" },
       { _id: "3" },
@@ -542,12 +548,12 @@ describe("filterQuestions", () => {
     expect(filtered3.length).toBe(0);
   });
   it("should not be empty", () => {
-    const learnedQuestion1: string[] = [];
+    const learnedQuestion1: LearnedQuestion[] = [];
     const questions1 = [{ _id: "1" }] as IQuestion[];
     const filtered1 = filterQuestions(learnedQuestion1, questions1);
     expect(filtered1.length).toBe(1);
 
-    const learnedQuestion2 = ["1"];
+    const learnedQuestion2: LearnedQuestion[] = [{ qId: "1", date: 1 }];
     const questions2 = [
       { _id: "1" },
       { _id: "2" },
@@ -556,7 +562,12 @@ describe("filterQuestions", () => {
     const filtered2 = filterQuestions(learnedQuestion2, questions2);
     expect(filtered2.length).toBe(2);
 
-    const learnedQuestion3 = ["4", "5", "6", "7"];
+    const learnedQuestion3: LearnedQuestion[] = [
+      { qId: "4", date: 1 },
+      { qId: "5", date: 1 },
+      { qId: "6", date: 1 },
+      { qId: "7", date: 1 },
+    ];
     const questions3 = [
       { _id: "1" },
       { _id: "2" },

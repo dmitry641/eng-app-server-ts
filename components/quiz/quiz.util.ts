@@ -26,8 +26,13 @@ export enum UTStatus {
   finished = "finished",
   blocked = "blocked",
 }
+export type LearnedQuestion = {
+  qId: IQuestion["_id"];
+  date: number;
+};
+
 export const images_count = 10;
-export const apiRoot = process.env.UNSPLASH_API_URL;
+export const apiRoot = "https://api.unsplash.com";
 export const accessKey = process.env.UNSPLASH_ACCESS_KEY;
 export const questionsInRowLIMIT = 7;
 export const questionSliceEnd = 7;
@@ -110,12 +115,21 @@ export class QuestionDTO {
   }
 }
 
+export class LearnedQuestionDTO {
+  readonly qId: string;
+  readonly date: number;
+  constructor(lq: LearnedQuestion) {
+    this.qId = String(lq.qId);
+    this.date = lq.date;
+  }
+}
+
 export class UserTopicDTO {
   readonly id: string;
   readonly updatedAt: Date;
   readonly topicId: string;
   readonly totalQuestionCount: number;
-  readonly learnedQuestions: string[];
+  readonly learnedQuestions: LearnedQuestionDTO[];
   readonly topicName: string;
   readonly status: UTStatus;
   readonly questionsInRow: number;
@@ -124,7 +138,9 @@ export class UserTopicDTO {
     this.updatedAt = userTopic.updatedAt;
     this.topicId = String(userTopic.topic);
     this.totalQuestionCount = userTopic.totalQuestionCount;
-    this.learnedQuestions = userTopic.learnedQuestions.map(String);
+    this.learnedQuestions = userTopic.learnedQuestions.map(
+      (el) => new LearnedQuestionDTO(el)
+    );
     this.topicName = userTopic.topicName; // костыль
     this.status = userTopic.status;
     this.questionsInRow = userTopic.questionsInRow;
@@ -143,7 +159,7 @@ export function filterQuestions(
   learnedQuestions: IUserTopic["learnedQuestions"], // почему any[]? и почему нет ошибок?
   questions: IQuestion[]
 ): IQuestion[] {
-  const lrnQstIds = learnedQuestions.map((lq) => String(lq));
+  const lrnQstIds = learnedQuestions.map((el) => String(el.qId));
   const filtered = questions.filter((q) => !lrnQstIds.includes(String(q._id)));
   return filtered;
 }

@@ -230,6 +230,7 @@ export class DecksService {
     const settings = await this.findDecksSettings(userId);
     settings.dynamicSyncType = type;
     settings.dynamicSyncLink = link;
+    settings.dynamicSyncMessage = undefined;
     await settings.save();
 
     globalJobStore.userJobs.updateJob(

@@ -27,8 +27,8 @@ const UserCardSchema: Schema = new Schema(
     showAfter: { type: Number, default: () => Date.now(), required: true },
     history: [
       {
-        status: { type: String, enum: LrnStatus },
-        date: { type: Number },
+        status: { type: String, enum: LrnStatus, required: true },
+        date: { type: Number, required: true },
       },
     ],
   },
