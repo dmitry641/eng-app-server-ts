@@ -254,7 +254,7 @@ export class CardsService {
   ): Promise<CardDTO[]> {
     const newCards: ICard[] = [];
     for (const rawCard of rawCards) {
-      const reg3 = /((,.?)\s*$)|("|“|”|«|»|;)/g;
+      const reg3 = /((,.?)\s*$)|("|“|”|«|»|‘|’|„|‚|;)/g;
       rawCard.frontPrimary = rawCard.frontPrimary.replace(reg3, "");
       rawCard.backPrimary = rawCard.backPrimary.replace(reg3, "");
 
