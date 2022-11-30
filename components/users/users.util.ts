@@ -9,7 +9,7 @@ export const COOKIE_OPTIONS: CookieOptions = {
   maxAge: 30 * 24 * 60 * 60 * 1000,
   httpOnly: true,
   secure: true,
-  // sameSite: "lax", // FIXME: разобраться
+  sameSite: "none", // FIXME: разобраться
 };
 
 export enum UpdUserSettingsEnum {
