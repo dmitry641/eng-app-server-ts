@@ -8,8 +8,8 @@ import express, { NextFunction } from "express";
 import helmet from "helmet";
 import morgan from "morgan";
 import { QuizDB } from "./components/quiz/quiz.service";
-import { globalJobStore } from "./components/schedule";
 import { connectToDB } from "./db";
+import { deleteMe } from "./deleteme";
 import NotFound from "./exceptions/NotFound";
 import errorMiddleware from "./middleware/error";
 import apiRouter from "./routes";
@@ -41,9 +41,8 @@ async function start() {
     await connectToDB();
     console.log("Connected to database.");
     await QuizDB.saturate();
-    await globalJobStore.init();
 
-    // await deleteMe();
+    await deleteMe();
     app.listen(PORT, () =>
       console.log(`Server is running at localhost:${PORT}`)
     );

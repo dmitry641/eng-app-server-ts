@@ -1,5 +1,5 @@
 import yup from "../../utils/yup.util";
-import { DynamicSyncType, UDPositionEnum } from "./decks.util";
+import { UDPositionEnum } from "./decks.util";
 
 export const UDSchema = yup.object({
   userDeckId: yup.string().isObjectId("UserDeckId is required"),
@@ -7,18 +7,9 @@ export const UDSchema = yup.object({
 
 export const UDPosSchema = yup.object({
   userDeckId: yup.string().isObjectId("UserDeckId is required"),
-  position: yup.string().oneOf(Object.values(UDPositionEnum), "Wrong order"),
+  position: yup.string().oneOf(Object.values(UDPositionEnum), "Wrong position"),
 });
 
 export const DSchema = yup.object({
-  deckId: yup.string().isObjectId("UserDeckId is required"),
-});
-
-export const autoSyncSchema = yup.object({
-  value: yup.boolean().required("Value is required"),
-});
-
-export const syncDataSchema = yup.object({
-  link: yup.string().required("Link is required"),
-  type: yup.string().oneOf(Object.values(DynamicSyncType), "Wrong type"),
+  deckId: yup.string().isObjectId("DeckId is required"),
 });

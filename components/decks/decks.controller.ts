@@ -2,13 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import BadRequest from "../../exceptions/BadRequest";
 import Unauthorized from "../../exceptions/Unauthorized";
 import { decksService } from "./decks.service";
-import {
-  AutoSyncType,
-  DType,
-  SyncDataType,
-  UDPosType,
-  UDType,
-} from "./decks.util";
+import { DType, UDPosType, UDType } from "./decks.util";
 
 async function getUserDecks(req: Request, res: Response, next: NextFunction) {
   try {
@@ -101,86 +95,8 @@ async function addPublicDeck(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-async function createDynamicUserDeck(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
-  try {
-    if (!req.userId) throw new Unauthorized();
-    const userDeck = await decksService.createDynamicUserDeck(req.userId);
-    const settings = await decksService.getDecksSettings(req.userId);
-    return res.send({ userDeck, settings });
-  } catch (error) {
-    next(error);
-  }
-}
-async function deleteDynamicUserDeck(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
-  try {
-    if (!req.userId) throw new Unauthorized();
-    const userDeck = await decksService.deleteDynamicUserDeck(req.userId);
-    const settings = await decksService.getDecksSettings(req.userId);
-    return res.send({ userDeck, settings });
-  } catch (error) {
-    next(error);
-  }
-}
-async function syncDynamicUserDeck(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
-  try {
-    if (!req.userId) throw new Unauthorized();
-    const userDeck = await decksService.syncDynamicUserDeck(req.userId);
-    const settings = await decksService.getDecksSettings(req.userId);
-    return res.send({ userDeck, settings });
-  } catch (error) {
-    next(error);
-  }
-}
-
-async function getDecksSettings(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
-  try {
-    if (!req.userId) throw new Unauthorized();
-    const settings = await decksService.getDecksSettings(req.userId);
-    return res.send(settings);
-  } catch (error) {
-    next(error);
-  }
-}
-async function updateSyncData(req: Request, res: Response, next: NextFunction) {
-  try {
-    if (!req.userId) throw new Unauthorized();
-    const { type, link }: SyncDataType = req.body;
-    const settings = await decksService.updateSyncData(req.userId, type, link);
-    return res.send(settings);
-  } catch (error) {
-    next(error);
-  }
-}
-async function updateAutoSync(req: Request, res: Response, next: NextFunction) {
-  try {
-    if (!req.userId) throw new Unauthorized();
-    const { value }: AutoSyncType = req.body;
-    const settings = await decksService.updateAutoSync(req.userId, value);
-    return res.send(settings);
-  } catch (error) {
-    next(error);
-  }
-}
-
 export const decksController = {
   getUserDecks,
-  getDecksSettings,
   createUserDeck,
   enableUserDeck,
   deleteUserDeck,
@@ -188,9 +104,4 @@ export const decksController = {
   publishUserDeck,
   getPublicDecks,
   addPublicDeck,
-  createDynamicUserDeck,
-  deleteDynamicUserDeck,
-  syncDynamicUserDeck,
-  updateSyncData,
-  updateAutoSync,
 };

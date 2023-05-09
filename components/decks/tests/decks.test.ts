@@ -1,20 +1,13 @@
 import mongoose from "mongoose";
 import { connectToTestDB, disconnectFromDB } from "../../../db";
-import { decksTestCases, reversoTestLink } from "../../../test/testcases";
+import { decksTestCases } from "../../../test/testcases";
 import { getBuffer } from "../../../utils";
 import { cardsService } from "../../cards/cards.service";
-import { globalJobStore } from "../../schedule";
 import { userService } from "../../users/users.service";
-import { DecksService, decksService } from "../decks.service";
-import {
-  DynamicSyncType,
-  SYNC_TIMEOUT_LIMIT,
-  UDPositionEnum,
-  UserDeckDTO,
-} from "../decks.util";
+import { DecksService, decksService, getMaxOrder } from "../decks.service";
+import { UDPositionEnum, UserDeckDTO } from "../decks.util";
 import { DeckInput, DeckModel } from "../models/decks.model";
 import { UserDeckModel } from "../models/userDecks.model";
-import { SyncClient } from "../sync";
 
 describe("Decks service: createDeck", () => {
   let userId: string;
@@ -91,30 +84,6 @@ describe("Decks service: createDeck", () => {
   });
 });
 
-// https://stackoverflow.com/questions/50091438/jest-how-to-mock-one-specific-method-of-a-class
-jest.mock("../../schedule", () => {
-  return {
-    globalJobStore: {
-      userJobs: {
-        updateJob: jest.fn(() => null),
-        cancelJob: jest.fn(() => null),
-        createJob: jest.fn(() => null),
-      },
-    },
-  };
-});
-
-jest.mock("../decks.util", () => {
-  const originalModule = jest.requireActual("../decks.util");
-
-  return {
-    __esModule: true,
-    ...originalModule,
-    SYNC_TIMEOUT_LIMIT: 100,
-    SYNC_ATTEMPTS_COUNT_LIMIT: 2,
-  };
-});
-
 describe("Decks service", () => {
   let userId: string;
   beforeAll(async () => {
@@ -150,12 +119,11 @@ describe("Decks service", () => {
       expect(userDeck.deck.name).toBe(deckName);
       expect(userDeck.cardsCount).toBe(tc.cardsCount);
       expect(userDeck.cardsLearned).toBe(0);
-      expect(userDeck.dynamic).toBe(false);
       expect(userDeck.enabled).toBe(true);
       expect(userDeck.deleted).toBe(false);
-      const decksSettings = await decksService.getDecksSettings(userId);
-      const order = decksSettings.maxOrder;
-      expect(userDeck.order).toBe(order);
+      let userDecks = await decksService.getUserDecks(userId);
+      const maxOrder = getMaxOrder(userDecks);
+      expect(userDeck.order).toBe(maxOrder);
 
       const deck = await decksService.getDeckById(userDeck.deck.id);
       expect(deck.createdBy.id).toBe(userId);
@@ -168,7 +136,7 @@ describe("Decks service", () => {
       const cards = await cardsService.getCardsByDeckId(deck.id);
       expect(cards.length).toBe(tc.cardsCount);
 
-      const userDecks = await decksService.getUserDecks(userId);
+      userDecks = await decksService.getUserDecks(userId);
       expect(userDecks).toContainEqual(userDeck);
     });
     it("incorrect file", async () => {
@@ -277,9 +245,11 @@ describe("Decks service: moveUserDeck", () => {
     const ud1 = await gUDbyId(userDeck1_id);
     expect(ud1.order).toBe(1);
     const ud2 = await gUDbyId(userDeck2_id);
+    expect(ud2.order).toBe(2);
     const firstLessThanSecond = ud1.order < ud2.order;
     expect(firstLessThanSecond).toBe(true);
     const ud3 = await gUDbyId(userDeck3_id);
+    expect(ud3.order).toBe(3);
     const secondLessThanThird = ud2.order < ud3.order;
     expect(secondLessThanThird).toBe(true);
     const userDecks = await decksService.getUserDecks(userId);
@@ -567,32 +537,6 @@ describe("Decks service: public decks", () => {
     expect(errMsg).toBe("Only the owner can make changes");
   });
 
-  it("publishUserDeck: dynamic deck", async () => {
-    const dynUserDeck = await decksService.createDynamicUserDeck(user1Id);
-    expect(dynUserDeck.published).toBe(false);
-    expect(dynUserDeck.canPublish).toBe(false);
-    let errMsg;
-    try {
-      await decksService.publishUserDeck(user1Id, dynUserDeck.id);
-    } catch (error) {
-      const err = error as Error;
-      errMsg = err.message;
-    }
-    expect(errMsg).toBe("Dynamic deck cannot be public");
-
-    const pub2 = await decksService.getPublicDecks(user2Id);
-    expect(pub2.length).toBe(0);
-    try {
-      await decksService.addPublicDeck(user2Id, dynUserDeck.deck.id);
-    } catch (error) {
-      const err = error as Error;
-      errMsg = err.message;
-    }
-    expect(errMsg).toBe("Deck cannot be added");
-
-    await decksService.deleteDynamicUserDeck(user1Id);
-  });
-
   it("addPublicDeck, case 1", async () => {
     let user1Decks = await decksService.getUserDecks(user1Id);
     expect(user1Decks.length).toBe(2);
@@ -687,242 +631,6 @@ describe("Decks service: public decks", () => {
     expect(u1decks.length).toBe(2);
     pub1 = await decksService.getPublicDecks(user1Id);
     expect(pub1.length).toBe(0);
-  });
-
-  afterAll(async () => {
-    await disconnectFromDB();
-  });
-});
-
-describe("Decks service: dynamic deck", () => {
-  let userId: string;
-  let userDeck1: UserDeckDTO;
-  let userDeck2: UserDeckDTO;
-  const tc = decksTestCases.case1;
-  const buffer = getBuffer(tc.pathToFile);
-  beforeAll(async () => {
-    await connectToTestDB();
-  });
-  beforeEach(async () => {
-    let userEmail = String(Math.random()) + "@email.com";
-
-    const user = await userService.createUser({
-      email: userEmail,
-      name: "123",
-      password: "123",
-    });
-    userId = user.id;
-
-    userDeck1 = await decksService.createUserDeck(userId, {
-      buffer,
-      mimetype: "csv",
-      originalname: String(Math.random()),
-    });
-    userDeck2 = await decksService.createUserDeck(userId, {
-      buffer,
-      mimetype: "csv",
-      originalname: String(Math.random()),
-    });
-  });
-
-  async function getDynDeck(): Promise<UserDeckDTO | undefined> {
-    const userDecks = await decksService.getUserDecks(userId);
-    return userDecks.find((ud) => ud.dynamic);
-  }
-
-  it("createDynamicUserDeck", async () => {
-    let dynUserDeck = await getDynDeck();
-    expect(dynUserDeck).toBe(undefined);
-
-    // @ts-ignore
-    const spyNewUserDeck = jest.spyOn(DecksService.prototype, "newUserDeck");
-    const spyUpdateAutoSync = jest.spyOn(
-      DecksService.prototype,
-      "updateAutoSync"
-    );
-
-    const userDeck = await decksService.createDynamicUserDeck(userId);
-    expect(spyNewUserDeck).toBeCalled();
-    expect(spyUpdateAutoSync).toBeCalled();
-
-    let settings = await decksService.getDecksSettings(userId);
-    expect(settings.dynamicAutoSync).toBe(true);
-
-    expect(globalJobStore.userJobs.updateJob).toBeCalled();
-
-    expect(userDeck.deck.name).toBe("Dynamic deck");
-    expect(userDeck.cardsCount).toBe(0);
-    expect(userDeck.cardsLearned).toBe(0);
-    expect(userDeck.dynamic).toBe(true);
-    expect(userDeck.enabled).toBe(true);
-    expect(userDeck.deleted).toBe(false);
-    settings = await decksService.getDecksSettings(userId);
-    expect(userDeck.order).toBe(settings.maxOrder);
-
-    const deck = await decksService.getDeckById(userDeck.deck.id);
-    expect(deck.createdBy.id).toBe(userId);
-    expect(deck.name).toBe("Dynamic deck");
-    expect(deck.public).toBe(false);
-    expect(deck.totalCardsCount).toBe(0);
-
-    expect(userDeck.deck.id).toBe(deck.id);
-
-    const cards = await cardsService.getCardsByDeckId(deck.id);
-    expect(cards.length).toBe(0);
-
-    const userDecks = await decksService.getUserDecks(userId);
-    expect(userDecks).toContainEqual(userDeck);
-
-    dynUserDeck = await getDynDeck();
-    expect(dynUserDeck).toBeTruthy();
-
-    let errMsg;
-    try {
-      await decksService.createDynamicUserDeck(userId);
-    } catch (error) {
-      const err = error as Error;
-      errMsg = err.message;
-    }
-    expect(errMsg).toBe("Dynamic userDeck already exists");
-
-    await decksService.deleteDynamicUserDeck(userId);
-  });
-
-  it("deleteDynamicUserDeck", async () => {
-    let dynUserDeck = await getDynDeck();
-    expect(dynUserDeck).toBe(undefined);
-    await decksService.createDynamicUserDeck(userId);
-    dynUserDeck = await getDynDeck();
-    expect(dynUserDeck).toBeTruthy();
-    let userDecks = await decksService.getUserDecks(userId);
-    expect(userDecks).toContainEqual(dynUserDeck);
-
-    await decksService.deleteDynamicUserDeck(userId);
-    const settings = await decksService.getDecksSettings(userId);
-
-    userDecks = await decksService.getUserDecks(userId);
-    expect(userDecks).not.toContain(dynUserDeck);
-
-    expect(settings.dynamicAutoSync).toBe(false);
-    expect(settings.dynamicSyncType).toBe(undefined);
-    expect(settings.dynamicSyncLink).toBe(undefined);
-    expect(settings.dynamicSyncMessage).toBe(undefined);
-    expect(settings.dynamicSyncAttempts.length).toBe(0);
-
-    expect(globalJobStore.userJobs.cancelJob).toBeCalled();
-
-    let errMsg;
-    try {
-      await decksService.deleteDynamicUserDeck(userId);
-    } catch (error) {
-      const err = error as Error;
-      errMsg = err.message;
-    }
-    expect(errMsg).toBe("Dynamic userDeck doesn't exist");
-  });
-
-  it("deleteUserDeck", async () => {
-    const dynUD = await decksService.createDynamicUserDeck(userId);
-    let errMsg;
-    try {
-      await decksService.deleteUserDeck(userId, dynUD.id);
-    } catch (error) {
-      const err = error as Error;
-      errMsg = err.message;
-    }
-    expect(errMsg).toBe("Dynamic deck is not allowed");
-
-    await decksService.deleteDynamicUserDeck(userId);
-  });
-
-  it("syncDynamicUserDeck", async () => {
-    await decksService.createDynamicUserDeck(userId);
-
-    let errMsg;
-    try {
-      await decksService.syncDynamicUserDeck(userId);
-    } catch (error) {
-      const err = error as Error;
-      errMsg = err.message;
-    }
-    expect(errMsg).toBe("DynamicSyncType is undefined");
-
-    await decksService.updateSyncData(
-      userId,
-      DynamicSyncType.reverso,
-      reversoTestLink
-    );
-
-    // syncHandler -> false
-    SyncClient.prototype.syncHandler = jest.fn(async () =>
-      Promise.resolve([false])
-    );
-    let spySyncHandler = jest.spyOn(SyncClient.prototype, "syncHandler");
-    let settings = await decksService.getDecksSettings(userId);
-    expect(settings.dynamicAutoSync).toBe(true);
-    await decksService.syncDynamicUserDeck(userId);
-    expect(spySyncHandler).toBeCalled();
-    expect(globalJobStore.userJobs.cancelJob).toBeCalled();
-    settings = await decksService.getDecksSettings(userId);
-    expect(settings.dynamicAutoSync).toBe(false);
-    expect(settings.dynamicSyncMessage).toBe("Sync error");
-
-    // syncHandler -> true
-    SyncClient.prototype.syncHandler = jest.fn(async () =>
-      Promise.resolve([true])
-    );
-    spySyncHandler = jest.spyOn(SyncClient.prototype, "syncHandler");
-    await decksService.syncDynamicUserDeck(userId);
-    expect(spySyncHandler).toBeCalled();
-
-    settings = await decksService.getDecksSettings(userId);
-    expect(settings.dynamicSyncMessage).toMatch("Last sync at");
-    try {
-      await decksService.syncDynamicUserDeck(userId);
-    } catch (error) {
-      const err = error as Error;
-      errMsg = err.message;
-    }
-    expect(errMsg).toBe("Too many attempts. Try again later...");
-    // jest.useFakeTimers();
-    // jest.runAllTimers();
-    await new Promise((r) => setTimeout(r, SYNC_TIMEOUT_LIMIT));
-
-    const someError = "someError";
-    SyncClient.prototype.syncHandler = jest.fn(async () =>
-      Promise.resolve([false, someError])
-    );
-    await decksService.syncDynamicUserDeck(userId);
-    settings = await decksService.getDecksSettings(userId);
-    expect(settings.dynamicAutoSync).toBe(false);
-    expect(settings.dynamicSyncMessage).toBe(someError);
-
-    SyncClient.prototype.syncHandler = jest.fn(async () =>
-      Promise.resolve([true])
-    );
-    await decksService.syncDynamicUserDeck(userId);
-    expect(spySyncHandler).toBeCalled();
-    settings = await decksService.getDecksSettings(userId);
-    expect(settings.dynamicSyncMessage).toMatch("Last sync at");
-
-    await decksService.deleteDynamicUserDeck(userId);
-  });
-
-  it("updateSyncDataType", async () => {
-    const settings = await decksService.updateSyncData(
-      userId,
-      DynamicSyncType.reverso,
-      reversoTestLink
-    );
-    expect(globalJobStore.userJobs.updateJob).toBeCalled();
-    expect(settings.dynamicSyncType).toBe(DynamicSyncType.reverso);
-    expect(settings.dynamicSyncLink).toBe(reversoTestLink);
-  });
-
-  it("updateAutoSync", async () => {
-    let settings = await decksService.updateAutoSync(userId, false);
-    expect(globalJobStore.userJobs.updateJob).toBeCalled();
-    expect(settings.dynamicAutoSync).toBe(false);
   });
 
   afterAll(async () => {

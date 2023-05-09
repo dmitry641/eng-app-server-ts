@@ -1,31 +1,25 @@
 import { connectToTestDB, disconnectFromDB } from "../../db";
-import {
-  decksTestCases,
-  reversoTestLink,
-  testIntervalArray,
-} from "../../test/testcases";
+import { decksTestCases, testIntervalArray } from "../../test/testcases";
 import * as utils from "../../utils";
 import { getBuffer, sleep } from "../../utils";
 import { decksService } from "../decks/decks.service";
-import { DynamicSyncType, UDPositionEnum } from "../decks/decks.util";
-import { ReversoFetcher } from "../decks/sync";
-import { globalJobStore } from "../schedule";
+import { UDPositionEnum } from "../decks/decks.util";
 import { userService } from "../users/users.service";
 import {
+  CardsService,
   calcShowAfter,
   cardsService,
-  CardsService,
   getIntervalArray,
   getStreak,
 } from "./cards.service";
 import {
   CARDS_COUNT,
-  filterByCardId,
   HistoryType,
   LrnStatus,
   UpdateTypeEnum,
+  filterByCardId,
 } from "./cards.util";
-import { CardInputOmit, ICard } from "./models/cards.model";
+import { ICard } from "./models/cards.model";
 import { IUserCard } from "./models/userCards.model";
 
 jest.mock("./cards.util", () => {
@@ -52,10 +46,6 @@ const spyCardToDTO = jest.spyOn(
 const spyGetEmptyUserCards = jest.spyOn(
   CardsService.prototype, // @ts-ignore
   "getEmptyUserCards"
-);
-const spyGetUserCardsFromDynamicUserDeck = jest.spyOn(
-  CardsService.prototype, // @ts-ignore
-  "getUserCardsFromDynamicUserDeck"
 );
 const spyGetLearnedUserCards = jest.spyOn(
   CardsService.prototype, // @ts-ignore
@@ -89,7 +79,6 @@ describe("CardsService", () => {
     it("should be empty", async () => {
       const uc = await cardsService.getUserCards(userId);
       expect(spyGetEmptyUserCards).toBeCalled();
-      expect(spyGetUserCardsFromDynamicUserDeck).toBeCalled();
       expect(spyGetLearnedUserCards).toBeCalled();
       expect(spyGetUserCardsFromSortedUserDecks).toBeCalled();
       expect(spyGetUserCardsFromUserDeck).not.toBeCalled();
@@ -253,63 +242,6 @@ describe("CardsService", () => {
       expect(spyGetUserCardsFromUserDeck).not.toBeCalledWith(userId, ud1);
       expect(spyGetUserCardsFromUserDeck).not.toBeCalledWith(userId, ud2);
       expect(userCards.length).toBe(0);
-    });
-
-    it("getUserCardsFromDynamicUserDeck", async () => {
-      jest.spyOn(globalJobStore.userJobs, "updateJob").mockReturnValue();
-      const dynUserDeck = await decksService.createDynamicUserDeck(userId);
-      await decksService.updateSyncData(
-        userId,
-        DynamicSyncType.reverso,
-        reversoTestLink
-      );
-
-      // high priority false
-      await cardsService.updateSettings(userId, {
-        type: UpdateTypeEnum.dynamicHighPriority,
-        value: false,
-      });
-
-      let userCards = await cardsService.getUserCards(userId);
-      expect(spyGetUserCardsFromDynamicUserDeck).not.toBeCalled();
-      expect(spyGetLearnedUserCards).toBeCalled();
-
-      // high priority true
-      await cardsService.updateSettings(userId, {
-        type: UpdateTypeEnum.dynamicHighPriority,
-        value: true,
-      });
-      userCards = await cardsService.getUserCards(userId);
-      expect(spyGetUserCardsFromDynamicUserDeck).toBeCalled();
-      expect(spyGetLearnedUserCards).toBeCalled();
-      expect(userCards.length).toBe(0);
-      jest.clearAllMocks();
-
-      // sync dynamic user deck
-      const newCard: CardInputOmit = {
-        frontPrimary: "q",
-        frontSecondary: "w",
-        backPrimary: "e",
-        backSecondary: "r",
-        customId: "t",
-      };
-      jest
-        .spyOn(ReversoFetcher.prototype, "getRawCards")
-        .mockImplementation(async () => [newCard]);
-
-      await decksService.syncDynamicUserDeck(userId);
-
-      userCards = await cardsService.getUserCards(userId);
-      expect(spyGetUserCardsFromDynamicUserDeck).toBeCalled();
-      expect(spyGetLearnedUserCards).not.toBeCalled();
-      expect(userCards.length).toBe(1);
-      jest.clearAllMocks();
-
-      // getEmptyUserCards
-      userCards = await cardsService.getUserCards(userId);
-      expect(spyGetEmptyUserCards).toBeCalled();
-      expect(spyGetUserCardsFromDynamicUserDeck).not.toBeCalled();
-      expect(spyGetUserCardsFromSortedUserDecks).not.toBeCalled();
     });
   });
 

@@ -9,7 +9,7 @@ export const cardsCsvHeaders = [
   "backPrimary",
   "backSecondary",
 ] as const;
-export type CardsKeysType = { [K in typeof cardsCsvHeaders[number]]: string };
+export type CardsKeysType = { [K in (typeof cardsCsvHeaders)[number]]: string };
 
 export const CARDS_COUNT = 15;
 

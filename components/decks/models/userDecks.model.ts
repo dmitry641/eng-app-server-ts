@@ -7,7 +7,6 @@ export interface UserDeckInput {
   deck: IDeck["_id"];
   order: number;
   cardsCount: number;
-  dynamic: boolean;
 }
 
 export interface IUserDeck extends UserDeckInput, Document {
@@ -23,7 +22,6 @@ const UserDeckSchema: Schema = new Schema(
     order: { type: Number, required: true },
     cardsCount: { type: Number, required: true },
     cardsLearned: { type: Number, default: 0, required: true },
-    dynamic: { type: Boolean, required: true },
     enabled: { type: Boolean, default: true, required: true },
     deleted: { type: Boolean, default: false, required: true },
   },

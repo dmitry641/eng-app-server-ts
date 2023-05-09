@@ -4,10 +4,7 @@ import {
   CardsSettingsInput,
   CardsSettingsModel,
 } from "../cards/models/cardsSettings.model";
-import {
-  DecksSettingsInput,
-  DecksSettingsModel,
-} from "../decks/models/decksSettings.model";
+
 import { IUser, UserInput, UserModel } from "./models/users.model";
 import {
   IUserSettings,
@@ -98,11 +95,6 @@ class UserService {
       darkMode,
     };
     await UserSettingsModel.create(userSettingsInput);
-
-    const decksSettingsInput: DecksSettingsInput = {
-      user: String(user.id),
-    };
-    await DecksSettingsModel.create(decksSettingsInput);
 
     const cardsSettingsInput: CardsSettingsInput = {
       user: String(user.id),

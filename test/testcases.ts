@@ -1,5 +1,4 @@
 import { resolve } from "path";
-import { IReversoResponse, IYandexResponse } from "../components/decks/sync";
 import {
   QuestionDTO,
   QuizKeysType,
@@ -239,57 +238,6 @@ export const rawCardsTestData1 = [
 export const reversoTestLink = "https://context.reverso.net/favourites/test";
 export const yandexTestLink =
   "https://translate.yandex.ru/subscribe?collection_id=5b84234c898789001f7fea81";
-
-export const reversoTestResponse: IReversoResponse = {
-  numTotalResults: 3,
-  numFilteredResults: 3,
-  results: [
-    {
-      id: 1,
-      srcLang: "English",
-      srcText: "Test",
-      trgLang: "Russian",
-      trgText: "Тест",
-    },
-    {
-      id: 2,
-      srcLang: "English",
-      srcText: "Book",
-      trgLang: "Russian",
-      trgText: "Книга",
-    },
-    {
-      id: 3,
-      srcLang: "English",
-      srcText: "Pencil",
-      trgLang: "Russian",
-      trgText: "Ручка",
-    },
-  ],
-};
-export const yandexTestResponse: IYandexResponse = {
-  collection: {
-    count: 3,
-    public: true,
-    records: [
-      {
-        id: "1",
-        text: "Test",
-        translation: "Тест",
-      },
-      {
-        id: "2",
-        text: "Book",
-        translation: "Книга",
-      },
-      {
-        id: "3",
-        text: "Pencil",
-        translation: "Ручка",
-      },
-    ],
-  },
-};
 
 const hour = 10;
 const day = hour * 100;

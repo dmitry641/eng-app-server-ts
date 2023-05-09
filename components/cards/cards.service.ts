@@ -5,14 +5,14 @@ import { DeckDTO, UserDeckDTO } from "../decks/decks.util";
 import {
   CardDTO,
   CardsSettingsDTO,
-  filterByCardId,
   HistoryType,
-  intervalArray,
   LrnDelType,
   LrnStatus,
-  slice,
   UpdateType,
   UserCardDTO,
+  filterByCardId,
+  intervalArray,
+  slice,
 } from "./cards.util";
 import {
   CardInput,
@@ -40,10 +40,10 @@ export class CardsService {
     }
 
     const settings = await this.findCardsSettings(userId);
-    if (settings.dynamicHighPriority) {
-      result = await this.getUserCardsFromDynamicUserDeck(userId);
-      if (result.length !== 0) return this.userCardToDTO(result); // dynamic deck
-    }
+    // if (settings.dynamicHighPriority) {
+    //   result = await this.getUserCardsFromDynamicUserDeck(userId);
+    //   if (result.length !== 0) return this.userCardToDTO(result); // dynamic deck
+    // }
 
     if (settings.showLearned) {
       result = await this.getLearnedUserCards(userId);
@@ -135,17 +135,7 @@ export class CardsService {
     });
     return userCards.filter((uc) => uc.history.length === 0);
   }
-  private async getUserCardsFromDynamicUserDeck(
-    userId: string
-  ): Promise<IUserCard[]> {
-    let newUserCards: IUserCard[] = [];
-    const userDecks = await decksService.getUserDecks(userId);
-    const dynUserDeck = userDecks.find((ud) => ud.dynamic);
-    if (dynUserDeck) {
-      newUserCards = await this.getUserCardsFromUserDeck(userId, dynUserDeck);
-    }
-    return newUserCards;
-  }
+
   private async getLearnedUserCards(userId: string): Promise<IUserCard[]> {
     const dateNow = Date.now();
     const userCards = await this.findIUserCards({

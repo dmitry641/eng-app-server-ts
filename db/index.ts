@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 dotenv.config();
+mongoose.set("strictQuery", false);
 
 export async function connectToDB() {
   return mongoose.connect(process.env.DB_URI as string);
