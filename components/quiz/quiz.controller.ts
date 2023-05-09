@@ -4,15 +4,15 @@ import Unauthorized from "../../exceptions/Unauthorized";
 import { randomIntFromInterval, shuffle } from "../../utils";
 import { quizService } from "./quiz.service";
 import {
-  accessKey,
-  apiRoot,
   ImageDto,
-  images_count,
   QType,
   TType,
+  UTType,
   UnsplashImage,
   UnsplashResponse,
-  UTType,
+  accessKey,
+  apiRoot,
+  images_count,
 } from "./quiz.util";
 
 async function initUserTopic(req: Request, res: Response, next: NextFunction) {
