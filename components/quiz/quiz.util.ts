@@ -1,3 +1,4 @@
+import { SchemaTimestampsConfig } from "mongoose";
 import { IQuestion } from "./models/questions.model";
 import { ITopic } from "./models/topics.model";
 import { IUserTopic } from "./models/userTopics.model";
@@ -5,7 +6,7 @@ import { IUserTopic } from "./models/userTopics.model";
 // quiz util
 
 export const quizCsvHeaders = ["topicName", "text"] as const;
-export type QuizKeysType = { [K in typeof quizCsvHeaders[number]]: string };
+export type QuizKeysType = { [K in (typeof quizCsvHeaders)[number]]: string };
 // или так
 // type QuizKeysType = {
 //   topicName: ITopic["topicName"];
@@ -29,7 +30,7 @@ export enum UTStatus {
 export type LearnedQuestion = {
   qId: IQuestion["_id"];
   date: number;
-};
+} & SchemaTimestampsConfig;
 
 export const images_count = 10;
 export const apiRoot = "https://api.unsplash.com";

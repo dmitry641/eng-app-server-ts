@@ -26,14 +26,12 @@ export class DecksService {
     file: UploadedFile
   ): Promise<UserDeckDTO> {
     const filename = file.originalname.replace(".csv", "");
-    // FIXME !!!
     const rawCards = await getCsvData<CardsKeysType>(
       file.buffer,
       cardsCsvHeaders,
-      [true, false, true, false],
+      [true, false, true, true],
       ","
     );
-    // FIXME !!!
 
     const deckInput: DeckInput = {
       createdBy: userId,

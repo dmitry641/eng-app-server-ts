@@ -1,5 +1,5 @@
 import yup from "../../utils/yup.util";
-import { LrnStatus, UpdateTypeEnum } from "./cards.util";
+import { UpdateTypeEnum } from "./cards.util";
 
 export const UCSchema = yup.object({
   userCardId: yup.string().isObjectId("UserCardId is required"),
@@ -7,7 +7,7 @@ export const UCSchema = yup.object({
 
 export const UCStatusSchema = yup.object({
   userCardId: yup.string().isObjectId("UserCardId is required"),
-  status: yup.string().oneOf(Object.values(LrnStatus), "Wrong order"),
+  status: yup.boolean().required("Status is required"),
 });
 
 export const updateSchema = yup.object({

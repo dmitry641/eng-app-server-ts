@@ -1,7 +1,11 @@
 import { NextFunction, Request, Response } from "express";
 import Unauthorized from "../../exceptions/Unauthorized";
 import { cryptr } from "../../utils";
-import { AvailableModules, Statistics } from "../../utils/statistics";
+import {
+  AvailableModules,
+  DEFAULT_DAYS_COUNT,
+  Statistics,
+} from "../../utils/statistics";
 import { SessionModel } from "./models/sessions.model";
 import { userService } from "./users.service";
 import {
@@ -114,7 +118,7 @@ async function getStatistics(req: Request, res: Response, next: NextFunction) {
     const statistics = new Statistics(req.userId);
     const modules: AvailableModules[] = ["quiz", "flashcards"];
     statistics.setModules(modules);
-    statistics.setDaysCount(7);
+    statistics.setDaysCount(DEFAULT_DAYS_COUNT);
     const stats = await statistics.getResult();
     return res.json(stats);
   } catch (error) {

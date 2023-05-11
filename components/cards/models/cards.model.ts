@@ -4,7 +4,6 @@ import { CardsKeysType } from "../cards.util";
 
 export interface CardInput extends CardsKeysType {
   deck: IDeck["_id"];
-  customId?: string;
 }
 
 export type CardInputOmit = Omit<CardInput, "deck">;
@@ -18,7 +17,6 @@ const CardSchema: Schema = new Schema(
     frontSecondary: { type: String },
     backPrimary: { type: String, required: true },
     backSecondary: { type: String },
-    customId: { type: String },
   },
   { timestamps: true }
 );

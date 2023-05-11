@@ -1,7 +1,7 @@
 import { CookieOptions } from "express";
 import { ISession } from "./models/sessions.model";
-import { IUser, UserInput } from "./models/users.model";
 import { IUserSettings, UserSettingsInput } from "./models/userSettings.model";
+import { IUser, UserInput } from "./models/users.model";
 
 export type UserId = string;
 export const COOKIE_NAME: string = "engApp";

@@ -7,6 +7,7 @@ import {
 
 // { [K: string]: { pathToFile: string; csvHeaders: string[] } }
 // export const quizTestCases = new Map<number, T>()
+export const testHour = () => 25;
 
 export const file1 = {
   pathToFile: resolve(__dirname, "testcases.ts"),
@@ -224,27 +225,14 @@ export const rawCardsTestData1 = [
     frontSecondary: "",
     backPrimary: "способность",
     backSecondary: "",
-    customId: "1",
   },
   {
     frontPrimary: "vortex",
     frontSecondary: "",
     backPrimary: "вихрь",
     backSecondary: "",
-    customId: "2",
   },
 ];
-
-export const reversoTestLink = "https://context.reverso.net/favourites/test";
-export const yandexTestLink =
-  "https://translate.yandex.ru/subscribe?collection_id=5b84234c898789001f7fea81";
-
-const hour = 10;
-const day = hour * 100;
-const hardArray = [hour];
-const mediumArray = [hour * 15, hour * 25];
-const easyArray = [day, day * 3, day * 7, day * 10, day * 20];
-export const testIntervalArray = { hardArray, mediumArray, easyArray };
 
 export const testTopics: TopicDTO[] = [
   {

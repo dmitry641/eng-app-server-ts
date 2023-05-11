@@ -1,24 +1,12 @@
 import { connectToTestDB, disconnectFromDB } from "../../db";
-import { decksTestCases, testIntervalArray } from "../../test/testcases";
+import { decksTestCases, testHour } from "../../test/testcases";
 import * as utils from "../../utils";
-import { getBuffer, sleep } from "../../utils";
+import { getBuffer } from "../../utils";
 import { decksService } from "../decks/decks.service";
 import { UDPositionEnum } from "../decks/decks.util";
 import { userService } from "../users/users.service";
-import {
-  CardsService,
-  calcShowAfter,
-  cardsService,
-  getIntervalArray,
-  getStreak,
-} from "./cards.service";
-import {
-  CARDS_COUNT,
-  HistoryType,
-  LrnStatus,
-  UpdateTypeEnum,
-  filterByCardId,
-} from "./cards.util";
+import { CardsService, cardsService, intervalArray } from "./cards.service";
+import { CARDS_COUNT, UpdateTypeEnum, filterByCardId } from "./cards.util";
 import { ICard } from "./models/cards.model";
 import { IUserCard } from "./models/userCards.model";
 
@@ -28,7 +16,7 @@ jest.mock("./cards.util", () => {
   return {
     __esModule: true,
     ...originalModule,
-    intervalArray: testIntervalArray,
+    HOUR: testHour,
   };
 });
 
@@ -42,7 +30,6 @@ const spyCardToDTO = jest.spyOn(
   CardsService.prototype, // @ts-ignore
   "cardToDTO"
 );
-
 const spyGetEmptyUserCards = jest.spyOn(
   CardsService.prototype, // @ts-ignore
   "getEmptyUserCards"
@@ -259,13 +246,15 @@ describe("CardsService", () => {
     jest.clearAllMocks();
 
     const uc1 = Object.assign({}, userCards[0]);
+    const dateBefore = Date.now();
     let { userCard: luc1 } = await cardsService.learnUserCard(
       userId,
       uc1.id,
-      LrnStatus.medium
+      true
     );
-    expect(luc1.history.length).toBe(1);
-    expect(luc1.history[0].status).toBe(LrnStatus.medium);
+    expect(luc1.streak).toBe(1);
+    const diff = luc1.showAfter - (dateBefore + intervalArray[luc1.streak]);
+    expect(diff).toBeLessThanOrEqual(5);
 
     userCards = await cardsService.getUserCards(userId);
     expect(userCards.length).toBe(tc.cardsCount - 1);
@@ -274,7 +263,7 @@ describe("CardsService", () => {
 
     let errMsg;
     try {
-      await cardsService.learnUserCard(userId, uc1.id, LrnStatus.medium);
+      await cardsService.learnUserCard(userId, uc1.id, true);
     } catch (error) {
       const err = error as Error;
       errMsg = err.message;
@@ -286,32 +275,31 @@ describe("CardsService", () => {
     expect(userCards.map((uc) => uc.id)).not.toContain(uc1.id);
     expect(spyGetLearnedUserCards).not.toBeCalled();
 
+    await utils.sleep(intervalArray[1]);
     for (const uc of userCards) {
-      await cardsService.learnUserCard(userId, uc.id, LrnStatus.easy);
+      await cardsService.learnUserCard(userId, uc.id, true);
     }
-
-    await sleep(testIntervalArray.mediumArray[0]);
 
     userCards = await cardsService.getUserCards(userId);
     expect(userCards.length).toBe(1);
     expect(userCards.map((uc) => uc.id)).toContain(uc1.id);
     expect(spyGetLearnedUserCards).toBeCalled();
 
-    // learn the same user card again
-    let object = await cardsService.learnUserCard(
-      userId,
-      uc1.id,
-      LrnStatus.medium
-    );
+    const dateBefore2 = Date.now();
+    // unlearn the first user card
+    let object = await cardsService.learnUserCard(userId, uc1.id, false);
     luc1 = object.userCard;
-    expect(luc1.history.length).toBe(2);
+    expect(luc1.streak).toBe(1);
+    const diff2 = luc1.showAfter - (dateBefore2 + intervalArray[luc1.streak]);
+    expect(diff2).toBeLessThanOrEqual(5);
 
     userCards = await cardsService.getUserCards(userId);
     expect(userCards.length).toBe(0);
 
-    await sleep(testIntervalArray.mediumArray[1]);
+    await utils.sleep(intervalArray[0]);
     userCards = await cardsService.getUserCards(userId);
     expect(userCards.length).toBe(1);
+    expect(userCards[0].id).toBe(luc1.id);
   });
 
   it("learn/delete userCard + delete user deck", async () => {
@@ -325,7 +313,7 @@ describe("CardsService", () => {
 
     let ucs = await cardsService.getUserCards(userId);
     expect(ucs.length).toBe(7);
-    await cardsService.learnUserCard(userId, ucs[0].id, LrnStatus.easy);
+    await cardsService.learnUserCard(userId, ucs[0].id, true);
     const obj = await cardsService.deleteUserCard(userId, ucs[1].id);
 
     let uds = await decksService.getUserDecks(userId);
@@ -336,11 +324,7 @@ describe("CardsService", () => {
     expect(ud0.cardsCount).toBe(ud.cardsCount - 1);
 
     await decksService.deleteUserDeck(userId, ud.id);
-    const obj1 = await cardsService.learnUserCard(
-      userId,
-      ucs[2].id,
-      LrnStatus.easy
-    );
+    const obj1 = await cardsService.learnUserCard(userId, ucs[2].id, true);
     const obj2 = await cardsService.deleteUserCard(userId, ucs[3].id);
     expect(obj1.userDeck).toBeUndefined();
     expect(obj2.userDeck).toBeUndefined();
@@ -363,10 +347,10 @@ describe("CardsService", () => {
 
     let counter = 0;
     for (const uc of userCards) {
-      await cardsService.learnUserCard(userId, uc.id, LrnStatus.hard);
+      await cardsService.learnUserCard(userId, uc.id, true);
       counter++;
     }
-    await sleep(testIntervalArray.hardArray[0]);
+    await utils.sleep(intervalArray[1]);
 
     let settings = await cardsService.getCardsSettings(userId);
     expect(settings.showLearned).toBe(true);
@@ -510,19 +494,15 @@ describe("CardsService", () => {
     expect(IDS_2).toEqual(secondHalf);
 
     const uc1 = String(userCards2[0].id);
-    await cardsService.learnUserCard(userId, uc1, LrnStatus.medium);
+    await cardsService.learnUserCard(userId, uc1, false);
 
     const userCards3 = await cardsService.getUserCards(userId);
     expect(userCards3.length).toBe(4);
     for (const uc of userCards3) {
-      await cardsService.learnUserCard(userId, uc.id, LrnStatus.easy);
+      await cardsService.learnUserCard(userId, uc.id, true);
     }
 
-    const userCards4 = await cardsService.getUserCards(userId);
-    expect(userCards4.length).toBe(0);
-
-    await sleep(testIntervalArray.mediumArray[0]);
-
+    await utils.sleep(intervalArray[0]);
     const userCards5 = await cardsService.getUserCards(userId);
     expect(userCards5.length).toBe(1);
     expect(userCards5[0].id).toBe(uc1);
@@ -531,7 +511,7 @@ describe("CardsService", () => {
     const userCards6 = await cardsService.getUserCards(userId);
     expect(userCards6.length).toBe(0);
 
-    await sleep(testIntervalArray.easyArray[0]);
+    await utils.sleep(intervalArray[1]);
     const userCards7 = await cardsService.getUserCards(userId);
     expect(userCards7.length).toBe(4);
 
@@ -633,177 +613,5 @@ describe("filterByCardId", () => {
     ] as IUserCard[];
     const filtered3 = filterByCardId(cards3, userCards3);
     expect(filtered3.length).toBe(3);
-  });
-});
-
-describe("calcShowAfter", () => {
-  const precision = -1;
-  const TIA = testIntervalArray;
-  it("streak 0", () => {
-    const dateNow = Date.now();
-    const hardResult1 = calcShowAfter(LrnStatus.hard, []);
-    expect(hardResult1).toBeCloseTo(dateNow + TIA.hardArray[0], precision);
-    const hardResult2 = calcShowAfter(LrnStatus.hard, [
-      { date: 1, status: LrnStatus.easy },
-    ]);
-    expect(hardResult2).toBeCloseTo(dateNow + TIA.hardArray[0], precision);
-
-    const mediumResult1 = calcShowAfter(LrnStatus.medium, []);
-    expect(mediumResult1).toBeCloseTo(dateNow + TIA.mediumArray[0], precision);
-    const mediumResult2 = calcShowAfter(LrnStatus.medium, [
-      { date: 1, status: LrnStatus.medium },
-      { date: 2, status: LrnStatus.hard },
-    ]);
-    expect(mediumResult2).toBeCloseTo(dateNow + TIA.mediumArray[0], precision);
-
-    const easyResult1 = calcShowAfter(LrnStatus.easy, []);
-    expect(easyResult1).toBeCloseTo(dateNow + TIA.easyArray[0], precision);
-    const easyResult2 = calcShowAfter(LrnStatus.easy, [
-      { date: 1, status: LrnStatus.easy },
-      { date: 2, status: LrnStatus.easy },
-      { date: 3, status: LrnStatus.medium },
-    ]);
-    expect(easyResult2).toBeCloseTo(dateNow + TIA.easyArray[0], precision);
-  });
-  it("streak 1", () => {
-    const dateNow = Date.now();
-    const hardResult = calcShowAfter(LrnStatus.hard, [
-      { date: 1, status: LrnStatus.hard },
-    ]);
-    expect(hardResult).toBeCloseTo(dateNow + TIA.hardArray[0], precision); // out of bounds
-    // кривовато сделано, можно было лучше: в цикле, hardArray.at(-1) и тд
-
-    const mediumResult = calcShowAfter(LrnStatus.medium, [
-      { date: 1, status: LrnStatus.hard },
-      { date: 2, status: LrnStatus.medium },
-    ]);
-    expect(mediumResult).toBeCloseTo(dateNow + TIA.mediumArray[1], precision);
-
-    const easyResult = calcShowAfter(LrnStatus.easy, [
-      { date: 1, status: LrnStatus.easy },
-      { date: 2, status: LrnStatus.medium },
-      { date: 3, status: LrnStatus.easy },
-    ]);
-    expect(easyResult).toBeCloseTo(dateNow + TIA.easyArray[1], precision);
-  });
-  it("streak 2", () => {
-    const dateNow = Date.now();
-    const hardResult = calcShowAfter(LrnStatus.hard, [
-      { date: 1, status: LrnStatus.hard },
-      { date: 2, status: LrnStatus.hard },
-    ]);
-    expect(hardResult).toBeCloseTo(dateNow + TIA.hardArray[0], precision); // out of bounds
-
-    const mediumResult = calcShowAfter(LrnStatus.medium, [
-      { date: 1, status: LrnStatus.medium },
-      { date: 2, status: LrnStatus.medium },
-    ]);
-    expect(mediumResult).toBeCloseTo(dateNow + TIA.mediumArray[1], precision); // out of bounds
-
-    const easyResult = calcShowAfter(LrnStatus.easy, [
-      { date: 1, status: LrnStatus.medium },
-      { date: 2, status: LrnStatus.easy },
-      { date: 3, status: LrnStatus.easy },
-    ]);
-    expect(easyResult).toBeCloseTo(dateNow + TIA.easyArray[2], precision);
-  });
-  it("streak 3", () => {
-    const dateNow = Date.now();
-    const hardResult = calcShowAfter(LrnStatus.hard, [
-      { date: 1, status: LrnStatus.hard },
-      { date: 2, status: LrnStatus.hard },
-      { date: 3, status: LrnStatus.hard },
-    ]);
-    expect(hardResult).toBeCloseTo(dateNow + TIA.hardArray[0], precision); // out of bounds
-
-    const mediumResult = calcShowAfter(LrnStatus.medium, [
-      { date: 1, status: LrnStatus.medium },
-      { date: 2, status: LrnStatus.medium },
-      { date: 3, status: LrnStatus.medium },
-    ]);
-    expect(mediumResult).toBeCloseTo(dateNow + TIA.mediumArray[1], precision); // out of bounds
-
-    const easyResult = calcShowAfter(LrnStatus.easy, [
-      { date: 1, status: LrnStatus.easy },
-      { date: 2, status: LrnStatus.medium },
-      { date: 3, status: LrnStatus.easy },
-      { date: 4, status: LrnStatus.easy },
-      { date: 5, status: LrnStatus.easy },
-    ]);
-    expect(easyResult).toBeCloseTo(dateNow + TIA.easyArray[3], precision);
-  });
-});
-
-describe("getIntervalArray", () => {
-  it("hard", () => {
-    const arr = getIntervalArray(LrnStatus.hard);
-    expect(arr).toEqual(testIntervalArray.hardArray);
-  });
-  it("medium", () => {
-    const arr = getIntervalArray(LrnStatus.medium);
-    expect(arr).toEqual(testIntervalArray.mediumArray);
-  });
-  it("easy", () => {
-    const arr = getIntervalArray(LrnStatus.easy);
-    expect(arr).toEqual(testIntervalArray.easyArray);
-  });
-});
-
-describe("getStreak", () => {
-  const arr: HistoryType[] = [
-    { date: 1, status: LrnStatus.easy },
-    { date: 2, status: LrnStatus.easy },
-    { date: 3, status: LrnStatus.easy },
-    { date: 4, status: LrnStatus.easy },
-    { date: 5, status: LrnStatus.easy },
-    { date: 6, status: LrnStatus.medium },
-  ];
-  const arr0: HistoryType[] = [{ date: 1, status: LrnStatus.medium }];
-  const arr1: HistoryType[] = [
-    { date: 1, status: LrnStatus.easy },
-    { date: 2, status: LrnStatus.easy },
-    { date: 3, status: LrnStatus.easy },
-  ];
-  const arr2: HistoryType[] = [
-    { date: 1, status: LrnStatus.easy },
-    { date: 2, status: LrnStatus.medium },
-    { date: 3, status: LrnStatus.easy },
-    { date: 4, status: LrnStatus.easy },
-  ];
-  const arr3: HistoryType[] = [
-    { date: 1, status: LrnStatus.easy },
-    { date: 2, status: LrnStatus.easy },
-    { date: 3, status: LrnStatus.medium },
-    { date: 4, status: LrnStatus.hard },
-    { date: 5, status: LrnStatus.easy },
-  ];
-  const arr4: HistoryType[] = [{ date: 1, status: LrnStatus.easy }];
-  it("should not mutate array", () => {
-    const before = Array.from(arr1);
-    const streak = getStreak(LrnStatus.easy, arr1);
-    const after = Array.from(arr1);
-    expect(before).toEqual(after);
-  });
-  it("should return 0", () => {
-    const streak1 = getStreak(LrnStatus.easy, []);
-    expect(streak1).toBe(0);
-    const streak2 = getStreak(LrnStatus.easy, arr);
-    expect(streak2).toBe(0);
-    const streak3 = getStreak(LrnStatus.easy, arr0);
-    expect(streak3).toBe(0);
-  });
-  it("should return 3", () => {
-    const streak = getStreak(LrnStatus.easy, arr1);
-    expect(streak).toBe(3);
-  });
-  it("should return 2", () => {
-    const streak = getStreak(LrnStatus.easy, arr2);
-    expect(streak).toBe(2);
-  });
-  it("should return 1", () => {
-    const streak1 = getStreak(LrnStatus.easy, arr3);
-    expect(streak1).toBe(1);
-    const streak2 = getStreak(LrnStatus.easy, arr4);
-    expect(streak2).toBe(1);
   });
 });

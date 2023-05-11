@@ -5,13 +5,11 @@ import { DeckDTO, UserDeckDTO } from "../decks/decks.util";
 import {
   CardDTO,
   CardsSettingsDTO,
-  HistoryType,
+  HOUR,
   LrnDelType,
-  LrnStatus,
   UpdateType,
   UserCardDTO,
   filterByCardId,
-  intervalArray,
   slice,
 } from "./cards.util";
 import {
@@ -30,6 +28,22 @@ import {
   UserCardModel,
 } from "./models/userCards.model";
 
+export const DAY = HOUR() * 24;
+export const intervalArray = [HOUR(), DAY, DAY * 5, DAY * 15, DAY * 45];
+
+export function calcShowAfter(status: boolean, streak: number): number {
+  // UNTESTED
+  let result = Date.now();
+
+  if (!status) {
+    result += HOUR();
+  } else {
+    result += intervalArray[streak] || DAY * 999;
+  }
+
+  return result;
+}
+
 export class CardsService {
   async getUserCards(userId: string): Promise<UserCardDTO[]> {
     let result: IUserCard[] = [];
@@ -40,11 +54,6 @@ export class CardsService {
     }
 
     const settings = await this.findCardsSettings(userId);
-    // if (settings.dynamicHighPriority) {
-    //   result = await this.getUserCardsFromDynamicUserDeck(userId);
-    //   if (result.length !== 0) return this.userCardToDTO(result); // dynamic deck
-    // }
-
     if (settings.showLearned) {
       result = await this.getLearnedUserCards(userId);
       if (result.length !== 0) {
@@ -95,20 +104,23 @@ export class CardsService {
   async learnUserCard(
     userId: string,
     userCardId: string,
-    status: LrnStatus
+    status: boolean
   ): Promise<LrnDelType> {
     const userCard = await this.findOneIUserCard(userId, userCardId);
-    const prevHistoryLen = Number(userCard.history.length);
+    const prevStreak: number = userCard.streak;
     if (Date.now() < userCard.showAfter) {
       throw new Error("This userCard cannot be learned now");
     }
-    const newShowAfter = calcShowAfter(status, userCard.history);
-    userCard.showAfter = newShowAfter;
-    userCard.history.push({ status, date: Date.now() });
+
+    if (!status) userCard.streak = 1;
+    else userCard.streak++;
+
+    userCard.showAfter = calcShowAfter(status, userCard.streak);
     await userCard.save();
 
+    // очень спорно
     let userDeck: LrnDelType["userDeck"];
-    if (prevHistoryLen === 0) {
+    if (prevStreak === 0) {
       userDeck = await decksService.incrementCardsLearned(
         userId,
         String(userCard.userDeck)
@@ -133,9 +145,8 @@ export class CardsService {
       user: userId,
       deleted: false,
     });
-    return userCards.filter((uc) => uc.history.length === 0);
+    return userCards.filter((uc) => uc.streak === 0);
   }
-
   private async getLearnedUserCards(userId: string): Promise<IUserCard[]> {
     const dateNow = Date.now();
     const userCards = await this.findIUserCards({
@@ -262,44 +273,6 @@ export class CardsService {
     const cards = await this.findICards(deckId);
     return cards.map(this.cardToDTO);
   }
-}
-
-export function calcShowAfter(
-  status: LrnStatus,
-  history: HistoryType[]
-): number {
-  let newShowAfter = Date.now();
-  const intervalsArray = getIntervalArray(status);
-  if (intervalsArray.length == 0) throw new Error("Array cannot be empty"); // FIXME ???
-
-  let streak = getStreak(status, history);
-  if (streak >= intervalsArray.length) {
-    streak = intervalsArray.length - 1;
-  }
-  newShowAfter += intervalsArray[streak] || 0;
-  return newShowAfter;
-}
-export function getIntervalArray(status: LrnStatus) {
-  switch (status) {
-    case LrnStatus.easy:
-      return intervalArray.easyArray;
-    case LrnStatus.medium:
-      return intervalArray.mediumArray;
-    case LrnStatus.hard:
-      return intervalArray.hardArray;
-    default:
-      throw new Error("Invalid status");
-  }
-}
-export function getStreak(status: LrnStatus, history: HistoryType[]) {
-  let result = 0;
-  let tempHistory = Array.from(history);
-  tempHistory.reverse();
-  for (let el of tempHistory) {
-    if (el.status != status) break;
-    result += 1;
-  }
-  return result;
 }
 
 export const cardsService = new CardsService();

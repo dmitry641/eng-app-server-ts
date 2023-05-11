@@ -9,7 +9,6 @@ import helmet from "helmet";
 import morgan from "morgan";
 import { QuizDB } from "./components/quiz/quiz.service";
 import { connectToDB } from "./db";
-import { deleteMe } from "./deleteme";
 import NotFound from "./exceptions/NotFound";
 import errorMiddleware from "./middleware/error";
 import apiRouter from "./routes";
@@ -42,7 +41,7 @@ async function start() {
     console.log("Connected to database.");
     await QuizDB.saturate();
 
-    await deleteMe();
+    // await deleteMe();
     app.listen(PORT, () =>
       console.log(`Server is running at localhost:${PORT}`)
     );

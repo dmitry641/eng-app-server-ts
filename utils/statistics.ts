@@ -1,7 +1,10 @@
+import { SchemaTimestampsConfig } from "mongoose";
 import { UserCardModel } from "../components/cards/models/userCards.model";
 import { UserTopicModel } from "../components/quiz/models/userTopics.model";
+import { LearnedQuestion } from "../components/quiz/quiz.util";
 
 const DAY_MS = 1000 * 3600 * 24;
+export const DEFAULT_DAYS_COUNT = 7;
 export type AvailableModules = "quiz" | "flashcards";
 interface StatsByModule {
   moduleName: AvailableModules;
@@ -15,7 +18,7 @@ interface Stats {
 
 export class Statistics {
   private modules: AvailableModules[] = ["quiz", "flashcards"];
-  private daysCount: number = 7;
+  private daysCount: number = DEFAULT_DAYS_COUNT || 1;
   private userId: string;
   constructor(userId: string) {
     this.userId = userId;
@@ -73,7 +76,10 @@ class QuizModule implements Module {
   moduleName: AvailableModules = "quiz";
   async getStats({ daysCount, userId }: GetStatsAttr): Promise<StatsByModule> {
     const userTopics = await UserTopicModel.find({ user: userId });
-    const allLrndQstns = userTopics.map((ut) => ut.learnedQuestions).flat();
+    const allLrndQstns: LearnedQuestion[] = userTopics
+      .map((ut) => ut.learnedQuestions)
+      .flat();
+
     const stats = calcStats(daysCount, allLrndQstns);
     return { moduleName: this.moduleName, stats };
   }
@@ -81,40 +87,32 @@ class QuizModule implements Module {
 class FlashcardsModule implements Module {
   moduleName: AvailableModules = "flashcards";
   async getStats({ daysCount, userId }: GetStatsAttr): Promise<StatsByModule> {
-    const userCards = await UserCardModel.find({ user: userId });
-    const allHistory = userCards.map((uc) => uc.history).flat();
-    const stats = calcStats(daysCount, allHistory);
+    const userCards = await UserCardModel.find({
+      user: userId,
+      deleted: false,
+    });
+    const stats = calcStats(daysCount, userCards);
     return { moduleName: this.moduleName, stats };
   }
 }
 
-type DayType = { date: number; count: number };
-function initDays(daysCount: number): DayType[] {
-  const today = new Date().setHours(10, 0, 0, 0);
-  const days = [{ date: today, count: 0 }];
-  for (let i = 1; i <= daysCount; i++) {
-    let day = today - DAY_MS * i;
-    days.push({ date: day, count: 0 });
-  }
-  return days;
-}
+function calcStats<
+  T extends { updatedAt?: SchemaTimestampsConfig["updatedAt"] }
+>(daysCount: number, array: T[]): Stats {
+  const todayDate = new Date(new Date().setUTCHours(0, 0, 0, 0));
+  const boundary = todayDate.getTime() - (daysCount - 1) * DAY_MS;
 
-function calcStats<T extends { date: number }>(
-  daysCount: number,
-  array: T[]
-): Stats {
-  const days: DayType[] = initDays(daysCount);
-  const total = array.length;
+  let todayCount = 0;
+  let filteredCount = 0;
 
-  for (let elem of array) {
-    let date = new Date(elem.date).setHours(10, 0, 0, 0);
-    let day = days.find((d) => d.date === date);
-    if (day) day.count += 1;
-  }
+  array.forEach((elem) => {
+    if (elem.updatedAt) {
+      const updatedAt = new Date(elem.updatedAt as string);
+      if (todayDate.toDateString() === updatedAt.toDateString()) todayCount++;
+      if (updatedAt.getTime() > boundary) filteredCount++;
+    }
+  });
 
-  const today = days.shift()?.count || 0;
-  const sum = days.reduce((sum, day) => sum + day.count, 0);
-  const average = Math.floor(sum / daysCount);
-
-  return { average, today, total };
+  const average = Math.floor(filteredCount / daysCount) || 0;
+  return { today: todayCount, total: array.length, average };
 }

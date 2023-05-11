@@ -3,10 +3,10 @@ import { IUser } from "./users.model";
 
 export interface UserSettingsInput {
   user: IUser["_id"];
-  darkMode: boolean;
+  darkMode?: boolean;
 }
 
-export interface IUserSettings extends UserSettingsInput, Document {}
+export interface IUserSettings extends Required<UserSettingsInput>, Document {}
 
 const UserSettingsSchema: Schema = new Schema(
   {

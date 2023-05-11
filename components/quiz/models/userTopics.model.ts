@@ -17,6 +17,18 @@ export interface IUserTopic extends UserTopicInput, DocumentWithTimestamps {
   learnedQuestions: Array<LearnedQuestion>;
 }
 
+const learnedQuestionSchema = new Schema(
+  {
+    qId: {
+      type: Schema.Types.ObjectId,
+      ref: "Question",
+      required: true,
+    },
+    date: { type: Number, required: true },
+  },
+  { timestamps: true }
+);
+
 const UserTopicSchema: Schema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
@@ -29,16 +41,7 @@ const UserTopicSchema: Schema = new Schema(
     },
     totalQuestionCount: { type: Number, required: true },
     questionsInRow: { type: Number, default: 0, required: true },
-    learnedQuestions: [
-      {
-        qId: {
-          type: Schema.Types.ObjectId,
-          ref: "Question",
-          required: true,
-        },
-        date: { type: Number, required: true },
-      },
-    ],
+    learnedQuestions: [learnedQuestionSchema],
   },
   { timestamps: true }
 );

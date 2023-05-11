@@ -1,7 +1,6 @@
-import { Document, model, Schema } from "mongoose";
+import { Document, model, Schema, SchemaTimestampsConfig } from "mongoose";
 import { IUserDeck } from "../../decks/models/userDecks.model";
 import { IUser } from "../../users/models/users.model";
-import { HistoryType, LrnStatus } from "../cards.util";
 import { ICard } from "./cards.model";
 
 export interface UserCardInput {
@@ -10,8 +9,11 @@ export interface UserCardInput {
   userDeck: IUserDeck["_id"];
 }
 
-export interface IUserCard extends UserCardInput, Document {
-  history: HistoryType[];
+export interface IUserCard
+  extends UserCardInput,
+    Document,
+    Required<SchemaTimestampsConfig> {
+  streak: number;
   deleted: boolean;
   favorite: boolean;
   showAfter: number;
@@ -25,12 +27,7 @@ const UserCardSchema: Schema = new Schema(
     deleted: { type: Boolean, default: false, required: true },
     favorite: { type: Boolean, default: false, required: true },
     showAfter: { type: Number, default: () => Date.now(), required: true },
-    history: [
-      {
-        status: { type: String, enum: LrnStatus, required: true },
-        date: { type: Number, required: true },
-      },
-    ],
+    streak: { type: Number, default: 0, required: true },
   },
   { timestamps: true }
 );
