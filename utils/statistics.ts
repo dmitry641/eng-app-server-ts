@@ -90,6 +90,7 @@ class FlashcardsModule implements Module {
     const userCards = await UserCardModel.find({
       user: userId,
       deleted: false,
+      streak: { $ne: 0 },
     });
     const stats = calcStats(daysCount, userCards);
     return { moduleName: this.moduleName, stats };
